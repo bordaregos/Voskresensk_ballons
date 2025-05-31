@@ -1,8 +1,6 @@
 from docxtpl import DocxTemplate
-import random
-
-# Загружаем шаблон
-doc = DocxTemplate("Баллоны_Шаблон.docx")
+from funcs import ballon_generator
+import csv
 
 # Ввод данных о секции
 place = input('Введите название участка: ')
@@ -15,29 +13,7 @@ kolvo = int(input('Введите количество баллонов в се�
 # Ввод заводских номеров баллонов.
 ballony_zav_lst = [input(f'Введите зав.№ баллона {amount + 1}: ') for amount in range(kolvo)]
 
-# Список для сбора данных по баллонам.
-ballony = []
-
-for i in range(kolvo):
-    print(f'\nВвод данных для баллона №{ballony_zav_lst[i]}:')
-    # Собираем мин толщину и макс толщину и генерим необходимое кол - во замеров.
-    s_min = float(input('Введите минимальную толщину: '))
-    s_max = float(input('Введите максимальную толщину: '))
-    tolshiny = {f's{i + 1}': str(round(random.uniform(s_min, s_max), 2)) for i in range(24)}
-
-    balloon_data = {
-        "n": f'{i + 1}',
-        "zav": ballony_zav_lst[i],
-        "p_rab": "400",
-        "v": input('Объем (V), м3: '),
-        "massa": input('Масса, кг: '),
-        "g_i": input('Дата изготовления (Г.и.): '),
-        "s_min": f'{s_min}'
-    }
-    # Объединяем словари данных и толщин по баллону.
-    balloon_data = balloon_data | tolshiny
-    # Закидываем безобразие сие в список данных баллонов.
-    ballony.append(balloon_data)
+ballony, ballony_data_csv = ballon_generator(kolvo, ballony_zav_lst)
 
 # Формируем контекст для шаблона.
 context = {
@@ -50,9 +26,21 @@ context = {
     "ballony": ballony
 }
 
+columns = ['n', 'zav', 'p_rab', 'v', 'massa', 'g_i', 's_min']
+
+with open(f"Баллоны_Csv/Баллоны_секция_рег№-{reg_sec}.csv", "w", newline="", encoding="utf-8") as file:
+    writer = csv.DictWriter(file, fieldnames=columns, delimiter=';', quoting=csv.QUOTE_NONNUMERIC)
+    writer.writeheader()
+    for row in ballony_data_csv:
+        writer.writerow(row)
+
+# Загружаем шаблон
+doc = DocxTemplate("Баллоны_Шаблон.docx")
 # Заполняем шаблон и сохраняем результат
 doc.render(context)
 # Сохраняем по регу секции.
-doc.save(f"Баллоны_секция_рег№-{reg_sec}.docx")
+doc.save(f"Баллоны_Word/Баллоны_секция_рег№-{reg_sec}.docx")
 
 print(f"\nДокумент успешно сформирован и сохранен как 'Баллоны_секция_рег№-{reg_sec}.docx'")
+print(f"\nДокумент успешно сформирован и сохранен как 'Баллоны_секция_рег№-{reg_sec}.csv'")
+
