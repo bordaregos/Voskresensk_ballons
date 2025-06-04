@@ -9,6 +9,7 @@ MONTH_NAMES = {
 }
 
 
+# Функция форматирования даты.
 def format_russian_date(date_str):
     try:
         day, month, year = map(int, date_str.split('.'))
@@ -17,6 +18,7 @@ def format_russian_date(date_str):
         return None
 
 
+# Функция - генератор значения для баллонов.
 def ballon_generator(kolvo, ballony_zav_lst, g_i):
     """Функция - генератор данных по баллонам"""
 
@@ -32,6 +34,7 @@ def ballon_generator(kolvo, ballony_zav_lst, g_i):
         s_max = float(input('Введите максимальную толщину: '))
         g_i_bal = g_i[i]
 
+        # Генератор толщин.
         tolshiny = {f's{i + 1}': round(random.uniform(s_min, s_max), 1) for i in range(20)}
 
         # Находим мимальное значение в словаре.
@@ -46,6 +49,7 @@ def ballon_generator(kolvo, ballony_zav_lst, g_i):
 
         s_min_total_lst.append(s_min)
 
+        # Подготовка словаря для вывода в шаблон.
         balloon_data = {
             # "n": f'{i + 1}',
             "zav": ballony_zav_lst[i],
@@ -65,6 +69,7 @@ def ballon_generator(kolvo, ballony_zav_lst, g_i):
     return ballony, ballony_data_csv, s_min_total_lst
 
 
+# Функция рассчёта овальности.
 def ovalnost(ballony_lst, dmin, dmax):
     """не доделал..."""
 
@@ -98,5 +103,6 @@ def ovalnost(ballony_lst, dmin, dmax):
     return bal_oval
 
 
+# Функция расчёта твёрдости.
 def tverdost():
     pass

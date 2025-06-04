@@ -3,6 +3,7 @@ from funcs import ballon_generator, format_russian_date, ovalnost
 import csv
 import locale
 
+# Русская локализация даты.
 locale.setlocale(locale.LC_TIME, 'russian')
 
 # Ввод данных о секции
@@ -19,6 +20,7 @@ d_min = int(input('Введите минимальный диаметр: '))
 d_max = int(input('Введите максимальный диаметр: '))
 control_date = input('Введите дату контроля (в формате ДД.ММ.ГГГГ): ')
 
+# Забираем из функции отформатированную дату.
 formatted_date = format_russian_date(control_date)
 
 # Ввод заводских номеров баллонов.
@@ -28,6 +30,7 @@ ballony_zav_lst = [input(f'Введите зав.№ баллона {amount + 1}
 g_i = [int(input(f'Введите г.и. баллона {amount + 1}: ')) for amount in range(kolvo)]
 g_i_min, g_i_max = min(g_i), max(g_i)
 
+# Готовим данные по овальности для шаблона.
 bal_oval = ovalnost(ballony_zav_lst, d_min, d_max)
 
 # Вытаскиваем данные для csv.
@@ -70,6 +73,7 @@ renamed_columns = {
     's_min': 'Sмин'
 }
 
+# Сохраняем документ в csv.
 with open(f"Баллоны_Csv/Баллоны_секция_рег№-{reg_sec}.csv", "w", newline="", encoding="utf-8-sig") as file:
     writer = csv.DictWriter(file, fieldnames=renamed_columns.values(), delimiter=';', quoting=csv.QUOTE_NONNUMERIC)
     writer.writeheader()
