@@ -1,43 +1,75 @@
+import sys
+from PyQt6 import QtWidgets, uic
+from PyQt6.QtWidgets import QVBoxLayout, QWidget, QLabel
 import random
 
 
-def ovalnost(ballony_lst, dmin, dmax):
-    """не доделал..."""
+class MainWindow(QtWidgets.QMainWindow):
+    def __init__(self):
+        super().__init__()
+        uic.loadUi("tolshiny_interface.ui", self)
 
-    # Проверка на одинаковые значения.
-    if dmin == dmax:
-        return 0.0
+        self.pushButton.clicked.connect(self.calculate)
+        self.spinBox_amount.setValue(1)
+        self.sMin.setPlainText("0")
+        self.sMin_2.setPlainText("100")
 
-    bal_oval = []
+        # Создаём контейнер для динамических полей
+        self.scroll_content = QWidget()
+        self.scroll_layout = QVBoxLayout(self.scroll_content)
 
-    for zav in ballony_lst:
-        bal_oval_dict = {
-            "z_n": zav
-        }
-        for i in range(3):
-            while True:
-                d_min_rand = random.uniform(dmin, dmax)
-                d_max_rand = random.uniform(dmin, dmax)
-                if d_max_rand >= d_min_rand:
-                    break
+        # Добавляем контейнер в QGroupBox
+        self.groupBox.layout().addWidget(self.scroll_content)
 
-            oval = round(((2 * (d_max_rand - d_min_rand)) / (d_max_rand + d_min_rand)) * 100, 3)
+        # Список для хранения динамически созданных полей
+        self.result_fields = []
 
-            bal_oval_dict.update({
-                f"d_max_rand{i}": f'{d_max_rand}',
-                f"d_min_rand{i}": f'{d_min_rand}',
-                f"oval{i}": f'{oval}'
-            })
+    def calculate(self):
+        try:
+            amount = self.spinBox_amount.value()
+            s_min = float(self.sMin.toPlainText().replace(',', '.'))
+            s_max = float(self.sMin_2.toPlainText().replace(',', '.'))
 
-        bal_oval.append(bal_oval_dict)
+            if s_min >= s_max:
+                raise ValueError("Smin должно быть меньше Smax")
 
-    return bal_oval
+            # Очищаем предыдущие поля
+            for field in self.result_fields:
+                field.deleteLater()
+            self.result_fields.clear()
+
+            # Создаём новые поля
+            for i in range(amount):
+                text_edit = QtWidgets.QTextEdit()
+                text_edit.setReadOnly(True)
+                text_edit.setMinimumHeight(80)
+
+                # Генерация 20 случайных чисел
+                numbers = [round(random.uniform(s_min, s_max), 1) for _ in range(20)]
+                formatted = [str(num).replace('.', ',') for num in numbers]
+                text_edit.setPlainText("; ".join(formatted))
+
+                self.scroll_layout.addWidget(QLabel(f"Результат {i + 1}:"))
+                self.scroll_layout.addWidget(text_edit)
+                self.result_fields.append(text_edit)
+
+            # Настраиваем прокрутку если полей больше 4
+            if amount > 4:
+                self.scroll_content.setMinimumHeight(200 * min(4, amount))
+                self.verticalScrollBar.setVisible(True)
+                self.scroll_area = QtWidgets.QScrollArea()
+                self.scroll_area.setWidget(self.scroll_content)
+                self.scroll_area.setWidgetResizable(True)
+                self.groupBox.layout().addWidget(self.scroll_area)
+            else:
+                self.verticalScrollBar.setVisible(False)
+
+        except ValueError as e:
+            QtWidgets.QMessageBox.warning(self, "Ошибка", str(e))
 
 
-kolvo = int(input('Введите количество баллонов в секции: '))
-d_min = int(input('Введите минимальный диаметр: '))
-d_max = int(input('Введите максимальный диаметр: '))
-
-ballony_zav_lst = [input(f'Введите зав.№ баллона {amount + 1}: ') for amount in range(kolvo)]
-
-print(*ovalnost(ballony_zav_lst, d_min, d_max), sep='\n')
+if __name__ == "__main__":
+    app = QtWidgets.QApplication(sys.argv)
+    window = MainWindow()
+    window.show()
+    sys.exit(app.exec())
