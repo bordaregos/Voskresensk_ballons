@@ -1217,7 +1217,7 @@
        </property>
       </item>
      </widget>
-     <widget class="QWidget" name="">
+     <widget class="QWidget" name="layoutWidget">
       <property name="geometry">
        <rect>
         <x>120</x>
@@ -1531,7 +1531,7 @@
      <attribute name="title">
       <string>Расчёты</string>
      </attribute>
-     <widget class="QWidget" name="">
+     <widget class="QWidget" name="layoutWidget">
       <property name="geometry">
        <rect>
         <x>10</x>
@@ -1616,7 +1616,7 @@
        </item>
       </layout>
      </widget>
-     <widget class="QWidget" name="">
+     <widget class="QWidget" name="layoutWidget">
       <property name="geometry">
        <rect>
         <x>270</x>
@@ -2171,7 +2171,7 @@
        </item>
       </layout>
      </widget>
-     <widget class="QWidget" name="">
+     <widget class="QWidget" name="layoutWidget">
       <property name="geometry">
        <rect>
         <x>10</x>
@@ -2413,6 +2413,32 @@
         </widget>
        </item>
       </layout>
+     </widget>
+     <widget class="QPushButton" name="pushButt_ovalnost">
+      <property name="geometry">
+       <rect>
+        <x>270</x>
+        <y>400</y>
+        <width>100</width>
+        <height>26</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Расчитать овальность</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButt_tverdost">
+      <property name="geometry">
+       <rect>
+        <x>400</x>
+        <y>400</y>
+        <width>100</width>
+        <height>26</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Расчитать твёрдость</string>
+      </property>
      </widget>
     </widget>
    </widget>

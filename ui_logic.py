@@ -25,7 +25,8 @@ class MainWindow(QMainWindow):
 
     BUTTON_NAMES = [
         "pushButt_generateWord", "pushButt_generateCSV",
-        "pushButt_amount", "pushButt_sMinMin", "pushButton_creatThickness"
+        "pushButt_amount", "pushButt_sMinMin", "pushButton_creatThickness",
+        "pushButt_ovalnost", "pushButt_tverdost"
     ]
 
     SPIN_BOX_NAMES = [
@@ -40,8 +41,10 @@ class MainWindow(QMainWindow):
         """Инициализация конструктора класса. Пишем все атрибуты,
         что пригодятся нам по коду."""
         super().__init__()
+        self.amount = None
         self.text = None
         self.s_min_lst = None
+        self.data = {}
         loadUi("zakl_interface_v5-1_test.ui", self)
 
         # Автоматическая инициализация виджетов
@@ -53,6 +56,8 @@ class MainWindow(QMainWindow):
         self.pushButt_amount.clicked.connect(self.fill_table)
         self.pushButt_sMinMin.clicked.connect(self.s_min_min_calc)
         self.pushButton_creatThickness.clicked.connect(self.calc_thick)
+        self.pushButt_ovalnost.clicked.connect(self.ovalnost_calc)
+        self.pushButt_tverdost.clicked.connect(self.tverdost)
 
     def init_widgets(self):
         """Автоматически инициализирует все виджеты из UI"""
@@ -86,19 +91,19 @@ class MainWindow(QMainWindow):
 
     def get_form_data(self) -> Dict[str, Union[str, float]]:
         """Возвращает все данные формы в виде словаря"""
-        data = {}
+        # self.data = {}
 
         # Получаем текст из всех QPlainTextEdit
         for name in self.PLAIN_TEXT_EDIT_NAMES:
             widget = getattr(self, name)
-            data[name] = widget.toPlainText()
+            self.data[name] = widget.toPlainText()
 
         # Получаем текущий текст из QComboBox
         for name in self.COMBO_BOX_NAMES:
             widget = getattr(self, name)
-            data[name] = widget.currentText()
+            self.data[name] = widget.currentText()
 
-        return data
+        return self.data
 
     def calculate(self):
         """Обработчик нажатия кнопки генерации Word"""
@@ -115,16 +120,16 @@ class MainWindow(QMainWindow):
     def fill_table(self):
         """Заполнение таблицы баллонов. Заполняется 1й столбец!!!"""
         self.text = (self.zav_nums.toPlainText()).split(', ')
-        amount = self.amount.value()
+        self.amount = self.amount.value()
         table = self.table_ballons
-        if len(self.text) == amount:
-            table.setRowCount(amount)
+        if len(self.text) == self.amount:
+            table.setRowCount(self.amount)
             for row, zav_num in enumerate(self.text):
                 item = QTableWidgetItem(zav_num)
                 table.setItem(row, 0, item)
 
         else:
-            print(f"Кол-во баллонов {amount} не совпадает с введёными зав. №№ {len(self.text)}")
+            print(f"Кол-во баллонов {self.amount} не совпадает с введёными зав. №№ {len(self.text)}")
 
     def s_min_min_calc(self):
         """Вычисляет минимальное значение из второго столбца и выводит в QPlainTextEdit"""
@@ -200,6 +205,37 @@ class MainWindow(QMainWindow):
                     print(f"Пропуск нечислового значения в строке {row}")
                     continue
         print(s_max_lst)
+
+    def ovalnost_calc(self):
+
+        for i in range(3):
+            while True:
+                d_min_rand = random.randint(465, 466)
+                d_max_rand = random.randint(465, 466)
+                if d_max_rand >= d_min_rand:
+                    break
+
+            oval = round(((2 * (d_max_rand - d_min_rand)) / (d_max_rand + d_min_rand)) * 100, 3)
+
+            self.data.update({
+                f"d1_{i}": f'{d_max_rand}',
+                f"d2_{i}": f'{d_min_rand}',
+                f"oval{i}": f'{oval}'
+            })
+
+    def tverdost(self):
+        """Расчёт твёрдости."""
+        rm = 930
+        # re = 780
+        hb_max = round(2.7 * (rm / 10) + 20, 0)
+        hb_min = round(2.7 * (rm / 10), 0)
+        for zavs in range(self.amount):
+            for tverd in range(20):
+                result = round(hb_min * 15 + hb_max, 0)
+
+                self.data.update({
+                    f"b{zavs}-{tverd}": f'{result}',
+                })
 
 
 if __name__ == "__main__":
