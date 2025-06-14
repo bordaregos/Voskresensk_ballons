@@ -36,7 +36,7 @@
      </sizepolicy>
     </property>
     <property name="currentIndex">
-     <number>2</number>
+     <number>1</number>
     </property>
     <widget class="QWidget" name="general_info">
      <attribute name="title">
@@ -624,7 +624,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string/>
+          <string>48</string>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
@@ -760,7 +760,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string/>
+          <string>28</string>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
@@ -1421,7 +1421,7 @@
        <rect>
         <x>10</x>
         <y>40</y>
-        <width>541</width>
+        <width>431</width>
         <height>324</height>
        </rect>
       </property>
@@ -1462,7 +1462,7 @@
        <number>1</number>
       </property>
       <property name="columnCount">
-       <number>5</number>
+       <number>4</number>
       </property>
       <row/>
       <column>
@@ -1477,11 +1477,6 @@
       </column>
       <column>
        <property name="text">
-        <string>Smax</string>
-       </property>
-      </column>
-      <column>
-       <property name="text">
         <string>Г.и.</string>
        </property>
       </column>
@@ -1491,40 +1486,62 @@
        </property>
       </column>
      </widget>
-     <widget class="QPushButton" name="pushButt_sMinMin">
+     <widget class="QWidget" name="">
       <property name="geometry">
        <rect>
-        <x>400</x>
-        <y>10</y>
-        <width>100</width>
-        <height>26</height>
+        <x>250</x>
+        <y>3</y>
+        <width>189</width>
+        <height>32</height>
        </rect>
       </property>
-      <property name="text">
-       <string>Smin-min</string>
-      </property>
-     </widget>
-     <widget class="QPlainTextEdit" name="s_min_total">
-      <property name="geometry">
-       <rect>
-        <x>510</x>
-        <y>5</y>
-        <width>50</width>
-        <height>30</height>
-       </rect>
-      </property>
-      <property name="minimumSize">
-       <size>
-        <width>50</width>
-        <height>30</height>
-       </size>
-      </property>
-      <property name="maximumSize">
-       <size>
-        <width>50</width>
-        <height>30</height>
-       </size>
-      </property>
+      <layout class="QHBoxLayout" name="horizontalLayout_2">
+       <item>
+        <widget class="QPushButton" name="pushButt_sMinMin">
+         <property name="text">
+          <string>Smin-min</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPlainTextEdit" name="zav_s_min">
+         <property name="minimumSize">
+          <size>
+           <width>50</width>
+           <height>30</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>50</width>
+           <height>30</height>
+          </size>
+         </property>
+         <property name="placeholderText">
+          <string>Зав№</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPlainTextEdit" name="s_min_total">
+         <property name="minimumSize">
+          <size>
+           <width>50</width>
+           <height>30</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>50</width>
+           <height>30</height>
+          </size>
+         </property>
+         <property name="placeholderText">
+          <string>Sminmin</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
      </widget>
     </widget>
     <widget class="QWidget" name="rasschet">
@@ -1663,7 +1680,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string/>
+          <string>39</string>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
@@ -1697,7 +1714,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string/>
+          <string>45</string>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
@@ -1731,7 +1748,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string/>
+          <string>59</string>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
@@ -1765,7 +1782,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string/>
+          <string>411</string>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
@@ -1846,7 +1863,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string/>
+          <string>898</string>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
@@ -1893,7 +1910,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string/>
+          <string>981</string>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
@@ -2159,7 +2176,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string/>
+          <string>21.2</string>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
@@ -2230,7 +2247,7 @@
           <bool>false</bool>
          </property>
          <property name="placeholderText">
-          <string>MPa</string>
+          <string>&gt;/&lt; 10лет</string>
          </property>
         </widget>
        </item>
@@ -2264,7 +2281,7 @@
           <bool>false</bool>
          </property>
          <property name="placeholderText">
-          <string>MPa</string>
+          <string>Года</string>
          </property>
         </widget>
        </item>
@@ -2383,7 +2400,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string/>
+          <string>0,9</string>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
@@ -2418,26 +2435,26 @@
       <property name="geometry">
        <rect>
         <x>270</x>
-        <y>400</y>
-        <width>100</width>
-        <height>26</height>
+        <y>420</y>
+        <width>105</width>
+        <height>23</height>
        </rect>
       </property>
       <property name="text">
-       <string>Расчитать овальность</string>
+       <string>Расчёт овальности</string>
       </property>
      </widget>
      <widget class="QPushButton" name="pushButt_tverdost">
       <property name="geometry">
        <rect>
         <x>400</x>
-        <y>400</y>
+        <y>420</y>
         <width>100</width>
-        <height>26</height>
+        <height>23</height>
        </rect>
       </property>
       <property name="text">
-       <string>Расчитать твёрдость</string>
+       <string>Расчёт твёрдости</string>
       </property>
      </widget>
     </widget>
