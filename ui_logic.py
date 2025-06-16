@@ -23,7 +23,8 @@ class MainWindow(QMainWindow):
         "p_gidro", "p_pnevma", "d_vnutr", "pred_tek_min", "vrem_sopr_min",
         "sigma", "sigma_gidro", "s_rasch", "s_rasch_gidro", "s_max_rasch",
         "a_corr", "c0_plus_dop", "tk_years", "tk_just", "zav_s_min",
-        "obj_name", "prev_zakl", "prev_pg_am", "volume_total", "p_pnevma_kgs"
+        "obj_name", "prev_zakl", "prev_pg_am", "volume_total", "p_pnevma_kgs",
+        "p_dop"
     ]
 
     COMBO_BOX_NAMES = [
@@ -415,6 +416,11 @@ class MainWindow(QMainWindow):
             s_rasch_gidro = round(((d_vnutr + (s_isp * 2)) * p_gidro) / (2 * sigma_gidro + p_gidro), 1)
             s_max_rasch = max(s_rasch, s_rasch_gidro)
 
+            # Вычисляем внутреннее избыточное давление.
+            p_dop = str(round((2 * sigma * (s_isp - 1)) / (d_vnutr + (s_isp - 1)), 1)).replace(".", ",")
+            print(p_dop)
+            print(type(p_dop))
+
             # Вывод в QPlainTextEdit
             self.sigma.setPlainText(str(sigma).replace(".", ","))
             self.sigma_gidro.setPlainText(str(sigma_gidro).replace(".", ","))
@@ -422,6 +428,7 @@ class MainWindow(QMainWindow):
             self.s_rasch_gidro.setPlainText(str(s_rasch_gidro).replace(".", ","))
             self.s_max_rasch.setPlainText(str(s_max_rasch).replace(".", ","))
             self.p_pnevma_kgs.setPlainText(str(p_pnevma_kgs).replace(".", ","))
+            self.p_dop.setPlainText(p_dop)
 
         except ValueError as e:
             print(f"Ошибка ввода: {e}")
