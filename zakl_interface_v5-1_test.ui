@@ -167,7 +167,7 @@
              </property>
              <item>
               <property name="text">
-               <string>сталь 38ХА</string>
+               <string>сталь 38ХА ГОСТ 4543-61</string>
               </property>
              </item>
              <item>
@@ -245,7 +245,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string/>
+          <string>АО &quot;КБхиммаш им. А.М. Исаева&quot;</string>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
@@ -368,7 +368,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string/>
+          <string>Отдел 301</string>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
@@ -402,7 +402,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string/>
+          <string>Новотрубный завод, г. Первоуральск Свердловской обл.</string>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
@@ -420,7 +420,7 @@
         <x>11</x>
         <y>11</y>
         <width>102</width>
-        <height>407</height>
+        <height>434</height>
        </rect>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_2">
@@ -454,7 +454,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string/>
+          <string>777-25</string>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
@@ -488,7 +488,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string/>
+          <string>55771</string>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
@@ -522,7 +522,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string/>
+          <string>12345-66</string>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
@@ -556,7 +556,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string/>
+          <string>1977</string>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
@@ -590,7 +590,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string/>
+          <string>&quot;16&quot; июня 2025 г.</string>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
@@ -658,7 +658,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string/>
+          <string>666-888-17</string>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
@@ -692,7 +692,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string/>
+          <string>400</string>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
@@ -726,7 +726,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string/>
+          <string>400</string>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
@@ -794,7 +794,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string/>
+          <string>3400</string>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
@@ -828,7 +828,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string/>
+          <string>465</string>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
@@ -862,7 +862,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string/>
+          <string>465</string>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
@@ -896,7 +896,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string/>
+          <string>466</string>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
@@ -930,13 +930,47 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string/>
+          <string>400</string>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
          </property>
          <property name="placeholderText">
           <string>V-объём, л</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPlainTextEdit" name="volume_total">
+         <property name="minimumSize">
+          <size>
+           <width>100</width>
+           <height>27</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>100</width>
+           <height>27</height>
+          </size>
+         </property>
+         <property name="font">
+          <font>
+           <family>Times New Roman</family>
+           <pointsize>10</pointsize>
+          </font>
+         </property>
+         <property name="layoutDirection">
+          <enum>Qt::LeftToRight</enum>
+         </property>
+         <property name="plainText">
+          <string>9822</string>
+         </property>
+         <property name="overwriteMode">
+          <bool>false</bool>
+         </property>
+         <property name="placeholderText">
+          <string>V-объём сумм., л</string>
          </property>
         </widget>
        </item>
@@ -959,21 +993,21 @@
       <property name="geometry">
        <rect>
         <x>120</x>
-        <y>329</y>
+        <y>324</y>
         <width>160</width>
-        <height>27</height>
+        <height>45</height>
        </rect>
       </property>
       <property name="minimumSize">
        <size>
         <width>160</width>
-        <height>27</height>
+        <height>45</height>
        </size>
       </property>
       <property name="maximumSize">
        <size>
         <width>160</width>
-        <height>27</height>
+        <height>45</height>
        </size>
       </property>
       <property name="font">
@@ -986,7 +1020,7 @@
        <enum>Qt::LeftToRight</enum>
       </property>
       <property name="plainText">
-       <string/>
+       <string> 6 лет (до &quot;19&quot; июня 2031 г. включительно)</string>
       </property>
       <property name="overwriteMode">
        <bool>false</bool>
@@ -999,7 +1033,7 @@
       <property name="geometry">
        <rect>
         <x>294</x>
-        <y>307</y>
+        <y>320</y>
         <width>126</width>
         <height>13</height>
        </rect>
@@ -1012,7 +1046,7 @@
       <property name="geometry">
        <rect>
         <x>290</x>
-        <y>329</y>
+        <y>340</y>
         <width>130</width>
         <height>27</height>
        </rect>
@@ -1052,7 +1086,7 @@
       <property name="geometry">
        <rect>
         <x>120</x>
-        <y>359</y>
+        <y>372</y>
         <width>392</width>
         <height>30</height>
        </rect>
@@ -1092,7 +1126,7 @@
       <property name="geometry">
        <rect>
         <x>120</x>
-        <y>392</y>
+        <y>405</y>
         <width>220</width>
         <height>30</height>
        </rect>
@@ -1132,7 +1166,7 @@
       <property name="geometry">
        <rect>
         <x>350</x>
-        <y>392</y>
+        <y>405</y>
         <width>220</width>
         <height>30</height>
        </rect>
@@ -1172,7 +1206,7 @@
       <property name="geometry">
        <rect>
         <x>120</x>
-        <y>423</y>
+        <y>437</y>
         <width>221</width>
         <height>13</height>
        </rect>
@@ -1203,7 +1237,7 @@
       <property name="geometry">
        <rect>
         <x>120</x>
-        <y>442</y>
+        <y>450</y>
         <width>221</width>
         <height>20</height>
        </rect>
@@ -1211,6 +1245,11 @@
       <property name="editable">
        <bool>true</bool>
       </property>
+      <item>
+       <property name="text">
+        <string>хранения и выдачи сжатого воздуха при давлении 400 кгс/см2</string>
+       </property>
+      </item>
       <item>
        <property name="text">
         <string>Воздухохранитель</string>
@@ -1263,7 +1302,7 @@
             <enum>Qt::LeftToRight</enum>
            </property>
            <property name="plainText">
-            <string/>
+            <string>&quot;17&quot; мая 2025 г.</string>
            </property>
            <property name="overwriteMode">
             <bool>false</bool>
@@ -1308,7 +1347,7 @@
             <enum>Qt::LeftToRight</enum>
            </property>
            <property name="plainText">
-            <string/>
+            <string>&quot;18&quot; мая 2025 г.</string>
            </property>
            <property name="overwriteMode">
             <bool>false</bool>
@@ -1353,7 +1392,7 @@
             <enum>Qt::LeftToRight</enum>
            </property>
            <property name="plainText">
-            <string/>
+            <string>&quot;19&quot; июня 2025 г.</string>
            </property>
            <property name="overwriteMode">
             <bool>false</bool>
@@ -1366,6 +1405,102 @@
         </layout>
        </item>
       </layout>
+     </widget>
+     <widget class="QPlainTextEdit" name="prev_zakl">
+      <property name="geometry">
+       <rect>
+        <x>290</x>
+        <y>480</y>
+        <width>220</width>
+        <height>30</height>
+       </rect>
+      </property>
+      <property name="minimumSize">
+       <size>
+        <width>220</width>
+        <height>30</height>
+       </size>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>220</width>
+        <height>30</height>
+       </size>
+      </property>
+      <property name="font">
+       <font>
+        <family>Times New Roman</family>
+        <pointsize>10</pointsize>
+       </font>
+      </property>
+      <property name="layoutDirection">
+       <enum>Qt::LeftToRight</enum>
+      </property>
+      <property name="plainText">
+       <string>№01-ТУ-04141-2022 от 03.03.2022 г.</string>
+      </property>
+      <property name="overwriteMode">
+       <bool>false</bool>
+      </property>
+      <property name="placeholderText">
+       <string>Предыдущее заключение</string>
+      </property>
+     </widget>
+     <widget class="QPlainTextEdit" name="prev_pg_am">
+      <property name="geometry">
+       <rect>
+        <x>520</x>
+        <y>480</y>
+        <width>50</width>
+        <height>30</height>
+       </rect>
+      </property>
+      <property name="minimumSize">
+       <size>
+        <width>50</width>
+        <height>30</height>
+       </size>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>50</width>
+        <height>30</height>
+       </size>
+      </property>
+      <property name="plainText">
+       <string>45</string>
+      </property>
+      <property name="placeholderText">
+       <string>Кол-во стр.</string>
+      </property>
+     </widget>
+     <widget class="QPlainTextEdit" name="obj_name">
+      <property name="geometry">
+       <rect>
+        <x>360</x>
+        <y>440</y>
+        <width>50</width>
+        <height>30</height>
+       </rect>
+      </property>
+      <property name="minimumSize">
+       <size>
+        <width>50</width>
+        <height>30</height>
+       </size>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>50</width>
+        <height>30</height>
+       </size>
+      </property>
+      <property name="plainText">
+       <string>11</string>
+      </property>
+      <property name="placeholderText">
+       <string>Наим. объекта.</string>
+      </property>
      </widget>
     </widget>
     <widget class="QWidget" name="ballon_data">
@@ -1486,7 +1621,7 @@
        </property>
       </column>
      </widget>
-     <widget class="QWidget" name="">
+     <widget class="QWidget" name="layoutWidget">
       <property name="geometry">
        <rect>
         <x>250</x>
@@ -2455,6 +2590,46 @@
       </property>
       <property name="text">
        <string>Расчёт твёрдости</string>
+      </property>
+     </widget>
+     <widget class="QPlainTextEdit" name="p_pnevma_kgs">
+      <property name="geometry">
+       <rect>
+        <x>510</x>
+        <y>40</y>
+        <width>80</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="minimumSize">
+       <size>
+        <width>80</width>
+        <height>27</height>
+       </size>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>80</width>
+        <height>27</height>
+       </size>
+      </property>
+      <property name="font">
+       <font>
+        <family>Times New Roman</family>
+        <pointsize>10</pointsize>
+       </font>
+      </property>
+      <property name="layoutDirection">
+       <enum>Qt::LeftToRight</enum>
+      </property>
+      <property name="plainText">
+       <string/>
+      </property>
+      <property name="overwriteMode">
+       <bool>false</bool>
+      </property>
+      <property name="placeholderText">
+       <string>Рпн, кгс, исп.</string>
       </property>
      </widget>
     </widget>

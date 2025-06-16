@@ -4,7 +4,10 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QPlainTextEdit, QComboBo
                              QHeaderView)
 from PyQt6.uic import loadUi
 from typing import List, Dict, Union
+from docxtpl import DocxTemplate
 
+import os
+from datetime import datetime
 from PyQt6.uic.properties import QtWidgets
 
 
@@ -19,7 +22,8 @@ class MainWindow(QMainWindow):
         "pricaz_contora", "pricaz_vladelec", "s_min_total", "p_rab_MPa",
         "p_gidro", "p_pnevma", "d_vnutr", "pred_tek_min", "vrem_sopr_min",
         "sigma", "sigma_gidro", "s_rasch", "s_rasch_gidro", "s_max_rasch",
-        "a_corr", "c0_plus_dop", "tk_years", "tk_just", "zav_s_min"
+        "a_corr", "c0_plus_dop", "tk_years", "tk_just", "zav_s_min",
+        "obj_name", "prev_zakl", "prev_pg_am", "volume_total", "p_pnevma_kgs"
     ]
 
     COMBO_BOX_NAMES = [
@@ -107,7 +111,6 @@ class MainWindow(QMainWindow):
 
     def get_form_data(self) -> Dict[str, Union[str, float]]:
         """Возвращает все данные формы в виде словаря"""
-        # data = {}
 
         # Получаем текст из всех QPlainTextEdit
         for name in self.PLAIN_TEXT_EDIT_NAMES:
@@ -139,10 +142,45 @@ class MainWindow(QMainWindow):
         return self.data
 
     def calculate(self):
-        """Обработчик нажатия кнопки генерации Word"""
-        form_data = self.get_form_data()
-        print("Данные для Word:", form_data)
-        # Здесь будет ваша логика генерации Word
+        """Обработчик нажатия кнопки генерации Word с улучшенной обработкой ошибок"""
+        try:
+            # 1. Получаем данные формы
+            form_data = self.get_form_data()
+            print("Данные для Word:", form_data)
+
+            # 2. Проверяем наличие шаблона
+            template_path = "Шаблон_финал.docx"
+            if not os.path.exists(template_path):
+                raise FileNotFoundError(f"Шаблон не найден: {template_path}")
+
+            # 3. Загружаем и заполняем шаблон
+            doc = DocxTemplate(template_path)
+            doc.render(form_data)
+
+            # 4. Генерируем имя файла с timestamp
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+            output_filename = (
+                f"закл_{self.zakl_number.toPlainText().strip()}_"
+                f"рег-{self.reg_number.toPlainText().strip()}_"
+                f"р-{self.p_rab.toPlainText().strip()}_"
+                f"{self.rab_sreda.currentText()}_"
+                f"кбХиммаш_{self.amount.value()}шт_"
+                f"{timestamp}.docx"
+            )
+
+            # 5. Сохраняем документ
+            output_path = os.path.join("output", output_filename)
+            os.makedirs("output", exist_ok=True)  # Создаем папку если нет
+            doc.save(output_path)
+
+            # 6. Уведомление об успехе
+            print(f"Документ успешно сохранен: {output_path}")
+            self.show_message("Готово!", f"Файл сохранен:\n{output_path}")
+
+        except Exception as e:
+            error_msg = f"Ошибка генерации документа: {str(e)}"
+            print(error_msg)
+            self.show_message("Ошибка", error_msg, is_error=True)
 
     def generate_csv(self):
         """Обработчик нажатия кнопки генерации CSV"""
@@ -163,6 +201,13 @@ class MainWindow(QMainWindow):
 
         else:
             print(f"Кол-во баллонов {amount} не совпадает с введёными зав. №№ {len(self.text)}")
+        "НУМЕРАЦИЯ ПВК НЕ ОСИЛИЛ..."
+        pvk_lst = []
+        pvk_dict = {}
+        for i in range(len(self.text)):
+            pvk_dict.update({f"pvk_{i + 1}": str(i + 1)})
+        pvk_lst.append(pvk_dict)
+        self.data.update({"pvk": pvk_lst})
 
     def s_min_min_calc(self):
         """Вычисляет минимальное значение из второго столбца и выводит в QPlainTextEdit"""
@@ -194,25 +239,60 @@ class MainWindow(QMainWindow):
         """Функция - генератор толщин."""
         thick_table = self.table_thick
         amount = self.amount.value()
+        tolshiny_lst = []
 
         # Устанавливаем высоту строки (вызовите это один раз при инициализации)
-        thick_table.verticalHeader().setDefaultSectionSize(100)  # Подберите подходящее значение
+        thick_table.verticalHeader().setDefaultSectionSize(100)
 
-        if len(self.text) == amount:
-            thick_table.setRowCount(amount)
+        if len(self.text) != amount:
+            # Обработка несоответствия количества элементов
+            thick_table.setRowCount(0)
+            return
 
-            for row, zav_num in enumerate(self.text):
-                # Устанавливаем заводской номер в первый столбец
-                item = QTableWidgetItem(zav_num)
-                thick_table.setItem(row, 0, item)
+        thick_table.setRowCount(amount)
 
-                # Проверяем, что есть данные в self.s_min_lst
-                if row < len(self.s_min_lst):
-                    nums = self.s_min_lst[row]
+        for row, zav_num in enumerate(self.text):
+            # Устанавливаем заводской номер в первый столбец
+            item = QTableWidgetItem(zav_num)
+            thick_table.setItem(row, 0, item)
+
+            table = self.table_ballons
+            s_min_item = table.item(row, 1)
+            g_i_bal_item = table.item(row, 2)
+            massa_item = table.item(row, 3)
+
+            # Получаем значения из ячеек
+            s_min = s_min_item.text() if s_min_item else ""
+            g_i_bal = g_i_bal_item.text() if g_i_bal_item else ""
+            massa = massa_item.text() if massa_item else ""
+
+            tolshiny_dict = {
+                "zav": zav_num,
+                "s_min": s_min,
+                "g_i_bal": g_i_bal,
+                "massa": massa
+            }
+
+            # Проверяем, что есть данные в self.s_min_lst
+            if row < len(self.s_min_lst):
+                try:
+                    nums = float(self.s_min_lst[row])
                     num_max = nums + 2.0
 
                     # Генерируем 20 случайных значений
                     res_thick = [round(random.uniform(nums, num_max), 1) for _ in range(20)]
+
+                    # Находим минимальное значение в списке
+                    min_value = min(res_thick)
+                    min_index = res_thick.index(min_value)
+
+                    # Проверяем и заменяем если нужно
+                    if min_value != nums:
+                        res_thick[min_index] = nums
+
+                    # Добавляем значения в словарь
+                    for i, value in enumerate(res_thick, 1):
+                        tolshiny_dict[f"s{i}"] = f"{value:.1f}".replace(".", ",")
 
                     # Форматируем в 5 строк по 4 числа
                     formatted_values = []
@@ -225,6 +305,13 @@ class MainWindow(QMainWindow):
                     # Устанавливаем значения во второй столбец
                     item2 = QTableWidgetItem(res_thick_str)
                     thick_table.setItem(row, 1, item2)
+                    tolshiny_lst.append(tolshiny_dict)
+
+                except (ValueError, TypeError) as e:
+                    print(f"Ошибка обработки данных для строки {row}: {e}")
+                    continue
+
+        self.data.update({"ballony": tolshiny_lst})
 
     def s_max_lst(self):
         """Собираем все макс толщины в список."""
@@ -243,21 +330,30 @@ class MainWindow(QMainWindow):
 
     def ovalnost_calc(self):
         """Расчёт овальности."""
-        for i in range(3):
-            while True:
-                d_min_rand = random.randint(465, 466)
-                d_max_rand = random.randint(465, 466)
-                if d_max_rand >= d_min_rand:
-                    break
 
-            oval = round(((2 * (d_max_rand - d_min_rand)) / (d_max_rand + d_min_rand)) * 100, 3)
+        bal_oval = []
 
-            self.data.update({
-                f"d1_{i}": f'{d_max_rand}',
-                f"d2_{i}": f'{d_min_rand}',
-                f"oval{i}": f'{oval}'
-            })
+        for zav in self.text:
+            bal_oval_dict = {
+                "z_n": zav
+            }
+            for i in range(3):
+                while True:
+                    d_min_rand = random.randint(465, 466)
+                    d_max_rand = random.randint(465, 466)
+                    if d_max_rand >= d_min_rand:
+                        break
 
+                oval = round(((2 * (d_max_rand - d_min_rand)) / (d_max_rand + d_min_rand)) * 100, 3)
+
+                bal_oval_dict.update({
+                    f"d_max_rand{i}": f'{d_max_rand}',
+                    f"d_min_rand{i}": f'{d_min_rand}',
+                    f"oval{i}": f'{oval}'
+                })
+
+            bal_oval.append(bal_oval_dict)
+        self.data.update({"bal_oval": bal_oval})
 
     def tverdost(self) -> dict:
         """
@@ -269,23 +365,26 @@ class MainWindow(QMainWindow):
             rm = 981
 
             # 2. Расчёт минимальной и максимальной твёрдости по ГОСТ
-            hb_min = round(2.7 * (rm / 10), 0)  # Нижний предел (HB)
-            hb_max = round(2.7 * (rm / 10) + 20, 0)  # Верхний предел (HB + допустимое отклонение)
+            hb_min = round(2.7 * (rm / 10))  # Нижний предел (HB)
+            hb_max = round(2.7 * (rm / 10) + 20)  # Верхний предел (HB + допустимое отклонение)
 
             # 3. Генерация значений для каждого баллона (если нужно)
             tverdost_data = []
-            for zav_num in range(1, self.amount.value() + 1):  # self.amount — QSpinBox
-                hb_random = round(random.uniform(hb_min, hb_max), 0)
-                tverdost_data.append({
-                    "zav_num": zav_num,
-                    "tverdost": hb_random
-                })
+
+            for zav in self.text:
+                tverdost_dict = {
+                    "zav": zav
+                }
+                for i in range(20):
+                    hb_random = round(random.uniform(hb_min, hb_max))
+                    tverdost_dict.update({f"hb_{i + 1}": f"{hb_random}"})
+                tverdost_data.append(tverdost_dict)
 
             # 4. Формируем словарь для плейсхолдеров Word
             self.data.update({
                 "hb_min": str(hb_min).replace(".", ","),  # Для локализации (запятая)
                 "hb_max": str(hb_max).replace(".", ","),
-                "tverdost_list": tverdost_data  # Список для цикла в Word
+                "tverdost_data": tverdost_data  # Список для цикла в Word
             })
 
         except ValueError as e:
@@ -293,7 +392,7 @@ class MainWindow(QMainWindow):
             return {
                 "hb_min": "Ошибка",
                 "hb_max": "Ошибка",
-                "tverdost_list": []
+                "tverdost_data": []
             }
 
     def prochnost(self):
@@ -305,10 +404,12 @@ class MainWindow(QMainWindow):
             p_gidro = float(self.p_gidro.toPlainText().replace(",", "."))
             d_vnutr = float(self.d_vnutr.toPlainText().replace(",", "."))
             s_isp = float(self.s_isp.toPlainText().replace(",", "."))
+            p_pnevma = float(self.p_pnevma.toPlainText().replace(",", "."))
 
             # Расчёты
             sigma = round(1.0 * min(pred_tek_min / 1.5, vrem_sopr_min / 2.4), 1)
             sigma_gidro = round(pred_tek_min / 1.1, 1)
+            p_pnevma_kgs = round(p_pnevma * 10.19)
 
             s_rasch = round(((d_vnutr + (s_isp * 2)) * p_rab_MPa) / (2 * sigma + p_rab_MPa), 1)
             s_rasch_gidro = round(((d_vnutr + (s_isp * 2)) * p_gidro) / (2 * sigma_gidro + p_gidro), 1)
@@ -320,6 +421,7 @@ class MainWindow(QMainWindow):
             self.s_rasch.setPlainText(str(s_rasch).replace(".", ","))
             self.s_rasch_gidro.setPlainText(str(s_rasch_gidro).replace(".", ","))
             self.s_max_rasch.setPlainText(str(s_max_rasch).replace(".", ","))
+            self.p_pnevma_kgs.setPlainText(str(p_pnevma_kgs).replace(".", ","))
 
         except ValueError as e:
             print(f"Ошибка ввода: {e}")
