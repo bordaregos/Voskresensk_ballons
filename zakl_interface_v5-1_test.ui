@@ -151,12 +151,12 @@
              </property>
              <property name="maximumSize">
               <size>
-               <width>89</width>
+               <width>1000</width>
                <height>13</height>
               </size>
              </property>
              <property name="text">
-              <string>Материал</string>
+              <string>Материал корпуса</string>
              </property>
             </widget>
            </item>
@@ -368,13 +368,13 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string>Отдел 301</string>
+          <string>Московская обл., Воскресенский р-н, п. Белоозерский-3</string>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
          </property>
          <property name="placeholderText">
-          <string>Место установки</string>
+          <string>Местонахождение</string>
          </property>
         </widget>
        </item>
@@ -522,7 +522,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string>12345-66</string>
+          <string>ГОСТ 12247-66</string>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
@@ -1500,6 +1500,46 @@
       </property>
       <property name="placeholderText">
        <string>Наим. объекта.</string>
+      </property>
+     </widget>
+     <widget class="QPlainTextEdit" name="place_obj">
+      <property name="geometry">
+       <rect>
+        <x>430</x>
+        <y>340</y>
+        <width>130</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="minimumSize">
+       <size>
+        <width>130</width>
+        <height>27</height>
+       </size>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>130</width>
+        <height>27</height>
+       </size>
+      </property>
+      <property name="font">
+       <font>
+        <family>Times New Roman</family>
+        <pointsize>10</pointsize>
+       </font>
+      </property>
+      <property name="layoutDirection">
+       <enum>Qt::LeftToRight</enum>
+      </property>
+      <property name="plainText">
+       <string>Отдел 301</string>
+      </property>
+      <property name="overwriteMode">
+       <bool>false</bool>
+      </property>
+      <property name="placeholderText">
+       <string>Место установки.</string>
       </property>
      </widget>
     </widget>

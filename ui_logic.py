@@ -1,7 +1,7 @@
 import random
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QPlainTextEdit, QComboBox,
                              QPushButton, QSpinBox, QTableWidgetItem, QLabel, QGroupBox, QVBoxLayout, QTableWidget,
-                             QHeaderView)
+                             QHeaderView, QMessageBox)
 from PyQt6.uic import loadUi
 from typing import List, Dict, Union
 from docxtpl import DocxTemplate
@@ -24,7 +24,7 @@ class MainWindow(QMainWindow):
         "sigma", "sigma_gidro", "s_rasch", "s_rasch_gidro", "s_max_rasch",
         "a_corr", "c0_plus_dop", "tk_years", "tk_just", "zav_s_min",
         "obj_name", "prev_zakl", "prev_pg_am", "volume_total", "p_pnevma_kgs",
-        "p_dop"
+        "p_dop", "place_obj"
     ]
 
     COMBO_BOX_NAMES = [
@@ -142,46 +142,81 @@ class MainWindow(QMainWindow):
 
         return self.data
 
+    from PyQt6.QtWidgets import QMessageBox
+
     def calculate(self):
         """Обработчик нажатия кнопки генерации Word с улучшенной обработкой ошибок"""
         try:
-            # 1. Получаем данные формы
+            # 1. Проверка заполненности полей
+            if not all([
+                self.zakl_number.toPlainText().strip(),
+                self.reg_number.toPlainText().strip(),
+                self.p_rab.toPlainText().strip()
+            ]):
+                raise ValueError("Не все обязательные поля заполнены")
+
+            # 2. Получаем данные формы
             form_data = self.get_form_data()
             print("Данные для Word:", form_data)
 
-            # 2. Проверяем наличие шаблона
+            # 3. Проверяем наличие шаблона
             template_path = "Шаблон_финал.docx"
             if not os.path.exists(template_path):
                 raise FileNotFoundError(f"Шаблон не найден: {template_path}")
 
-            # 3. Загружаем и заполняем шаблон
+            # 4. Загружаем и заполняем шаблон
             doc = DocxTemplate(template_path)
             doc.render(form_data)
 
-            # 4. Генерируем имя файла с timestamp
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+            # 5. Генерируем имя файла
             output_filename = (
                 f"закл_{self.zakl_number.toPlainText().strip()}_"
                 f"рег-{self.reg_number.toPlainText().strip()}_"
                 f"р-{self.p_rab.toPlainText().strip()}_"
                 f"{self.rab_sreda.currentText()}_"
-                f"кбХиммаш_{self.amount.value()}шт_"
-                f"{timestamp}.docx"
+                f"кбХиммаш_{self.amount.value()}шт.docx"
             )
 
-            # 5. Сохраняем документ
-            output_path = os.path.join("output", output_filename)
-            os.makedirs("output", exist_ok=True)  # Создаем папку если нет
+            # 6. Сохраняем документ
+            output_dir = "output"
+            os.makedirs(output_dir, exist_ok=True)
+            output_path = os.path.join(output_dir, output_filename)
+
             doc.save(output_path)
 
-            # 6. Уведомление об успехе
-            print(f"Документ успешно сохранен: {output_path}")
-            self.show_message("Готово!", f"Файл сохранен:\n{output_path}")
+            # 7. Уведомление об успехе
+            self.show_message(
+                "Готово!",
+                f"Документ успешно сохранён:\n{output_path}",
+                QMessageBox.Icon.Information  # PyQt6 использует QMessageBox.Icon
+            )
+            print(f"Документ успешно сохранён: {output_path}")
 
+        except ValueError as ve:
+            self.show_message("Ошибка ввода", str(ve), QMessageBox.Icon.Warning)
+        except FileNotFoundError as fe:
+            self.show_message("Файл не найден", str(fe), QMessageBox.Icon.Critical)
+        except PermissionError:
+            self.show_message(
+                "Ошибка доступа",
+                "Нет прав для записи в указанную папку",
+                QMessageBox.Icon.Critical
+            )
         except Exception as e:
-            error_msg = f"Ошибка генерации документа: {str(e)}"
-            print(error_msg)
-            self.show_message("Ошибка", error_msg, is_error=True)
+            self.show_message(
+                "Ошибка генерации",
+                f"Неизвестная ошибка: {str(e)}",
+                QMessageBox.Icon.Critical
+            )
+
+    def show_message(self, title, text, icon=QMessageBox.Icon.Information):
+        """Универсальный метод показа сообщений"""
+        msg = QMessageBox()
+        msg.setWindowTitle(title)
+        msg.setText(text)
+        msg.setIcon(icon)
+        msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+        msg.exec()
 
     def generate_csv(self):
         """Обработчик нажатия кнопки генерации CSV"""
@@ -202,17 +237,13 @@ class MainWindow(QMainWindow):
 
         else:
             print(f"Кол-во баллонов {amount} не совпадает с введёными зав. №№ {len(self.text)}")
-        "НУМЕРАЦИЯ ПВК НЕ ОСИЛИЛ..."
-        pvk_lst = []
-        pvk_dict = {}
-        for i in range(len(self.text)):
-            pvk_dict.update({f"pvk_{i + 1}": str(i + 1)})
-        pvk_lst.append(pvk_dict)
-        self.data.update({"pvk": pvk_lst})
+
+        self.data.update({"tables": [{"num": str(i + 1)} for i in range(len(self.text))]})
 
     def s_min_min_calc(self):
         """Вычисляет минимальное значение из второго столбца и выводит в QPlainTextEdit"""
         self.s_min_lst = []
+        years_min_max_lst = []
         table = self.table_ballons
 
         # Собираем все числовые значения из второго столбца
@@ -225,7 +256,7 @@ class MainWindow(QMainWindow):
                     print(f"Пропуск нечислового значения в строке {row}")
                     continue
 
-        # Вычисляем минимум (если есть данные)
+                # Вычисляем минимум (если есть данные)
         if self.s_min_lst:
             s_min_tot = str(min(self.s_min_lst)).replace('.', ',')
             zav_s_min = self.text[self.s_min_lst.index(min(self.s_min_lst))]
@@ -235,6 +266,23 @@ class MainWindow(QMainWindow):
         else:
             self.s_min_total.setPlainText("Нет данных")
             print("Ошибка: нет числовых данных для вычисления минимума")
+
+        # Собираем все года из третьего столбца.
+        for row in range(table.rowCount()):
+            item = table.item(row, 2)
+            if item is not None and item.text():
+                try:
+                    years_min_max_lst.append(int(item.text()))
+                except ValueError:
+                    print(f"Пропуск нечислового значения в строке {row}")
+                    continue
+
+        # Вычисляем минимальный и максимальный года изготовления (если есть данные).
+        # И добавляем их в словарь data на вывод в ворд.
+        if years_min_max_lst:
+            self.data.update({"min_year": f'{min(years_min_max_lst)}'})
+            self.data.update({"max_year": f'{max(years_min_max_lst)}'})
+
 
     def calc_thick(self):
         """Функция - генератор толщин."""
@@ -418,8 +466,12 @@ class MainWindow(QMainWindow):
 
             # Вычисляем внутреннее избыточное давление.
             p_dop = str(round((2 * sigma * (s_isp - 1)) / (d_vnutr + (s_isp - 1)), 1)).replace(".", ",")
-            print(p_dop)
-            print(type(p_dop))
+
+            # Вычисляем давление для этапов пневматического испытания.
+            p_rab = float(self.p_rab.toPlainText())
+            self.data.update({"p_rab_025": f"{round(p_rab * 0.25)}"})
+            self.data.update({"p_rab_05": f"{round(p_rab * 0.5)}"})
+            self.data.update({"p_rab_075": f"{round(p_rab * 0.75)}"})
 
             # Вывод в QPlainTextEdit
             self.sigma.setPlainText(str(sigma).replace(".", ","))
