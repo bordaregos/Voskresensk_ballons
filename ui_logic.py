@@ -24,7 +24,7 @@ class MainWindow(QMainWindow):
         "sigma", "sigma_gidro", "s_rasch", "s_rasch_gidro", "s_max_rasch",
         "a_corr", "c0_plus_dop", "tk_years", "tk_just", "zav_s_min",
         "obj_name", "prev_zakl", "prev_pg_am", "volume_total", "p_pnevma_kgs",
-        "p_dop", "place_obj"
+        "p_dop", "place_obj", "pasp_pg_amount"
     ]
 
     COMBO_BOX_NAMES = [
@@ -53,9 +53,6 @@ class MainWindow(QMainWindow):
         self.data = {}
         self.text = None
         self.s_min_lst = None
-        # self.sigma = QPlainTextEdit(self)
-        # self.sigma_gidro = QPlainTextEdit(self)
-        # self.s_max_rasch = self.s_max_rasch.toPlainText(self)
 
         loadUi("zakl_interface_v5-1_test.ui", self)
 
@@ -141,8 +138,6 @@ class MainWindow(QMainWindow):
             self.data[name] = table_data
 
         return self.data
-
-    from PyQt6.QtWidgets import QMessageBox
 
     def calculate(self):
         """Обработчик нажатия кнопки генерации Word с улучшенной обработкой ошибок"""
@@ -278,11 +273,15 @@ class MainWindow(QMainWindow):
                     continue
 
         # Вычисляем минимальный и максимальный года изготовления (если есть данные).
+        # Если года совпадают - выводим один год (минимальный).
         # И добавляем их в словарь data на вывод в ворд.
-        if years_min_max_lst:
-            self.data.update({"min_year": f'{min(years_min_max_lst)}'})
-            self.data.update({"max_year": f'{max(years_min_max_lst)}'})
+        min_year = min(years_min_max_lst)
+        max_year = max(years_min_max_lst)
 
+        if years_min_max_lst and min_year != max_year:
+            self.data.update({"min_year": f'{min_year} - {max_year} гг.'})
+        else:
+            self.data.update({"min_year": f'{min_year} г.'})
 
     def calc_thick(self):
         """Функция - генератор толщин."""
@@ -411,7 +410,7 @@ class MainWindow(QMainWindow):
         """
         try:
             # 1. Получаем предел прочности (Rm) из интерфейса
-            rm = 981
+            rm = 981 # ЭТО ДОЛЖНО ПОЛУЧАТЬСЯ ИЗ ИНТЕРФЕЙСА!!!
 
             # 2. Расчёт минимальной и максимальной твёрдости по ГОСТ
             hb_min = round(2.7 * (rm / 10))  # Нижний предел (HB)
@@ -513,7 +512,6 @@ class MainWindow(QMainWindow):
             tk = round((s_min_total - s_max_rasch) / a, 0) if a != 0 else 0
 
             tk_j = "> 10 лет" if tk > 10 else "Пересчитать."
-
 
             # Вывод результатов
             self.a_corr.setPlainText(str(a).replace(".", ","))

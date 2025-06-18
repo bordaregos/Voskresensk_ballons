@@ -36,7 +36,7 @@
      </sizepolicy>
     </property>
     <property name="currentIndex">
-     <number>0</number>
+     <number>2</number>
     </property>
     <widget class="QWidget" name="general_info">
      <attribute name="title">
@@ -167,12 +167,12 @@
              </property>
              <item>
               <property name="text">
-               <string>сталь 38ХА ГОСТ 4543-61</string>
+               <string>38ХА ГОСТ 4543-61</string>
               </property>
              </item>
              <item>
               <property name="text">
-               <string>сталь 09Г2С</string>
+               <string>09Г2С</string>
               </property>
              </item>
             </widget>
@@ -1020,7 +1020,7 @@
        <enum>Qt::LeftToRight</enum>
       </property>
       <property name="plainText">
-       <string> 6 лет (до &quot;19&quot; июня 2031 г. включительно)</string>
+       <string>&quot;19&quot; июня 2031 г.</string>
       </property>
       <property name="overwriteMode">
        <bool>false</bool>
@@ -1542,6 +1542,34 @@
        <string>Место установки.</string>
       </property>
      </widget>
+     <widget class="QPlainTextEdit" name="pasp_pg_amount">
+      <property name="geometry">
+       <rect>
+        <x>420</x>
+        <y>440</y>
+        <width>50</width>
+        <height>30</height>
+       </rect>
+      </property>
+      <property name="minimumSize">
+       <size>
+        <width>50</width>
+        <height>30</height>
+       </size>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>50</width>
+        <height>30</height>
+       </size>
+      </property>
+      <property name="plainText">
+       <string/>
+      </property>
+      <property name="placeholderText">
+       <string>Колво лст пасп.</string>
+      </property>
+     </widget>
     </widget>
     <widget class="QWidget" name="ballon_data">
      <attribute name="title">
@@ -1842,7 +1870,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string>Сталь 38ХА ГОСТ 4543-61</string>
+          <string>38ХА ГОСТ 4543-61</string>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
