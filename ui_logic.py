@@ -1,7 +1,8 @@
+import csv
 import random
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QPlainTextEdit, QComboBox,
                              QPushButton, QSpinBox, QTableWidgetItem, QLabel, QGroupBox, QVBoxLayout, QTableWidget,
-                             QHeaderView, QMessageBox)
+                             QHeaderView, QMessageBox, QFileDialog)
 from PyQt6.uic import loadUi
 from typing import List, Dict, Union
 from docxtpl import DocxTemplate
@@ -9,6 +10,8 @@ from docxtpl import DocxTemplate
 import os
 from datetime import datetime
 from PyQt6.uic.properties import QtWidgets
+
+import pandas as pd
 
 
 class MainWindow(QMainWindow):
@@ -35,7 +38,7 @@ class MainWindow(QMainWindow):
         "pushButt_generateWord", "pushButt_generateCSV",
         "pushButt_amount", "pushButt_sMinMin", "pushButton_creatThickness",
         "pushButton_creatRasschProchn", "pushButton_creatOstRes",
-        "pushButt_ovalnost", "pushButt_tverdost"
+        "pushButt_ovalnost", "pushButt_tverdost", "pushButt_download_fromCSV"
     ]
 
     SPIN_BOX_NAMES = [
@@ -69,6 +72,57 @@ class MainWindow(QMainWindow):
         self.pushButton_creatOstRes.clicked.connect(self.ost_res)
         self.pushButt_ovalnost.clicked.connect(self.ovalnost_calc)
         self.pushButt_tverdost.clicked.connect(self.tverdost)
+        self.pushButt_download_fromCSV.clicked.connect(self.load_from_csv)
+
+    def load_from_csv(self):
+        """Загрузка данных из CSV файла в интерфейс"""
+        try:
+            # 1. Выбор файла через диалоговое окно
+            filepath, _ = QFileDialog.getOpenFileName(
+                self,
+                "Выберите CSV файл для загрузки",
+                "",
+                "CSV Files (*.csv);;All Files (*)"
+            )
+
+            if not filepath:  # Пользователь отменил выбор
+                return
+
+            # 2. Чтение CSV файла
+            with open(filepath, 'r', encoding='utf-8-sig') as f:
+                reader = csv.DictReader(f)
+                data = list(reader)
+
+                if not data:
+                    raise ValueError("CSV файл не содержит данных")
+
+                # 3. Заполнение таблицы баллонов
+                self.table_ballons.setRowCount(len(data))
+
+                for row_idx, row_data in enumerate(data):
+                    # Заполняем столбцы таблицы
+                    self.table_ballons.setItem(row_idx, 0, QTableWidgetItem(row_data.get('Зав.№', '')))
+                    self.table_ballons.setItem(row_idx, 1, QTableWidgetItem(row_data.get('Smin', '')))
+                    self.table_ballons.setItem(row_idx, 2, QTableWidgetItem(row_data.get('Г.и.', '')))
+
+                    # Если есть данные о массе, заполняем 4-й столбец
+                    if 'Масса' in row_data:
+                        self.table_ballons.setItem(row_idx, 3, QTableWidgetItem(row_data['Масса']))
+
+                # 4. Обновляем количество баллонов
+                self.amount.setValue(len(data))
+
+                # 5. Обновляем список заводских номеров
+                self.text = [row_data.get('Зав.№', '') for row_data in data]
+                self.zav_nums.setPlainText(", ".join(self.text))
+
+                # 6. Пересчитываем минимальные значения
+                self.s_min_min_calc()
+
+            self.show_message("Успех", "Данные успешно загружены из CSV", QMessageBox.Icon.Information)
+
+        except Exception as e:
+            self.show_message("Ошибка", f"Не удалось загрузить CSV: {str(e)}", QMessageBox.Icon.Critical)
 
     def init_widgets(self):
         """Автоматически инициализирует все виджеты из UI"""
@@ -173,7 +227,7 @@ class MainWindow(QMainWindow):
             )
 
             # 6. Сохраняем документ
-            output_dir = "output"
+            output_dir = "output_word"
             os.makedirs(output_dir, exist_ok=True)
             output_path = os.path.join(output_dir, output_filename)
 
@@ -214,10 +268,73 @@ class MainWindow(QMainWindow):
         msg.exec()
 
     def generate_csv(self):
-        """Обработчик нажатия кнопки генерации CSV"""
-        form_data = self.get_form_data()
-        print("Данные для CSV:", form_data)
-        # Здесь будет ваша логика генерации CSV
+        """Генерация CSV файла с правильным форматированием ячеек"""
+        try:
+            data = self.get_form_data()
+            output_dir = "output_csv"
+            os.makedirs(output_dir, exist_ok=True)
+
+            filename = (
+                f"рег-{self.reg_number.toPlainText().strip()}_"
+                f"р-{self.p_rab.toPlainText().strip()}_"
+                f"{self.rab_sreda.currentText()}_"
+                f"кбХиммаш_{self.amount.value()}шт.csv"
+            )
+            filepath = os.path.join(output_dir, filename)
+
+            # Подготовка данных
+            csv_data = []
+            for row in data.get('ballony', []):
+                csv_data.append({
+                    'Зав.№': str(row['zav']).strip(),
+                    'Smin': str(row['s_min']).replace('.', ',').strip(),
+                    'Г.и.': str(row['g_i_bal']).strip(),
+                    'Масса': str(row.get('massa', '')).strip()
+                })
+
+            # Используем модуль csv для правильного форматирования
+            with open(filepath, 'w', encoding='utf-8-sig', newline='') as f:
+                writer = csv.DictWriter(f, fieldnames=['Зав.№', 'Smin', 'Г.и.', 'Масса'])
+                writer.writeheader()
+
+                for row in csv_data:
+                    writer.writerow(row)
+
+            # Дополнительно создаем human-readable версию с выравниванием
+            self._create_aligned_version(filepath)
+
+            self.show_message("Успех", f"CSV сохранён в {filepath}", QMessageBox.Icon.Information)
+
+        except Exception as e:
+            self.show_message("Ошибка", f"Не удалось создать CSV: {str(e)}", QMessageBox.Icon.Critical)
+
+    def _create_aligned_version(self, original_path):
+        """Создает выровненную версию файла для удобного просмотра"""
+        try:
+            aligned_path = original_path.replace('.csv', '_formatted.txt')
+
+            with open(original_path, 'r', encoding='utf-8-sig') as f:
+                reader = csv.reader(f)
+                rows = list(reader)
+
+            # Определяем ширину столбцов
+            col_widths = [max(len(str(item)) for item in col) for col in zip(*rows)]
+
+            # Форматируем строки
+            formatted_lines = []
+            for row in rows:
+                formatted_line = "  ".join(
+                    str(item).ljust(width)
+                    for item, width in zip(row, col_widths)
+                )
+                formatted_lines.append(formatted_line)
+
+            # Сохраняем выровненную версию
+            with open(aligned_path, 'w', encoding='utf-8') as f:
+                f.write("\n".join(formatted_lines))
+
+        except Exception as e:
+            print(f"Не удалось создать выровненную версию: {str(e)}")
 
     def fill_table(self):
         """Заполнение таблицы баллонов. Заполняется 1й столбец!!!"""

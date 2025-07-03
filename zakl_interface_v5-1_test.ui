@@ -36,38 +36,12 @@
      </sizepolicy>
     </property>
     <property name="currentIndex">
-     <number>2</number>
+     <number>0</number>
     </property>
     <widget class="QWidget" name="general_info">
      <attribute name="title">
       <string>Общие данные</string>
      </attribute>
-     <widget class="QPushButton" name="pushButt_generateWord">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>490</y>
-        <width>100</width>
-        <height>26</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>Выгрузить в Word</string>
-      </property>
-     </widget>
-     <widget class="QPushButton" name="pushButt_generateCSV">
-      <property name="geometry">
-       <rect>
-        <x>120</x>
-        <y>490</y>
-        <width>100</width>
-        <height>26</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>Выгрузить в CSV</string>
-      </property>
-     </widget>
      <widget class="QWidget" name="layoutWidget">
       <property name="geometry">
        <rect>
@@ -300,7 +274,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string>1236, 3365, 6542, 7821</string>
+          <string/>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
@@ -454,7 +428,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string>777-25</string>
+          <string>___-25</string>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
@@ -488,7 +462,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string>55771</string>
+          <string/>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
@@ -658,7 +632,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string>666-888-17</string>
+          <string/>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
@@ -794,7 +768,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string>3400</string>
+          <string/>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
@@ -964,7 +938,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string>9822</string>
+          <string/>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
@@ -1569,6 +1543,39 @@
       <property name="placeholderText">
        <string>Колво лст пасп.</string>
       </property>
+     </widget>
+     <widget class="QWidget" name="">
+      <property name="geometry">
+       <rect>
+        <x>11</x>
+        <y>491</y>
+        <width>220</width>
+        <height>19</height>
+       </rect>
+      </property>
+      <layout class="QHBoxLayout" name="horizontalLayout_4">
+       <item>
+        <widget class="QPushButton" name="pushButt_generateWord">
+         <property name="text">
+          <string>Выгрузить в Word</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="pushButt_generateCSV">
+         <property name="text">
+          <string>Выгрузить в CSV</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="pushButt_download_fromCSV">
+         <property name="text">
+          <string>Загрузить из CSV</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
      </widget>
     </widget>
     <widget class="QWidget" name="ballon_data">
@@ -2379,7 +2386,7 @@
           <enum>Qt::LeftToRight</enum>
          </property>
          <property name="plainText">
-          <string>21.2</string>
+          <string/>
          </property>
          <property name="overwriteMode">
           <bool>false</bool>
