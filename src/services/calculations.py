@@ -1,269 +1,209 @@
-"""Сервисы для расчётов параметров баллонов."""
+"""Чистые функции расчётов ГОСТ для баллонов высокого давления.
+
+Портированы 1:1 из ui_logic.py (прочность, остаточный ресурс, толщины,
+овальность, твёрдость, поиск минимальной толщины и диапазона годов).
+Модуль не зависит от Qt — вызывающий (GUI) слой отвечает за чтение
+виджетов и форматирование результата под русскую десятичную запятую
+(см. src/services/formatting.py).
+"""
 
 import random
 from dataclasses import dataclass
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
-from ..config import (
-    GOST_HARDNESS_COEFFICIENT,
-    GOST_HARDNESS_ALLOWANCE,
-    DEFAULT_SETTINGS,
-)
+from ..config import GOST_HARDNESS_COEFFICIENT, GOST_HARDNESS_ALLOWANCE
 
 
-@dataclass
-class StrengthResults:
-    """Результаты расчёта прочности."""
-    sigma: float  # Расчётное напряжение
-    sigma_hydro: float  # Напряжение при гидравлическом испытании
-    s_rasch: float  # Расчётная толщина при рабочем давлении
-    s_rasch_hydro: float  # Расчётная толщина при гидроиспытании
-    s_max_rasch: float  # Максимальная расчётная толщина
-    p_dop: float  # Допустимое давление
+@dataclass(frozen=True)
+class StrengthResult:
+    sigma: float
+    sigma_gidro: float
+    s_rasch: float
+    s_rasch_gidro: float
+    s_max_rasch: float
+    p_dop: float
+    p_pnevma_kgs: int
+    p_rab_025: int
+    p_rab_05: int
+    p_rab_075: int
 
 
-@dataclass
-class CorrosionResults:
-    """Результаты расчёта коррозии и остаточного ресурса."""
-    corrosion_rate: float  # Скорость коррозии, мм/год
-    remaining_life: float  # Остаточный ресурс, лет
-    comment: str  # Комментарий
+def calculate_strength(
+    pred_tek_min: float,
+    vrem_sopr_min: float,
+    p_rab_mpa: float,
+    p_gidro: float,
+    d_vnutr: float,
+    s_isp: float,
+    p_pnevma: float,
+    p_rab: float,
+) -> StrengthResult:
+    """Расчёт на прочность по ГОСТ 34233.1. Портировано из ui_logic.prochnost()."""
+    sigma = round(1.0 * min(pred_tek_min / 1.5, vrem_sopr_min / 2.4), 1)
+    sigma_gidro = round(pred_tek_min / 1.1, 1)
+    p_pnevma_kgs = round(p_pnevma * 10.19)
+
+    s_rasch = round(((d_vnutr + (s_isp * 2)) * p_rab_mpa) / (2 * sigma + p_rab_mpa), 1)
+    s_rasch_gidro = round(((d_vnutr + (s_isp * 2)) * p_gidro) / (2 * sigma_gidro + p_gidro), 1)
+    s_max_rasch = max(s_rasch, s_rasch_gidro)
+
+    p_dop = round((2 * sigma * (s_isp - 1)) / (d_vnutr + (s_isp - 1)), 1)
+
+    return StrengthResult(
+        sigma=sigma,
+        sigma_gidro=sigma_gidro,
+        s_rasch=s_rasch,
+        s_rasch_gidro=s_rasch_gidro,
+        s_max_rasch=s_max_rasch,
+        p_dop=p_dop,
+        p_pnevma_kgs=p_pnevma_kgs,
+        p_rab_025=round(p_rab * 0.25),
+        p_rab_05=round(p_rab * 0.5),
+        p_rab_075=round(p_rab * 0.75),
+    )
 
 
-@dataclass
-class OvalnessResult:
-    """Результаты расчёта овальности."""
-    serial_number: str
-    measurements: List[Tuple[float, float, float]]  # (d_min, d_max, ovalness)
+@dataclass(frozen=True)
+class ResidualLifeResult:
+    corrosion_rate: float  # a_corr, мм/год
+    remaining_years: float  # tk — int 0 при a==0, иначе float (округлено до целого)
+    comment: str  # tk_just
 
 
-class CalculationsService:
-    """Сервис для выполнения всех расчётов."""
-    
-    @staticmethod
-    def calculate_strength(
-        working_pressure: float,
-        hydro_test_pressure: float,
-        pneumatic_test_pressure: float,
-        inner_diameter: float,
-        min_yield_strength: float,
-        min_ultimate_strength: float,
-        wall_thickness: float,
-        coefficient_yield: float = DEFAULT_SETTINGS["coefficient_safety_yield"],
-        coefficient_ultimate: float = DEFAULT_SETTINGS["coefficient_safety_ultimate"],
-        coefficient_hydro: float = DEFAULT_SETTINGS["coefficient_hydro"],
-    ) -> StrengthResults:
-        """
-        Расчёт прочности баллона по ГОСТ.
-        
-        Args:
-            working_pressure: Рабочее давление, МПа
-            hydro_test_pressure: Давление гидравлического испытания, МПа
-            pneumatic_test_pressure: Давление пневматического испытания, МПа
-            inner_diameter: Внутренний диаметр, мм
-            min_yield_strength: Минимальный предел текучести, МПа
-            min_ultimate_strength: Минимальное временное сопротивление, МПа
-            wall_thickness: Толщина стенки, мм
-            coefficient_yield: Коэффициент безопасности для предела текучести
-            coefficient_ultimate: Коэффициент безопасности для временного сопротивления
-            coefficient_hydro: Коэффициент безопасности для гидроиспытания
-            
-        Returns:
-            StrengthResults: Результаты расчёта прочности
-        """
-        # Расчётные напряжения
-        sigma = 1.0 * min(
-            min_yield_strength / coefficient_yield,
-            min_ultimate_strength / coefficient_ultimate
-        )
-        sigma_hydro = min_yield_strength / coefficient_hydro
-        
-        # Расчёт толщины стенки
-        s_rasch = round(
-            ((inner_diameter + (wall_thickness * 2)) * working_pressure) / 
-            (2 * sigma + working_pressure), 1
-        )
-        s_rasch_hydro = round(
-            ((inner_diameter + (wall_thickness * 2)) * hydro_test_pressure) / 
-            (2 * sigma_hydro + hydro_test_pressure), 1
-        )
-        s_max_rasch = max(s_rasch, s_rasch_hydro)
-        
-        # Допустимое давление
-        p_dop = round(
-            (2 * sigma * (wall_thickness - 1)) / (inner_diameter + (wall_thickness - 1)), 1
-        )
-        
-        return StrengthResults(
-            sigma=sigma,
-            sigma_hydro=sigma_hydro,
-            s_rasch=s_rasch,
-            s_rasch_hydro=s_rasch_hydro,
-            s_max_rasch=s_max_rasch,
-            p_dop=p_dop
-        )
-    
-    @staticmethod
-    def calculate_ovalness(
-        d_min: float,
-        d_max: float,
-        count: int = 3
-    ) -> List[Tuple[float, float, float]]:
-        """
-        Расчёт овальности для одного баллона.
-        
-        Args:
-            d_min: Минимальный диаметр, мм
-            d_max: Максимальный диаметр, мм
-            count: Количество замеров
-            
-        Returns:
-            Список кортежей (d_min, d_max, ovalness) для каждого замера
-        """
-        if d_min == d_max:
-            return [(d_min, d_max, 0.0)] * count
-        
-        measurements = []
-        for _ in range(count):
-            # Генерация случайных значений в диапазоне
-            d_min_rand = random.uniform(d_min, d_max)
-            d_max_rand = random.uniform(d_min_rand, d_max)
-            
-            # Расчёт овальности: 2*(Dmax-Dmin)/(Dmax+Dmin)*100%
-            ovalness = round(
-                ((2 * (d_max_rand - d_min_rand)) / (d_max_rand + d_min_rand)) * 100, 3
-            )
-            
-            measurements.append((round(d_min_rand, 1), round(d_max_rand, 1), ovalness))
-        
-        return measurements
-    
-    @staticmethod
-    def calculate_hardness(
-        ultimate_strength: float,
-        coefficient: float = GOST_HARDNESS_COEFFICIENT,
-        allowance: float = GOST_HARDNESS_ALLOWANCE
-    ) -> Tuple[float, float]:
-        """
-        Расчёт твёрдости по ГОСТ по пределу прочности.
-        
-        Args:
-            ultimate_strength: Временное сопротивление, МПа
-            coefficient: Коэффициент перевода (2.7 для углеродистых сталей)
-            allowance: Допустимое отклонение
-            
-        Returns:
-            Кортеж (hb_min, hb_max) - минимальная и максимальная твёрдость
-        """
-        hb = coefficient * (ultimate_strength / 10)
-        hb_min = round(hb)
-        hb_max = round(hb + allowance)
-        
-        return hb_min, hb_max
-    
-    @staticmethod
-    def generate_hardness_measurements(
-        hb_min: float,
-        hb_max: float,
-        count: int = 20
-    ) -> List[float]:
-        """
-        Генерация измерений твёрдости.
-        
-        Args:
-            hb_min: Минимальная твёрдость
-            hb_max: Максимальная твёрдость
-            count: Количество измерений
-            
-        Returns:
-            Список измерений твёрдости
-        """
-        return [round(random.uniform(hb_min, hb_max)) for _ in range(count)]
-    
-    @staticmethod
-    def calculate_corrosion_rate(
-        current_thickness: float,
-        original_thickness: float,
-        corrosion_allowance: float,
-        years_of_operation: float
-    ) -> CorrosionResults:
-        """
-        Расчёт скорости коррозии и остаточного ресурса.
-        
-        Args:
-            current_thickness: Текущая толщина стенки, мм
-            original_thickness: Номинальная толщина стенки, мм
-            corrosion_allowance: Припуск на коррозию, мм
-            years_of_operation: Срок эксплуатации, лет
-            
-        Returns:
-            CorrosionResults: Результаты расчёта коррозии
-        """
-        if years_of_operation == 0:
-            return CorrosionResults(
-                corrosion_rate=0.0,
-                remaining_life=0.0,
-                comment="Срок эксплуатации не указан"
-            )
-        
-        # Расчёт скорости коррозии
-        # a = (s_isp + c0 + dop - s_min) / years
-        a = round((original_thickness + corrosion_allowance - current_thickness) / years_of_operation, 3)
-        
-        # Расчёт остаточного ресурса
-        # tk = (s_min - s_max_rasch) / a
-        # Для упрощения используем текущую толщину
-        remaining = round((current_thickness - 1.0) / a, 0) if a > 0 else 0
-        
-        # Комментарий
-        if remaining > 10:
-            comment = "> 10 лет"
-        elif remaining > 0:
-            comment = f"{int(remaining)} лет"
-        else:
-            comment = "Требуется пересчёт"
-        
-        return CorrosionResults(
-            corrosion_rate=a,
-            remaining_life=remaining,
-            comment=comment
-        )
-    
-    @staticmethod
-    def generate_thickness_measurements(
-        s_min: float,
-        s_max: float,
-        count: int = 20
-    ) -> List[float]:
-        """
-        Генерация измерений толщины стенки.
-        
-        Args:
-            s_min: Минимальная толщина
-            s_max: Максимальная толщина
-            count: Количество измерений
-            
-        Returns:
-            Список измерений толщины
-        """
-        measurements = [round(random.uniform(s_min, s_max), 1) for _ in range(count)]
-        
-        # Убедиться, что минимальное значение присутствует
-        if min(measurements) != s_min:
-            min_index = measurements.index(min(measurements))
-            measurements[min_index] = s_min
-        
-        return measurements
-    
-    @staticmethod
-    def calculate_pneumatic_test_kgs(pneumatic_pressure_mpa: float) -> float:
-        """
-        Перевод давления пневматического испытания из МПа в кгс/см².
-        
-        Args:
-            pneumatic_pressure_mpa: Давление в МПа
-            
-        Returns:
-            Давление в кгс/см²
-        """
-        return round(pneumatic_pressure_mpa * 10.19, 1)
+def calculate_residual_life(
+    s_isp: float,
+    c0_plus_dop: float,
+    s_min_total: float,
+    years_of_operation: float,
+    s_max_rasch: float,
+) -> ResidualLifeResult:
+    """Расчёт скорости коррозии и остаточного ресурса. Портировано из ui_logic.ost_res().
+
+    Raises:
+        ValueError: если years_of_operation == 0 (деление на ноль).
+    """
+    if years_of_operation == 0:
+        raise ValueError("Срок эксплуатации не может быть нулевым")
+
+    a = round((s_isp + c0_plus_dop - s_min_total) / years_of_operation, 3)
+    tk = round((s_min_total - s_max_rasch) / a, 0) if a != 0 else 0
+    comment = "> 10 лет" if tk > 10 else "Пересчитать."
+
+    return ResidualLifeResult(corrosion_rate=a, remaining_years=tk, comment=comment)
+
+
+def generate_thickness_measurements(
+    s_min: float,
+    count: int = 20,
+    spread: float = 2.0,
+    rng: Optional[random.Random] = None,
+) -> List[float]:
+    """Генерация замеров толщины вокруг измеренного минимума.
+
+    Портировано из ui_logic.calc_thick(): count значений round(uniform(s_min,
+    s_min+spread), 1); минимум сгенерированного списка принудительно
+    заменяется на фактический s_min — это осознанное поведение, сохранено как есть.
+    """
+    rng = rng or random.Random()
+    values = [round(rng.uniform(s_min, s_min + spread), 1) for _ in range(count)]
+    if values:
+        min_value = min(values)
+        if min_value != s_min:
+            values[values.index(min_value)] = s_min
+    return values
+
+
+@dataclass(frozen=True)
+class OvalMeasurement:
+    d_min: int
+    d_max: int
+    ovalness: float
+
+
+def generate_ovalness_measurement(
+    d_range: Tuple[int, int] = (465, 466),
+    rng: Optional[random.Random] = None,
+) -> OvalMeasurement:
+    """Один замер овальности. Портировано из ui_logic.ovalnost_calc().
+
+    Порядок вызовов rng сохранён как в оригинале (сначала d_min, потом d_max)
+    для воспроизводимости при фиксированном seed.
+    """
+    rng = rng or random.Random()
+    while True:
+        d_min = rng.randint(*d_range)
+        d_max = rng.randint(*d_range)
+        if d_max >= d_min:
+            break
+    ovalness = round(((2 * (d_max - d_min)) / (d_max + d_min)) * 100, 3)
+    return OvalMeasurement(d_min=d_min, d_max=d_max, ovalness=ovalness)
+
+
+def generate_ovalness_measurements(
+    count: int = 3,
+    d_range: Tuple[int, int] = (465, 466),
+    rng: Optional[random.Random] = None,
+) -> List[OvalMeasurement]:
+    rng = rng or random.Random()
+    return [generate_ovalness_measurement(d_range=d_range, rng=rng) for _ in range(count)]
+
+
+@dataclass(frozen=True)
+class HardnessRange:
+    hb_min: int
+    hb_max: int
+
+
+def calculate_hardness_range(
+    rm: float,
+    coefficient: float = GOST_HARDNESS_COEFFICIENT,
+    allowance: int = GOST_HARDNESS_ALLOWANCE,
+) -> HardnessRange:
+    """Диапазон твёрдости по ГОСТ. Портировано из ui_logic.tverdost().
+
+    rm — параметр (фикс бага: раньше было захардкожено 981).
+    hb_max = hb_min + allowance эквивалентно round(coeff*(rm/10) + allowance)
+    из оригинала: прибавление целого allowance не меняет исход round().
+    """
+    hb_min = round(coefficient * (rm / 10))
+    hb_max = hb_min + allowance
+    return HardnessRange(hb_min=hb_min, hb_max=hb_max)
+
+
+def generate_hardness_measurements(
+    hb_min: int, hb_max: int, count: int = 20, rng: Optional[random.Random] = None
+) -> List[int]:
+    rng = rng or random.Random()
+    return [round(rng.uniform(hb_min, hb_max)) for _ in range(count)]
+
+
+@dataclass(frozen=True)
+class SMinResult:
+    s_min: float
+    s_min_index: int
+
+
+def find_min_thickness(values: List[float]) -> SMinResult:
+    """Поиск минимальной толщины и её индекса. Портировано из ui_logic.s_min_min_calc().
+
+    Raises:
+        ValueError: на пустом списке.
+    """
+    if not values:
+        raise ValueError("Список толщин пуст")
+    s_min = min(values)
+    return SMinResult(s_min=s_min, s_min_index=values.index(s_min))
+
+
+def format_year_range(years: List[int]) -> str:
+    """Форматирование диапазона годов изготовления. Портировано из ui_logic.s_min_min_calc().
+
+    Пустой список -> "Нет данных" (не raise — в оригинале это отдельная,
+    самостоятельная ветка без ошибки, асимметрия с find_min_thickness сохранена).
+    """
+    if not years:
+        return "Нет данных"
+    min_year, max_year = min(years), max(years)
+    if min_year != max_year:
+        return f"{min_year} - {max_year} гг."
+    return f"{min_year} г."
