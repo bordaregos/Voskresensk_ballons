@@ -37,6 +37,23 @@ class MainWindow(QMainWindow):
     SPIN_BOX_NAMES = widget_names.SPIN_BOX_NAMES
     TABLE_WIDGET = widget_names.TABLE_WIDGET
 
+    # Обязательный порядок выполнения расчётов перед генерацией документа.
+    # Нарушение порядка раньше давало документ с пустыми циклами без единой
+    # ошибки — see _check_prerequisite().
+    STEP_ORDER = [
+        "amount", "s_min_min", "thickness", "strength",
+        "residual_life", "ovalness", "hardness",
+    ]
+    STEP_LABELS = {
+        "amount": "«Кол-во баллонов»",
+        "s_min_min": "«Smin-min»",
+        "thickness": "«Расчитать толщины»",
+        "strength": "«Расчёт на прочность»",
+        "residual_life": "«Остаточный ресурс»",
+        "ovalness": "«Расчёт овальности»",
+        "hardness": "«Расчёт твёрдости»",
+    }
+
     def __init__(self):
         """Инициализация конструктора класса. Пишем все атрибуты,
         что пригодятся нам по коду."""
@@ -45,6 +62,7 @@ class MainWindow(QMainWindow):
         self.text = []
         self.s_min_lst = []
         self.file_handler = None
+        self._completed_steps = set()
 
         loadUi(str(DESIGNER_UI_PATH), self)
 
@@ -162,6 +180,16 @@ class MainWindow(QMainWindow):
 
     def calculate(self):
         """Обработчик нажатия кнопки генерации Word с улучшенной обработкой ошибок"""
+        missing = [step for step in self.STEP_ORDER if step not in self._completed_steps]
+        if missing:
+            missing_labels = ", ".join(self.STEP_LABELS[step] for step in missing)
+            self.show_message(
+                "Не выполнены обязательные шаги",
+                f"Перед генерацией документа выполните: {missing_labels}.",
+                QMessageBox.Icon.Warning,
+            )
+            return
+
         try:
             # 1. Проверка заполненности полей
             if not all([
@@ -233,6 +261,25 @@ class MainWindow(QMainWindow):
         msg.setStandardButtons(QMessageBox.StandardButton.Ok)
         msg.exec()
 
+    def _check_prerequisite(self, step: str) -> bool:
+        """Проверяет, что предыдущий шаг из STEP_ORDER выполнен.
+
+        Если нет — показывает предупреждение вместо тихого сбоя
+        (см. STEP_ORDER) и возвращает False.
+        """
+        idx = self.STEP_ORDER.index(step)
+        if idx == 0:
+            return True
+        prev = self.STEP_ORDER[idx - 1]
+        if prev not in self._completed_steps:
+            self.show_message(
+                "Нарушен порядок действий",
+                f"Сначала выполните шаг {self.STEP_LABELS[prev]}.",
+                QMessageBox.Icon.Warning,
+            )
+            return False
+        return True
+
     # --- Методы импорта/экспорта ---
 
     def import_csv(self):
@@ -265,6 +312,7 @@ class MainWindow(QMainWindow):
             for row, zav_num in enumerate(self.text):
                 item = QTableWidgetItem(zav_num)
                 table.setItem(row, 0, item)
+            self._completed_steps.add("amount")
 
         else:
             print(f"Кол-во баллонов {amount} не совпадает с введёными зав. №№ {len(self.text)}")
@@ -273,6 +321,9 @@ class MainWindow(QMainWindow):
 
     def s_min_min_calc(self):
         """Вычисляет минимальное значение из второго столбца и выводит в QPlainTextEdit"""
+        if not self._check_prerequisite("s_min_min"):
+            return
+
         self.s_min_lst = []
         years_min_max_lst = []
         table = self.table_ballons
@@ -307,6 +358,7 @@ class MainWindow(QMainWindow):
             else:
                 print(f"Ошибка: индекс {min_result.s_min_index} выходит за пределы списка {len(self.text)}")
                 self.zav_s_min.setPlainText("Нет данных")
+            self._completed_steps.add("s_min_min")
 
         # Собираем все года из третьего столбца.
         for row in range(table.rowCount()):
@@ -323,6 +375,9 @@ class MainWindow(QMainWindow):
 
     def calc_thick(self):
         """Функция - генератор толщин."""
+        if not self._check_prerequisite("thickness"):
+            return
+
         thick_table = self.table_thick
         amount = self.amount.value()
         tolshiny_lst = []
@@ -384,6 +439,7 @@ class MainWindow(QMainWindow):
                     continue
 
         self.data.update({"ballony": tolshiny_lst})
+        self._completed_steps.add("thickness")
 
     def s_max_lst(self):
         """Собираем все макс толщины в список."""
@@ -402,6 +458,8 @@ class MainWindow(QMainWindow):
 
     def ovalnost_calc(self):
         """Расчёт овальности."""
+        if not self._check_prerequisite("ovalness"):
+            return
 
         bal_oval = []
 
@@ -418,9 +476,12 @@ class MainWindow(QMainWindow):
 
             bal_oval.append(bal_oval_dict)
         self.data.update({"bal_oval": bal_oval})
+        self._completed_steps.add("ovalness")
 
     def tverdost(self) -> None:
         """Расчёт твёрдости и подготовка данных для Word."""
+        if not self._check_prerequisite("hardness"):
+            return
         try:
             # 1. Получаем предел прочности (Rm) из интерфейса — то же поле,
             # что уже вводится оператором для расчёта прочности в prochnost().
@@ -447,12 +508,15 @@ class MainWindow(QMainWindow):
                 "hb_max": format_ru(hb_range.hb_max),
                 "tverdost_data": tverdost_data  # Список для цикла в Word
             })
+            self._completed_steps.add("hardness")
 
         except ValueError as e:
             print(f"Ошибка ввода данных: {e}")
             self.show_message("Ошибка ввода", str(e), QMessageBox.Icon.Warning)
 
     def prochnost(self):
+        if not self._check_prerequisite("strength"):
+            return
         try:
             # Получаем данные из полей
             pred_tek_min = parse_ru(self.pred_tek_min.toPlainText())
@@ -483,6 +547,7 @@ class MainWindow(QMainWindow):
             self.s_max_rasch.setPlainText(format_ru(result.s_max_rasch))
             self.p_pnevma_kgs.setPlainText(format_ru(result.p_pnevma_kgs))
             self.p_dop.setPlainText(format_ru(result.p_dop))
+            self._completed_steps.add("strength")
 
         except ValueError as e:
             print(f"Ошибка ввода: {e}")
@@ -491,6 +556,8 @@ class MainWindow(QMainWindow):
             self.s_max_rasch.setPlainText("Ошибка")
 
     def ost_res(self):
+        if not self._check_prerequisite("residual_life"):
+            return
         try:
             # Получаем данные из полей с проверкой на пустые значения
             s_isp = parse_ru(self.s_isp.toPlainText()) if self.s_isp.toPlainText() else 0.0
@@ -511,6 +578,7 @@ class MainWindow(QMainWindow):
             self.a_corr.setPlainText(format_ru(result.corrosion_rate))
             self.tk_years.setPlainText(format_ru(result.remaining_years))
             self.tk_just.setPlainText(result.comment)
+            self._completed_steps.add("residual_life")
 
         except ValueError as e:
             print(f"Ошибка ввода данных: {e}")
