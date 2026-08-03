@@ -471,14 +471,12 @@ class MainWindow(QMainWindow):
             bal_oval.append(bal_oval_dict)
         self.data.update({"bal_oval": bal_oval})
 
-    def tverdost(self) -> dict:
-        """
-        Расчёт твёрдости и подготовка данных для Word.
-        Возвращает словарь с результатами в формате {плейсхолдер: значение}.
-        """
+    def tverdost(self) -> None:
+        """Расчёт твёрдости и подготовка данных для Word."""
         try:
-            # 1. Получаем предел прочности (Rm) из интерфейса
-            rm = 981 # ЭТО ДОЛЖНО ПОЛУЧАТЬСЯ ИЗ ИНТЕРФЕЙСА!!!
+            # 1. Получаем предел прочности (Rm) из интерфейса — то же поле,
+            # что уже вводится оператором для расчёта прочности в prochnost().
+            rm = float(self.vrem_sopr_min.toPlainText().replace(",", "."))
 
             # 2. Расчёт минимальной и максимальной твёрдости по ГОСТ
             hb_min = round(2.7 * (rm / 10))  # Нижний предел (HB)
@@ -505,11 +503,7 @@ class MainWindow(QMainWindow):
 
         except ValueError as e:
             print(f"Ошибка ввода данных: {e}")
-            return {
-                "hb_min": "Ошибка",
-                "hb_max": "Ошибка",
-                "tverdost_data": []
-            }
+            self.show_message("Ошибка ввода", str(e), QMessageBox.Icon.Warning)
 
     def prochnost(self):
         try:
@@ -535,7 +529,7 @@ class MainWindow(QMainWindow):
             p_dop = str(round((2 * sigma * (s_isp - 1)) / (d_vnutr + (s_isp - 1)), 1)).replace(".", ",")
 
             # Вычисляем давление для этапов пневматического испытания.
-            p_rab = float(self.p_rab.toPlainText())
+            p_rab = float(self.p_rab.toPlainText().replace(",", "."))
             self.data.update({"p_rab_025": f"{round(p_rab * 0.25)}"})
             self.data.update({"p_rab_05": f"{round(p_rab * 0.5)}"})
             self.data.update({"p_rab_075": f"{round(p_rab * 0.75)}"})

@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional
 
 
-class ImportError(Exception):
+class BalloonImportError(Exception):
     """Исключение для ошибок импорта."""
     pass
 
@@ -37,10 +37,10 @@ class CSVImporter:
             Список словарей с данными баллонов
             
         Raises:
-            ImportError: Если файл не найден или ошибка при чтении
+            BalloonImportError: Если файл не найден или ошибка при чтении
         """
         if not filepath.exists():
-            raise ImportError(f"Файл не найден: {filepath}")
+            raise BalloonImportError(f"Файл не найден: {filepath}")
         
         balloons = []
         
@@ -64,7 +64,7 @@ class CSVImporter:
                         balloons.append(balloon_data)
         
         except csv.Error as e:
-            raise ImportError(f"Ошибка при чтении CSV: {e}")
+            raise BalloonImportError(f"Ошибка при чтении CSV: {e}")
         
         return balloons
     
@@ -155,17 +155,17 @@ class JSONImporter:
             Словарь с данными проекта
             
         Raises:
-            ImportError: Если файл не найден или ошибка при чтении
+            BalloonImportError: Если файл не найден или ошибка при чтении
         """
         if not filepath.exists():
-            raise ImportError(f"Файл не найден: {filepath}")
+            raise BalloonImportError(f"Файл не найден: {filepath}")
         
         try:
             with open(filepath, 'r', encoding='utf-8') as file:
                 data = json.load(file)
             return data
         except json.JSONDecodeError as e:
-            raise ImportError(f"Ошибка при чтении JSON: {e}")
+            raise BalloonImportError(f"Ошибка при чтении JSON: {e}")
 
 
 def import_balloon_list_from_csv(filepath: Path) -> List[Dict[str, Any]]:
