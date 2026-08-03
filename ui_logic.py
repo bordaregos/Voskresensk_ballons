@@ -1,16 +1,13 @@
 import random
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QPlainTextEdit, QComboBox,
-                             QPushButton, QSpinBox, QDateEdit, QTableWidgetItem, QLabel, QGroupBox, QVBoxLayout, QTableWidget,
-                             QHeaderView, QMessageBox, QMenu, QWidget)
+                             QPushButton, QSpinBox, QDateEdit, QTableWidgetItem, QTableWidget,
+                             QMessageBox)
 from PyQt6.QtCore import QDate, QLocale
-from PyQt6.QtGui import QAction
 from PyQt6.uic import loadUi
-from typing import List, Dict, Union
+from typing import Dict, Union
 from docxtpl import DocxTemplate
 
 import os
-from datetime import datetime
-from PyQt6.uic.properties import QtWidgets
 
 
 class MainWindow(QMainWindow):

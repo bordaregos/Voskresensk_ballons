@@ -6,8 +6,6 @@ from datetime import date
 from dataclasses import dataclass, field, asdict
 from typing import List, Dict, Any, Optional
 
-from .balloon import Balloon, Report
-
 
 @dataclass
 class Project:
@@ -99,57 +97,4 @@ class Project:
         with open(filepath, 'r', encoding='utf-8') as file:
             data = json.load(file)
         
-        return cls.from_dict(data)
-
-
-@dataclass
-class BalloonProject:
-    """Модель проекта только для баллонов (упрощённая)."""
-    
-    balloons: List[Balloon] = field(default_factory=list)
-    settings: Dict[str, Any] = field(default_factory=dict)
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """Преобразование в словарь."""
-        return {
-            'balloons': [
-                {
-                    'serial_number': b.serial_number,
-                    'min_thickness': b.min_thickness,
-                    'max_thickness': b.max_thickness,
-                    'year_of_manufacture': b.year_of_manufacture,
-                    'thickness_measurements': b.thickness_measurements,
-                }
-                for b in self.balloons
-            ],
-            'settings': self.settings,
-        }
-    
-    def to_json(self) -> str:
-        """Преобразование в JSON строку."""
-        return json.dumps(self.to_dict(), ensure_ascii=False, indent=2)
-    
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'BalloonProject':
-        """Создание из словаря."""
-        balloons = []
-        for b_data in data.get('balloons', []):
-            balloon = Balloon(
-                serial_number=b_data.get('serial_number', ''),
-                min_thickness=b_data.get('min_thickness', 0.0),
-                max_thickness=b_data.get('max_thickness', 0.0),
-                year_of_manufacture=b_data.get('year_of_manufacture', 2024),
-                thickness_measurements=b_data.get('thickness_measurements', []),
-            )
-            balloons.append(balloon)
-        
-        return cls(
-            balloons=balloons,
-            settings=data.get('settings', {}),
-        )
-    
-    @classmethod
-    def from_json(cls, json_str: str) -> 'BalloonProject':
-        """Создание из JSON строки."""
-        data = json.loads(json_str)
         return cls.from_dict(data)

@@ -1,6 +1,5 @@
 """Пакет моделей данных."""
 
-from .balloon import Balloon, Report
-from .project import Project, BalloonProject
+from .project import Project
 
-__all__ = ["Balloon", "Report", "Project", "BalloonProject"]
+__all__ = ["Project"]

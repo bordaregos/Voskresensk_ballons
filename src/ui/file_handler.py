@@ -7,13 +7,11 @@ from PyQt6.QtWidgets import QFileDialog, QMessageBox, QTableWidgetItem
 
 from src.services.importer import (
     import_balloon_list_from_csv,
-    import_project_from_json,
 )
 from src.services.exporter import (
     export_balloon_list_to_csv,
-    export_report_to_json,
 )
-from src.models.project import Project, BalloonProject
+from src.models.project import Project
 from src.config import OUTPUT_DIR
 
 
