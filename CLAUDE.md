@@ -5,14 +5,15 @@
 ## О проекте
 
 Десктопное приложение (PyQt6) для формирования **заключений по техническому
-освидетельствованию баллонов-воздухохранителей высокого давления**: оператор вводит
-паспортные данные партии баллонов и результаты замеров, приложение выполняет расчёты
-по ГОСТ (прочность, остаточный ресурс, овальность, твёрдость) и рендерит готовый
-Word-документ по .docx-шаблону.
+освидетельствованию баллонов-воздухохранителей высокого давления**: оператор
+вводит паспортные данные партии баллонов и результаты замеров, приложение
+выполняет расчёты по ГОСТ (прочность, остаточный ресурс, овальность,
+твёрдость) и рендерит готовый Word-документ по .docx-шаблону.
 
-Домен русскоязычный, вся терминология в коде — транслитерация: `prochnost` (прочность),
-`tverdost` (твёрдость), `ovalnost` (овальность), `tolshiny` (толщины), `zav_nums`
-(заводские номера), `s_min` (минимальная толщина стенки), `p_rab` (рабочее давление).
+Домен русскоязычный, вся терминология в коде — транслитерация: `prochnost`
+(прочность), `tverdost` (твёрдость), `ovalnost` (овальность), `tolshiny`
+(толщины), `zav_nums` (заводские номера), `s_min` (минимальная толщина
+стенки), `p_rab` (рабочее давление).
 
 ## Запуск
 
@@ -20,215 +21,188 @@ Word-документ по .docx-шаблону.
 python main.py
 ```
 
-**Запускать строго из корня проекта.** `ui_logic.py:65` загружает интерфейс по
-относительному пути `loadUi("src/ui/designer/main_window.ui", self)`, а `calculate()`
-пишет в относительную папку `output/`. Из другого CWD приложение падает на старте.
+Запускать из корня проекта. Загрузка `.ui`-файла не зависит от текущей
+директории (`src/ui/main_window.py` резолвит путь через `Path(__file__)`),
+но `calculate()` всё ещё пишет документы в **относительную** папку
+`output/` (`src/ui/main_window.py`, метод `calculate()`) — при запуске из
+другой директории документы уйдут не туда.
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Зависимости: `PyQt6`, `docxtpl` (Jinja2 поверх python-docx). `openpyxl` и `python-dateutil`
-перечислены в `requirements.txt`, но нигде не импортируются. Целевой интерпретатор — Python 3.12.
+Зависимости приложения: `PyQt6`, `docxtpl` (Jinja2 поверх python-docx).
+Для тестов — отдельно `pip install -r requirements-dev.txt` (`pytest`,
+`pytest-cov`; намеренно без PyQt6/docxtpl).
 
-Тестов, линтеров, CI, `pyproject.toml` и Makefile в проекте **нет**. Проверка — только
-ручной прогон GUI.
-
-## Архитектура: что исполняется на самом деле
-
-Проект находится в середине незавершённого рефакторинга. Формально слоёв два, фактически
-работающий код — один файл.
-
-```
-main.py                 точка входа: QApplication + MainWindow из ui_logic
-ui_logic.py  (602 стр.) ВЕСЬ рабочий код: GUI, все расчёты, генерация Word
-src/                    библиотечный слой; исполняется лишь малая часть
-templates/*.docx        шаблоны Word с Jinja-плейсхолдерами
-output/                 результат: .docx, а также .csv/.json проектов
+```bash
+pytest tests/ -v
 ```
 
-Из `src/` в рантайме реально задействовано **только четыре вещи** (ленивые импорты,
-чтобы разорвать цикл UI ↔ сервисы):
-
-| Что | Откуда вызывается |
-|---|---|
-| `src.config.find_template()` | `ui_logic.py:195` |
-| `src.ui.file_handler.FileHandler` | `ui_logic.py:89` |
-| `src.services.importer.import_balloon_list_from_csv` | через `FileHandler` |
-| `src.services.exporter.export_balloon_list_to_csv`, `src.models.project.Project` | через `FileHandler` |
-
-Всё остальное в `src/` — **параллельная неиспользуемая реализация** того, что `ui_logic.py`
-делает инлайном: `services/calculations.py`, `services/generator.py`, `models/balloon.py`,
-`utils/validators.py`, `utils/date_formatter.py`, `services/exporter.export_report_to_json`,
-`services/importer.import_project_from_json`. Правка формулы в `CalculationsService`
-**не влияет на приложение** — формулы живут в `ui_logic.py`.
-
-### Карта `src/`
-
-| Файл | Назначение | Задействован |
-|---|---|---|
-| `src/config.py` | пути (`PROJECT_ROOT`, `TEMPLATES_DIR`, `OUTPUT_DIR`), `TEMPLATE_WORD`, константы ГОСТ, `find_template()` | да (частично) |
-| `src/ui/file_handler.py` | Qt-диалоги импорта/экспорта, чтение и заполнение `table_ballons` | да |
-| `src/services/importer.py` | чтение CSV/JSON (`BALLOON_HEADERS` — карта алиасов заголовков) | да (CSV) |
-| `src/services/exporter.py` | запись CSV/JSON | да (CSV) |
-| `src/models/project.py` | `Project` — сериализация сессии в JSON | да (`Project`) |
-| `src/services/calculations.py` | `CalculationsService` — дубль всех формул | нет |
-| `src/services/generator.py` | `DocumentGenerator` — дубль генерации .docx | нет |
-| `src/models/balloon.py` | `Balloon`, `Report` (dataclass-модели) | нет |
-| `src/utils/validators.py`, `src/utils/date_formatter.py` | валидация, русские даты | нет |
-
-У `src/` нет `__init__.py` (namespace package), у подпакетов — есть. Внутри `models/`,
-`services/`, `utils/` используются относительные импорты (`from ..config import ...`),
-а `src/ui/file_handler.py` — абсолютные (`from src.services.importer import ...`).
-Поэтому корень проекта обязан быть в `sys.path` — это делает `main.py:12`.
-
-## Главный контракт проекта
+## Архитектура
 
 ```
-objectName виджета в .ui  ==  ключ в self.data  ==  имя плейсхолдера {{ ... }} в шаблоне .docx
+main.py                          точка входа: QApplication + src.ui.main_window.MainWindow
+src/
+├── config.py                    пути, константы ГОСТ, find_template()
+├── models/project.py            Project — сериализация сессии в JSON
+├── services/
+│   ├── calculations.py          ЕДИНСТВЕННЫЙ источник истины для формул ГОСТ
+│   ├── formatting.py            форматирование под русскую запятую
+│   ├── importer.py              импорт CSV/JSON
+│   └── exporter.py              экспорт CSV/JSON
+└── ui/
+    ├── main_window.py           MainWindow: GUI + вызовы сервисов
+    ├── widget_names.py          6 списков имён виджетов
+    ├── file_handler.py          Qt-диалоги импорта/экспорта
+    └── designer/main_window.ui  единственный .ui-файл
+tests/                           юнит-тесты src/services (без Qt), 45 тестов
+templates/*.docx                 шаблоны Word (не в git — .gitignore)
+output/                          сгенерированные документы (не в git)
 ```
 
-`get_form_data()` (`ui_logic.py:136`) проходит по спискам имён и складывает значение каждого
-виджета в `self.data` под его же именем; этот словарь целиком уходит в `doc.render()`.
-Разрыв цепочки в любом звене — молча пустое место в готовом документе.
+Проект прошёл рефакторинг из монолита (`ui_logic.py` в корне, ~600 строк
+GUI+формулы+генерация в одном файле) к слоистой архитектуре. Формулы больше
+**не дублируются** — раньше `src/services/calculations.py` существовал
+параллельно и был неиспользуемым мёртвым кодом, разошедшимся с реальной
+логикой в `ui_logic.py`; сейчас это единственная реализация, и
+`src/ui/main_window.py` вызывает её напрямую.
 
-`MainWindow` резолвит виджеты не по атрибутам сгенерированного класса, а через `findChild`
-по спискам имён (`ui_logic.py:18-54`, метод `init_widgets()`):
+## Главный контракт
 
-| Список | Кол-во | Тип |
-|---|---|---|
-| `PLAIN_TEXT_EDIT_NAMES` | 49 | `QPlainTextEdit` |
-| `COMBO_BOX_NAMES` | 4 | `QComboBox` |
-| `DATE_EDIT_NAMES` | 5 | `QDateEdit` |
-| `BUTTON_NAMES` | 12 | `QPushButton` |
-| `SPIN_BOX_NAMES` | 1 | `QSpinBox` |
-| `TABLE_WIDGET` | 2 | `QTableWidget` |
+```
+objectName виджета в main_window.ui  ==  ключ в self.data  ==  имя плейсхолдера {{ ... }} в шаблоне .docx
+```
 
-Количества точно совпадают с содержимым `main_window.ui`. Если имя есть в списке, но нет
-в `.ui`, `init_widgets()` бросает `ValueError: Не найден QPlainTextEdit с именем ...` — окно
-не откроется вовсе.
+`get_form_data()` (`src/ui/main_window.py`) складывает значения всех
+виджетов в `self.data` по их именам; весь словарь целиком уходит в
+`doc.render()`. `MainWindow` резолвит виджеты через `findChild` по спискам
+имён из `src/ui/widget_names.py` (49 `QPlainTextEdit`, 4 `QComboBox`,
+5 `QDateEdit`, 12 `QPushButton`, 1 `QSpinBox`, 2 `QTableWidget`). Если имя
+есть в списке, но не найдено в `.ui`, `init_widgets()` бросает `ValueError`
+и окно не открывается.
 
-### Как добавить новое поле
+**Добавление нового поля**: (1) виджет в Qt Designer с `objectName`,
+(2) то же имя в `src/ui/widget_names.py`, (3) `{{ objectName }}` в
+`templates/Шаблон_финал.docx`. Пересборка `pyuic` не нужна — `.ui` грузится
+в рантайме через `loadUi`.
 
-1. В Qt Designer добавить виджет в `src/ui/designer/main_window.ui`, задать `objectName`.
-2. Добавить это же имя в соответствующий список в `ui_logic.py:18-54`.
-3. Добавить `{{ objectName }}` в `templates/Шаблон_финал.docx`.
+## Обязательный порядок кнопок — теперь защищён
 
-Пересборка `pyuic` не нужна — `.ui` грузится в рантайме через `loadUi`.
+`self.data` накапливается инкрементально по нажатиям кнопок. Порядок
+(`MainWindow.STEP_ORDER`):
 
-## Обязательный порядок работы с интерфейсом
+1. «Кол-во баллонов» `fill_table()` → шаг `amount`
+2. «Smin-min» `s_min_min_calc()` → шаг `s_min_min`
+3. «Расчитать толщины» `calc_thick()` → шаг `thickness`
+4. «Расчёт на прочность» `prochnost()` → шаг `strength`
+5. «Остаточный ресурс» `ost_res()` → шаг `residual_life`
+6. «Расчёт овальности» `ovalnost_calc()` → шаг `ovalness`
+7. «Расчёт твёрдости» `tverdost()` → шаг `hardness`
+8. «Выгрузить в Word» `calculate()`
 
-`self.data` накапливается инкрементально: каждая кнопка дописывает свои ключи. Это
-неявная, но жёсткая последовательность — «Выгрузить в Word» раньше времени даёт документ
-с пустыми циклами **без единой ошибки**.
+Каждый метод вызывает `self._check_prerequisite(step)` в начале — если
+предыдущий шаг не отмечен выполненным в `self._completed_steps`,
+показывается `QMessageBox.Warning` с указанием, что нажать сначала, вместо
+тихой деградации. `calculate()` дополнительно проверяет, что выполнены
+**все** 7 шагов, и не рендерит документ, если нет. Шаг помечается
+выполненным только на успешном пути метода (не в `except`-ветках) — так
+`ost_res()`, например, не сможет посчитать «успешный» результат на
+незаполненном `s_max_rasch` от `prochnost()`.
 
-| № | Кнопка | Метод | Что кладёт |
-|---|---|---|---|
-| 1 | Кол-во баллонов | `fill_table()` | `self.text` (зав. №№), `data["tables"]` |
-| 2 | Smin-min | `s_min_min_calc()` | `s_min_lst`, поля `s_min_total`/`zav_s_min`, `data["min_year"]` |
-| 3 | Расчитать толщины | `calc_thick()` | `data["ballony"]` (`s1`…`s20` на баллон) |
-| 4 | Расчёт на прочность | `prochnost()` | `sigma`, `s_rasch`, `s_max_rasch`, `p_dop`, `data["p_rab_025/05/075"]` |
-| 5 | Остаточный ресурс | `ost_res()` | `a_corr`, `tk_years`, `tk_just` |
-| 6 | Расчёт овальности | `ovalnost_calc()` | `data["bal_oval"]` |
-| 7 | Расчёт твёрдости | `tverdost()` | `data["hb_min"]`, `data["hb_max"]`, `data["tverdost_data"]` |
-| 8 | Выгрузить в Word | `calculate()` | рендер и сохранение |
+## Расчёты (`src/services/calculations.py`, чистые функции, без Qt)
 
-Шаги 2→3 и 4→5 связаны данными: `calc_thick()` читает `self.s_min_lst`, `ost_res()` читает
-поле `s_max_rasch`, заполненное `prochnost()`.
+- `calculate_strength()` — ГОСТ 34233.1: `sigma = min(Re/1.5, Rm/2.4)`,
+  `s_rasch`, `s_max_rasch`, `p_dop`, ступени пневмоиспытания 25/50/75%.
+- `calculate_residual_life()` — скорость коррозии и остаточный ресурс;
+  `raises ValueError` при `years_of_operation == 0`; `remaining_years`
+  — `int 0`, когда скорость коррозии равна нулю, иначе `float`.
+- `generate_thickness_measurements()` — 20 замеров `uniform(s_min,
+  s_min+2.0)`; минимум списка принудительно заменяется на фактический
+  `s_min` — осознанное поведение, не баг.
+- `generate_ovalness_measurement(s)()` — диаметры `randint(465, 466)`
+  (диапазон захардкожен, не связан с полями `d_min`/`d_max` формы — так
+  было в оригинале, не тронуто при рефакторинге).
+- `calculate_hardness_range()` / `generate_hardness_measurements()` — Rm
+  теперь читается из поля `vrem_sopr_min` (раньше было захардкожено 981).
 
-Столбцы `table_ballons` захардкожены по индексам везде: `0` — зав. №, `1` — Smin,
-`2` — год изготовления, `3` — масса. `table_thick`: `0` — зав. №, `1` — толщины.
+У всех random-based функций источник случайности — необязательный
+параметр `rng: Optional[random.Random]`; по умолчанию `random.Random()`
+(поведение не меняется), в тестах — `random.Random(seed)` для
+детерминизма.
 
-## Расчёты (все — в `ui_logic.py`)
-
-- `prochnost()` (`ui_logic.py:517`) — ГОСТ 34233:
-  `sigma = min(Re/1.5, Rm/2.4)`, `sigma_gidro = Re/1.1`,
-  `s_rasch = ((Dвн + 2·Sисп)·P) / (2·sigma + P)`, `s_max_rasch = max(s_rasch, s_rasch_gidro)`,
-  `p_dop = (2·sigma·(Sисп−1)) / (Dвн + (Sисп−1))`, `p_pnevma_kgs = p_pnevma · 10.19`,
-  плюс ступени пневмоиспытания 25/50/75 % от `p_rab`.
-- `ost_res()` (`:561`) — скорость коррозии `a = (Sисп + C0 − Smin) / лет_эксплуатации`,
-  ресурс `tk = (Smin − s_max_rasch) / a`, вердикт `"> 10 лет"` либо `"Пересчитать."`.
-- `calc_thick()` (`:357`) — **генерирует** 20 замеров `random.uniform(s_min, s_min+2.0)`
-  и принудительно подменяет минимум списка на фактический замеренный `s_min`.
-- `ovalnost_calc()` (`:450`) — 3 замера, диаметры `randint(465, 466)` (захардкожено под
-  корпус Ø466), `oval = 2·(dmax−dmin)/(dmax+dmin)·100`.
-- `tverdost()` (`:477`) — `hb_min = round(2.7·Rm/10)`, `hb_max = hb_min + 20`, 20 значений HB.
-
-Замеры толщин, диаметров и твёрдости **синтезируются `random`**, а не вводятся оператором.
-Это осознанное поведение действующей программы — не «баг», который надо чинить попутно.
+Замеры толщин, диаметров и твёрдости **синтезируются случайно**, а не
+вводятся оператором — это осознанное рабочее поведение программы.
 
 ## Формат чисел
 
-Русская десятичная запятая — сквозной контракт отображения. Любое значение при выводе
-в виджет или шаблон проходит `str(x).replace('.', ',')`, при чтении обратно —
-`float(text.replace(',', '.'))`. Новый код обязан соблюдать оба преобразования.
+Русская десятичная запятая — сквозной контракт, реализован в
+`src/services/formatting.py`. **Два раздельных, не взаимозаменяемых
+паттерна**:
+- `format_ru(x)` — `str(x).replace('.', ',')`; для `int` запятая не
+  добавляется (например `p_pnevma_kgs` — `"459"`, не `"459,0"`).
+- `format_ru_fixed(x, ndigits=1)` — фиксированное число знаков после
+  запятой; используется только для блока замеров толщины
+  (`format_thickness_block`).
 
-Даты читаются через русскую локаль: `QLocale('ru_RU').toString(date, 'dd MMMM yyyy')`
-(`ui_logic.py:160`).
+Смешение паттернов — видимая регрессия в готовом документе. Обратное
+преобразование — `parse_ru()`.
+
+## Тесты
+
+`tests/` — 45 юнит-тестов, только `src/services/calculations.py` и
+`formatting.py` (100% покрытие), без Qt и без docxtpl. GUI-слой
+(`src/ui/`) тестами не покрыт — проверяется вручную запуском приложения.
+`pytest.ini` (`pythonpath = .`) + `requirements-dev.txt` — намеренно без
+PyQt6/docxtpl, что подтверждает независимость расчётного слоя от Qt
+(проверено прогоном в чистом venv).
 
 ## Генерация документа
 
-`calculate()` (`ui_logic.py:179`): проверка обязательных полей (`zakl_number`, `reg_number`,
-`p_rab`) → `get_form_data()` → `find_template()` → `DocxTemplate(...).render(data)` → сохранение.
+`calculate()` (`src/ui/main_window.py`): проверка всех 7 шагов выполнены →
+проверка обязательных полей (`zakl_number`, `reg_number`, `p_rab`) →
+`get_form_data()` → `find_template()` → `DocxTemplate(...).render(data)` →
+сохранение в `output/закл_{№}_рег-{№}_р-{P}_{среда}_кбХиммаш_{N}шт.docx`.
 
-Имя файла собирается по шаблону:
-`закл_{zakl_number}_рег-{reg_number}_р-{p_rab}_{rab_sreda}_кбХиммаш_{amount}шт.docx`
-
-Шаблоны в `templates/`: `Шаблон_финал.docx` — рабочий (~24 МБ, 111 Jinja-тегов, циклы
-`{% for i in ballony %}`, `{% for i in tables %}`, `{% for i in tverdost_data %}`,
-`{% for j in bal_oval %}`); `Шаблон_баллоны_2.docx` — legacy; `Плейсхолдеры_шаблона.docx` —
-справочник имён плейсхолдеров.
+Шаблоны в `templates/`: `Шаблон_финал.docx` — рабочий (~24 МБ, 111
+Jinja-тегов); `Шаблон_баллоны_2.docx` — legacy;
+`Плейсхолдеры_шаблона.docx` — справочник имён плейсхолдеров.
 
 ## Импорт/экспорт
 
-`FileHandler` (`src/ui/file_handler.py`): CSV баллонов (разделитель `;`, кодировка
-`utf-8-sig`, запятая как десятичный разделитель) и JSON проекта (`Project`).
-`_fill_balloon_table_from_data()` содержит эвристики миграции старого формата JSON
-(различает год/массу/толщину по величине значения — `>1900` год, `<100` толщина).
-
-Загрузка проекта восстанавливает только значения виджетов и таблицу; `self.text` и
-вычисленные ключи `self.data` не восстанавливаются — после «Открыть проект» цепочку
-кнопок нужно прогнать заново.
+`FileHandler` (`src/ui/file_handler.py`): CSV баллонов (`;`, `utf-8-sig`,
+запятая как десятичный разделитель) и JSON проекта (`Project`,
+`src/models/project.py`). Загрузка проекта восстанавливает значения
+виджетов и таблицу, но не вычисленные шаги — после «Открыть проект»
+цепочку кнопок нужно прогнать заново.
 
 ## Конвенции кода
 
-- Комментарии, докстринги, сообщения об ошибках и текст для пользователя — **по-русски**.
-- Идентификаторы — английские либо транслитерация домена; сохраняйте существующий стиль.
-- В `src/` — Google-style докстринги с русским текстом (`Args:`/`Returns:`/`Raises:`),
-  аннотации типов, `@dataclass` для моделей, сервисы из `@staticmethod`, `pathlib.Path`.
-- В `ui_logic.py` — короткие однострочные докстринги, аннотаций почти нет, `os.path`.
-- Логирования нет: диагностика — `print()`, сообщения пользователю — `MainWindow.show_message()`
-  (`QMessageBox`).
-- PyQt6-синтаксис перечислений: `QMessageBox.Icon.Information`, `QMessageBox.StandardButton.Ok`.
-- Именование кнопок непоследовательно (`pushButt_*` и `pushButton_*`), в UI-именах есть
-  camelCase-наследие (`dataZakl`, `yearsOfExpluatation` — с опечаткой в оригинале). Не
-  переименовывайте: имена завязаны на `.ui` и на плейсхолдеры шаблона.
+- Комментарии, докстринги, сообщения об ошибках и текст для пользователя —
+  по-русски. Идентификаторы — английские либо транслитерация домена.
+- `src/services/` — Google-style докстринги, аннотации типов,
+  `@dataclass(frozen=True)` для результатов расчётов.
+- Логирования нет: диагностика — `print()`, сообщения пользователю —
+  `MainWindow.show_message()` (`QMessageBox`).
+- PyQt6-синтаксис перечислений: `QMessageBox.Icon.Information`,
+  `QMessageBox.StandardButton.Ok`.
+- **На macOS `QMessageBox.setWindowTitle()` не отражается в
+  `windowTitle()`** (нативный alert-стиль без заголовка) — при
+  headless-тестировании GUI проверяйте `msg.text()`, не заголовок.
 
-## Ловушки и фактическое состояние
+## Оставшиеся особенности (не баги, но стоит знать)
 
-- **`src/` — в основном мёртвый код.** Меняя формулу, правьте `ui_logic.py`; дубль в
-  `src/services/calculations.py` на поведение не влияет. Не считайте `README.md`
-  описанием рабочего пути.
-- **`README.md` устарел.** Описанных в нём `Dockerfile`, `docker-compose.yml`,
-  `docker-start.sh`, юнит-тестов и `src/__init__.py` в проекте не существует.
-- **Запуск только из корня** — относительный путь к `.ui` (`ui_logic.py:65`).
-- **Порядок кнопок обязателен**, нарушение не диагностируется — документ просто выходит
-  неполным.
-- **`rm = 981` захардкожено** в `tverdost()` (`ui_logic.py:484`) с комментарием автора
-  `# ЭТО ДОЛЖНО ПОЛУЧАТЬСЯ ИЗ ИНТЕРФЕЙСА!!!` — предел прочности не берётся из формы.
-  Метод аннотирован `-> dict`, но на успешном пути возвращает `None`.
-- **`BalloonProject.from_dict()` (`src/models/project.py:137`) сломан**: передаёт в
-  `Balloon(...)` аргументы `min_thickness`/`max_thickness`, которые у `Balloon` объявлены
-  read-only `@property`, а не полями → `TypeError`. Сейчас не вызывается (используется
-  `Project`), но при попытке задействовать упадёт.
-- **`.gitignore` игнорирует `templates/*.docx`** — шаблоны не в репозитории, свежий клон
-  генерировать документы не сможет, пока файлы не положат вручную.
-- **Состояние git не соответствует диску**: в индексе всё ещё старая раскладка (`common/`,
-  `.ui` в корне), а `src/`, `main.py`, `README.md`, `requirements.txt`, `templates/`
-  не отслеживаются. Перед коммитом уточняйте у пользователя, что именно версионировать.
-- В `src/ui/designer/` четыре `.ui`, грузится только `main_window.ui`;
-  `main_window_v1-1.ui` и `test1.ui` — устаревшие копии, `vodoprovod.ui` — заготовка
-  от другого проекта.
-- `src/services/importer.py` определяет собственный класс `ImportError`, перекрывающий
-  встроенный. В `ui_logic.py` есть неиспользуемые импорты, включая бессмысленный
-  `from PyQt6.uic.properties import QtWidgets` (строка 13).
+- `output_dir = "output"` в `calculate()` всё ещё относительный путь,
+  зависящий от CWD — в отличие от пути к `.ui`, это не было в объёме
+  рефакторинга.
+- `src/utils/validators.py` и `src/utils/date_formatter.py` не
+  используются рантаймом (не удалены при рефакторинге — не сломаны и не
+  дублируют рабочую логику, в отличие от когда-то удалённых
+  `Balloon`/`Report`/`DocumentGenerator`).
+- `.gitignore` игнорирует `templates/*.docx` — шаблоны не в репозитории,
+  свежий клон не сможет генерировать документы, пока файлы не положат
+  вручную.
+- Диапазон диаметров в `generate_ovalness_measurement` (`465, 466`)
+  захардкожен и не связан с полями `d_min`/`d_max` формы — так было в
+  оригинале, сознательно не тронуто (пользователь подтвердил: random-
+  генерация — рабочее поведение, менять её не в рамках этого рефакторинга).
