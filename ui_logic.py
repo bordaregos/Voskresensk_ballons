@@ -1,4 +1,3 @@
-import random
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QPlainTextEdit, QComboBox,
                              QPushButton, QSpinBox, QDateEdit, QTableWidgetItem, QTableWidget,
                              QMessageBox)
@@ -8,6 +7,18 @@ from typing import Dict, Union
 from docxtpl import DocxTemplate
 
 import os
+
+from src.services.calculations import (
+    calculate_strength,
+    calculate_residual_life,
+    generate_thickness_measurements,
+    generate_ovalness_measurements,
+    calculate_hardness_range,
+    generate_hardness_measurements,
+    find_min_thickness,
+    format_year_range,
+)
+from src.services.formatting import format_ru, format_ru_fixed, parse_ru, format_thickness_block
 
 
 class MainWindow(QMainWindow):
@@ -300,32 +311,25 @@ class MainWindow(QMainWindow):
             item = table.item(row, 1)
             if item is not None and item.text():
                 try:
-                    self.s_min_lst.append(float(item.text().replace(',', '.')))
+                    self.s_min_lst.append(parse_ru(item.text()))
                 except ValueError:
                     print(f"Пропуск нечислового значения в строке {row}")
                     continue
 
-                # Вычисляем минимум (если есть данные)
-        if self.s_min_lst:
-            s_min_tot = str(min(self.s_min_lst)).replace('.', ',')
-            # Находим индекс минимального значения
-            min_val = min(self.s_min_lst)
-            min_index = self.s_min_lst.index(min_val)
-            
-            # Проверяем что индекс валиден
-            if min_index < len(self.text):
-                zav_s_min = self.text[min_index]
-                # Выводим результат в QPlainTextEdit
-                self.s_min_total.setPlainText(s_min_tot)
-                self.zav_s_min.setPlainText(zav_s_min)
-            else:
-                print(f"Ошибка: индекс {min_index} выходит за пределы списка {len(self.text)}")
-                self.s_min_total.setPlainText(s_min_tot)
-                self.zav_s_min.setPlainText("Нет данных")
-        else:
+        # Вычисляем минимум (если есть данные)
+        try:
+            min_result = find_min_thickness(self.s_min_lst)
+        except ValueError:
             self.s_min_total.setPlainText("Нет данных")
             self.zav_s_min.setPlainText("Нет данных")
             print("Ошибка: нет числовых данных для вычисления минимума")
+        else:
+            self.s_min_total.setPlainText(format_ru(min_result.s_min))
+            if min_result.s_min_index < len(self.text):
+                self.zav_s_min.setPlainText(self.text[min_result.s_min_index])
+            else:
+                print(f"Ошибка: индекс {min_result.s_min_index} выходит за пределы списка {len(self.text)}")
+                self.zav_s_min.setPlainText("Нет данных")
 
         # Собираем все года из третьего столбца.
         for row in range(table.rowCount()):
@@ -337,19 +341,8 @@ class MainWindow(QMainWindow):
                     print(f"Пропуск нечислового значения в строке {row}")
                     continue
 
-        # Вычисляем минимальный и максимальный года изготовления (если есть данные).
-        # Если года совпадают - выводим один год (минимальный).
-        # И добавляем их в словарь data на вывод в ворд.
-        if years_min_max_lst:
-            min_year = min(years_min_max_lst)
-            max_year = max(years_min_max_lst)
-
-            if min_year != max_year:
-                self.data.update({"min_year": f'{min_year} - {max_year} гг.'})
-            else:
-                self.data.update({"min_year": f'{min_year} г.'})
-        else:
-            self.data.update({"min_year": "Нет данных"})
+        # Вычисляем диапазон годов изготовления и добавляем в словарь data на вывод в ворд.
+        self.data.update({"min_year": format_year_range(years_min_max_lst)})
 
     def calc_thick(self):
         """Функция - генератор толщин."""
@@ -393,30 +386,16 @@ class MainWindow(QMainWindow):
             if row < len(self.s_min_lst):
                 try:
                     nums = float(self.s_min_lst[row])
-                    num_max = nums + 2.0
 
-                    # Генерируем 20 случайных значений
-                    res_thick = [round(random.uniform(nums, num_max), 1) for _ in range(20)]
-
-                    # Находим минимальное значение в списке
-                    min_value = min(res_thick)
-                    min_index = res_thick.index(min_value)
-
-                    # Проверяем и заменяем если нужно
-                    if min_value != nums:
-                        res_thick[min_index] = nums
+                    # Генерируем 20 замеров толщины вокруг измеренного минимума
+                    res_thick = generate_thickness_measurements(nums)
 
                     # Добавляем значения в словарь
                     for i, value in enumerate(res_thick, 1):
-                        tolshiny_dict[f"s{i}"] = f"{value:.1f}".replace(".", ",")
+                        tolshiny_dict[f"s{i}"] = format_ru_fixed(value)
 
                     # Форматируем в 5 строк по 4 числа
-                    formatted_values = []
-                    for i in range(0, 20, 4):
-                        group = res_thick[i:i + 4]
-                        line = " ".join(f"{x:.1f}".replace('.', ',') for x in group)
-                        formatted_values.append(line)
-                    res_thick_str = "\n".join(formatted_values)
+                    res_thick_str = format_thickness_block(res_thick)
 
                     # Устанавливаем значения во второй столбец
                     item2 = QTableWidgetItem(res_thick_str)
@@ -453,19 +432,11 @@ class MainWindow(QMainWindow):
             bal_oval_dict = {
                 "z_n": zav
             }
-            for i in range(3):
-                while True:
-                    d_min_rand = random.randint(465, 466)
-                    d_max_rand = random.randint(465, 466)
-                    if d_max_rand >= d_min_rand:
-                        break
-
-                oval = round(((2 * (d_max_rand - d_min_rand)) / (d_max_rand + d_min_rand)) * 100, 3)
-
+            for i, m in enumerate(generate_ovalness_measurements(count=3)):
                 bal_oval_dict.update({
-                    f"d_max_rand{i}": f'{d_max_rand}',
-                    f"d_min_rand{i}": f'{d_min_rand}',
-                    f"oval{i}": f'{oval}'
+                    f"d_max_rand{i}": f'{m.d_max}',
+                    f"d_min_rand{i}": f'{m.d_min}',
+                    f"oval{i}": f'{m.ovalness}'
                 })
 
             bal_oval.append(bal_oval_dict)
@@ -476,11 +447,10 @@ class MainWindow(QMainWindow):
         try:
             # 1. Получаем предел прочности (Rm) из интерфейса — то же поле,
             # что уже вводится оператором для расчёта прочности в prochnost().
-            rm = float(self.vrem_sopr_min.toPlainText().replace(",", "."))
+            rm = parse_ru(self.vrem_sopr_min.toPlainText())
 
             # 2. Расчёт минимальной и максимальной твёрдости по ГОСТ
-            hb_min = round(2.7 * (rm / 10))  # Нижний предел (HB)
-            hb_max = round(2.7 * (rm / 10) + 20)  # Верхний предел (HB + допустимое отклонение)
+            hb_range = calculate_hardness_range(rm)
 
             # 3. Генерация значений для каждого баллона (если нужно)
             tverdost_data = []
@@ -489,15 +459,15 @@ class MainWindow(QMainWindow):
                 tverdost_dict = {
                     "zav": zav
                 }
-                for i in range(20):
-                    hb_random = round(random.uniform(hb_min, hb_max))
-                    tverdost_dict.update({f"hb_{i + 1}": f"{hb_random}"})
+                measurements = generate_hardness_measurements(hb_range.hb_min, hb_range.hb_max)
+                for i, hb_random in enumerate(measurements, 1):
+                    tverdost_dict.update({f"hb_{i}": f"{hb_random}"})
                 tverdost_data.append(tverdost_dict)
 
             # 4. Формируем словарь для плейсхолдеров Word
             self.data.update({
-                "hb_min": str(hb_min).replace(".", ","),  # Для локализации (запятая)
-                "hb_max": str(hb_max).replace(".", ","),
+                "hb_min": format_ru(hb_range.hb_min),
+                "hb_max": format_ru(hb_range.hb_max),
                 "tverdost_data": tverdost_data  # Список для цикла в Word
             })
 
@@ -508,40 +478,34 @@ class MainWindow(QMainWindow):
     def prochnost(self):
         try:
             # Получаем данные из полей
-            pred_tek_min = float(self.pred_tek_min.toPlainText().replace(",", "."))
-            vrem_sopr_min = float(self.vrem_sopr_min.toPlainText().replace(",", "."))
-            p_rab_MPa = float(self.p_rab_MPa.toPlainText().replace(",", "."))
-            p_gidro = float(self.p_gidro.toPlainText().replace(",", "."))
-            d_vnutr = float(self.d_vnutr.toPlainText().replace(",", "."))
-            s_isp = float(self.s_isp.toPlainText().replace(",", "."))
-            p_pnevma = float(self.p_pnevma.toPlainText().replace(",", "."))
+            pred_tek_min = parse_ru(self.pred_tek_min.toPlainText())
+            vrem_sopr_min = parse_ru(self.vrem_sopr_min.toPlainText())
+            p_rab_MPa = parse_ru(self.p_rab_MPa.toPlainText())
+            p_gidro = parse_ru(self.p_gidro.toPlainText())
+            d_vnutr = parse_ru(self.d_vnutr.toPlainText())
+            s_isp = parse_ru(self.s_isp.toPlainText())
+            p_pnevma = parse_ru(self.p_pnevma.toPlainText())
+            p_rab = parse_ru(self.p_rab.toPlainText())
 
-            # Расчёты
-            sigma = round(1.0 * min(pred_tek_min / 1.5, vrem_sopr_min / 2.4), 1)
-            sigma_gidro = round(pred_tek_min / 1.1, 1)
-            p_pnevma_kgs = round(p_pnevma * 10.19)
+            # Расчёт на прочность по ГОСТ 34233.1
+            result = calculate_strength(
+                pred_tek_min, vrem_sopr_min, p_rab_MPa, p_gidro,
+                d_vnutr, s_isp, p_pnevma, p_rab,
+            )
 
-            s_rasch = round(((d_vnutr + (s_isp * 2)) * p_rab_MPa) / (2 * sigma + p_rab_MPa), 1)
-            s_rasch_gidro = round(((d_vnutr + (s_isp * 2)) * p_gidro) / (2 * sigma_gidro + p_gidro), 1)
-            s_max_rasch = max(s_rasch, s_rasch_gidro)
-
-            # Вычисляем внутреннее избыточное давление.
-            p_dop = str(round((2 * sigma * (s_isp - 1)) / (d_vnutr + (s_isp - 1)), 1)).replace(".", ",")
-
-            # Вычисляем давление для этапов пневматического испытания.
-            p_rab = float(self.p_rab.toPlainText().replace(",", "."))
-            self.data.update({"p_rab_025": f"{round(p_rab * 0.25)}"})
-            self.data.update({"p_rab_05": f"{round(p_rab * 0.5)}"})
-            self.data.update({"p_rab_075": f"{round(p_rab * 0.75)}"})
+            # Давление для этапов пневматического испытания.
+            self.data.update({"p_rab_025": f"{result.p_rab_025}"})
+            self.data.update({"p_rab_05": f"{result.p_rab_05}"})
+            self.data.update({"p_rab_075": f"{result.p_rab_075}"})
 
             # Вывод в QPlainTextEdit
-            self.sigma.setPlainText(str(sigma).replace(".", ","))
-            self.sigma_gidro.setPlainText(str(sigma_gidro).replace(".", ","))
-            self.s_rasch.setPlainText(str(s_rasch).replace(".", ","))
-            self.s_rasch_gidro.setPlainText(str(s_rasch_gidro).replace(".", ","))
-            self.s_max_rasch.setPlainText(str(s_max_rasch).replace(".", ","))
-            self.p_pnevma_kgs.setPlainText(str(p_pnevma_kgs).replace(".", ","))
-            self.p_dop.setPlainText(p_dop)
+            self.sigma.setPlainText(format_ru(result.sigma))
+            self.sigma_gidro.setPlainText(format_ru(result.sigma_gidro))
+            self.s_rasch.setPlainText(format_ru(result.s_rasch))
+            self.s_rasch_gidro.setPlainText(format_ru(result.s_rasch_gidro))
+            self.s_max_rasch.setPlainText(format_ru(result.s_max_rasch))
+            self.p_pnevma_kgs.setPlainText(format_ru(result.p_pnevma_kgs))
+            self.p_dop.setPlainText(format_ru(result.p_dop))
 
         except ValueError as e:
             print(f"Ошибка ввода: {e}")
@@ -552,33 +516,24 @@ class MainWindow(QMainWindow):
     def ost_res(self):
         try:
             # Получаем данные из полей с проверкой на пустые значения
-            s_isp = float(self.s_isp.toPlainText().replace(",", ".")) if self.s_isp.toPlainText() else 0.0
-            c0_plus_dop = float(
-                self.c0_plus_dop.toPlainText().replace(",", ".")) if self.c0_plus_dop.toPlainText() else 0.0
-            s_min_total = float(
-                self.s_min_total.toPlainText().replace(",", ".")) if self.s_min_total.toPlainText() else 0.0
-            yearsOfExpluatation = float(self.yearsOfExpluatation.toPlainText().replace(",",
-                                                                                       ".")) if self.yearsOfExpluatation.toPlainText() else 0.0
-
-            # Проверка деления на ноль
-            if yearsOfExpluatation == 0:
-                raise ValueError("Срок эксплуатации не может быть нулевым")
-
-            # Расчёты
-            a = round((s_isp + c0_plus_dop - s_min_total) / yearsOfExpluatation, 3)
+            s_isp = parse_ru(self.s_isp.toPlainText()) if self.s_isp.toPlainText() else 0.0
+            c0_plus_dop = parse_ru(self.c0_plus_dop.toPlainText()) if self.c0_plus_dop.toPlainText() else 0.0
+            s_min_total = parse_ru(self.s_min_total.toPlainText()) if self.s_min_total.toPlainText() else 0.0
+            years_of_operation = parse_ru(self.yearsOfExpluatation.toPlainText()) \
+                if self.yearsOfExpluatation.toPlainText() else 0.0
 
             # Получаем s_max_rasch (если это QPlainTextEdit)
-            s_max_rasch = float(self.s_max_rasch.toPlainText().replace(",", ".")) if hasattr(self,
-                                                                                             's_max_rasch') and self.s_max_rasch.toPlainText() else 0.0
+            s_max_rasch = parse_ru(self.s_max_rasch.toPlainText()) if hasattr(self,
+                                                                               's_max_rasch') and self.s_max_rasch.toPlainText() else 0.0
 
-            tk = round((s_min_total - s_max_rasch) / a, 0) if a != 0 else 0
-
-            tk_j = "> 10 лет" if tk > 10 else "Пересчитать."
+            # Расчёт скорости коррозии и остаточного ресурса
+            # (raises ValueError, если срок эксплуатации равен нулю)
+            result = calculate_residual_life(s_isp, c0_plus_dop, s_min_total, years_of_operation, s_max_rasch)
 
             # Вывод результатов
-            self.a_corr.setPlainText(str(a).replace(".", ","))
-            self.tk_years.setPlainText(str(tk).replace(".", ","))
-            self.tk_just.setPlainText(tk_j)
+            self.a_corr.setPlainText(format_ru(result.corrosion_rate))
+            self.tk_years.setPlainText(format_ru(result.remaining_years))
+            self.tk_just.setPlainText(result.comment)
 
         except ValueError as e:
             print(f"Ошибка ввода данных: {e}")
