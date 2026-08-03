@@ -26,6 +26,13 @@ def test_rm_is_not_hardcoded_different_inputs_give_different_ranges():
     assert r2.hb_max == 276
 
 
+def test_zero_and_negative_rm_do_not_crash():
+    # В оригинале нет валидации rm — формула должна просто считать, не падать.
+    for rm in (0.0, -100.0):
+        result = calculate_hardness_range(rm)
+        assert result.hb_max - result.hb_min == 20
+
+
 def test_generate_measurements_within_range():
     rng = random.Random(11)
     hb_range = calculate_hardness_range(981.0)

@@ -46,6 +46,12 @@ output/*.json
 ## Logs
 *.log
 
+## Test coverage
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+
 ## Test files (already removed, but keeping for reference)
 # test_*.py
 # *_test.py

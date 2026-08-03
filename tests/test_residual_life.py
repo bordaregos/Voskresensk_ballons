@@ -41,6 +41,19 @@ def test_zero_corrosion_rate_gives_int_zero_remaining_years():
     assert isinstance(result.remaining_years, int)
 
 
+def test_negative_corrosion_rate_does_not_crash():
+    # a < 0, когда толщина по факту "выросла" (s_max_rasch > s_min_total) —
+    # не реальный сценарий эксплуатации, но формула не должна падать.
+    result = calculate_residual_life(
+        s_isp=20.0,
+        c0_plus_dop=0.0,
+        s_min_total=26.5,
+        years_of_operation=24.0,
+        s_max_rasch=21.3,
+    )
+    assert result.corrosion_rate < 0
+
+
 def test_comment_switches_at_ten_years_threshold():
     below = calculate_residual_life(
         s_isp=28.0, c0_plus_dop=2.0, s_min_total=26.5,
