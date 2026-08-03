@@ -1,7 +1,9 @@
 import random
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QPlainTextEdit, QComboBox,
-                             QPushButton, QSpinBox, QTableWidgetItem, QLabel, QGroupBox, QVBoxLayout, QTableWidget,
-                             QHeaderView, QMessageBox)
+                             QPushButton, QSpinBox, QDateEdit, QTableWidgetItem, QLabel, QGroupBox, QVBoxLayout, QTableWidget,
+                             QHeaderView, QMessageBox, QMenu, QWidget)
+from PyQt6.QtCore import QDate, QLocale
+from PyQt6.QtGui import QAction
 from PyQt6.uic import loadUi
 from typing import List, Dict, Union
 from docxtpl import DocxTemplate
@@ -17,25 +19,30 @@ class MainWindow(QMainWindow):
         "zakl_number", "reg_number", "gost", "g_vvod", "dataZakl",
         "yearsOfExpluatation", "chertezh", "p_rasch", "p_rab", "s_isp",
         "length", "d_nar", "d_min", "d_max", "volume", "zav_nums", "reg_nums",
-        "place", "zavod_name", "vladelec", "vik_date", "tolshTverdost_date",
-        "ispRasch_date", "prodlEPB_date", "prodlTO_date", "dogContract",
+        "place", "zavod_name", "vladelec", "dogContract",
         "pricaz_contora", "pricaz_vladelec", "s_min_total", "p_rab_MPa",
         "p_gidro", "p_pnevma", "d_vnutr", "pred_tek_min", "vrem_sopr_min",
         "sigma", "sigma_gidro", "s_rasch", "s_rasch_gidro", "s_max_rasch",
         "a_corr", "c0_plus_dop", "tk_years", "tk_just", "zav_s_min",
         "obj_name", "prev_zakl", "prev_pg_am", "volume_total", "p_pnevma_kgs",
-        "p_dop", "place_obj", "pasp_pg_amount"
+        "p_dop", "place_obj", "pasp_pg_amount", "gost_material"
     ]
 
     COMBO_BOX_NAMES = [
         "construction", "material", "rab_sreda", "naznach"
     ]
 
+    DATE_EDIT_NAMES = [
+        "vik_date", "tolshTverdost_date", "ispRasch_date", "prodlEPB_date", "prodlTO_date"
+    ]
+
     BUTTON_NAMES = [
-        "pushButt_generateWord", "pushButt_generateCSV",
+        "pushButt_generateWord", "pushButton_exportCSV",
         "pushButt_amount", "pushButt_sMinMin", "pushButton_creatThickness",
         "pushButton_creatRasschProchn", "pushButton_creatOstRes",
-        "pushButt_ovalnost", "pushButt_tverdost"
+        "pushButt_ovalnost", "pushButt_tverdost",
+        "pushButton_importCSV", "pushButton_saveProject",
+        "pushButton_openProject"
     ]
 
     SPIN_BOX_NAMES = [
@@ -51,17 +58,21 @@ class MainWindow(QMainWindow):
         что пригодятся нам по коду."""
         super().__init__()
         self.data = {}
-        self.text = None
-        self.s_min_lst = None
+        self.text = []
+        self.s_min_lst = []
+        self.file_handler = None
 
-        loadUi("zakl_interface_v5-1_test.ui", self)
+        loadUi("src/ui/designer/main_window.ui", self)
 
         # Автоматическая инициализация виджетов
         self.init_widgets()
 
+        # Инициализация FileHandler
+        self.init_file_handler()
+
         # Подключение сигналов
         self.pushButt_generateWord.clicked.connect(self.calculate)
-        self.pushButt_generateCSV.clicked.connect(self.generate_csv)
+        self.pushButton_exportCSV.clicked.connect(self.export_csv)
         self.pushButt_amount.clicked.connect(self.fill_table)
         self.pushButt_sMinMin.clicked.connect(self.s_min_min_calc)
         self.pushButton_creatThickness.clicked.connect(self.calc_thick)
@@ -69,6 +80,14 @@ class MainWindow(QMainWindow):
         self.pushButton_creatOstRes.clicked.connect(self.ost_res)
         self.pushButt_ovalnost.clicked.connect(self.ovalnost_calc)
         self.pushButt_tverdost.clicked.connect(self.tverdost)
+        self.pushButton_importCSV.clicked.connect(self.import_csv)
+        self.pushButton_saveProject.clicked.connect(self.save_project)
+        self.pushButton_openProject.clicked.connect(self.open_project)
+
+    def init_file_handler(self):
+        """Инициализация FileHandler для импорта/экспорта."""
+        from src.ui.file_handler import FileHandler
+        self.file_handler = FileHandler(self)
 
     def init_widgets(self):
         """Автоматически инициализирует все виджеты из UI"""
@@ -100,6 +119,13 @@ class MainWindow(QMainWindow):
                 raise ValueError(f"Не найден QSpinBox с именем {name}")
             setattr(self, name, widget)
 
+        # Инициализация QDateEdit
+        for name in self.DATE_EDIT_NAMES:
+            widget = self.findChild(QDateEdit, name)
+            if widget is None:
+                raise ValueError(f"Не найден QDateEdit с именем {name}")
+            setattr(self, name, widget)
+
         # Инициализация QTableWidget.
         for name in self.TABLE_WIDGET:
             widget = self.findChild(QTableWidget, name)
@@ -124,6 +150,17 @@ class MainWindow(QMainWindow):
         for name in self.SPIN_BOX_NAMES:
             widget = getattr(self, name)
             self.data[name] = widget.value()
+
+        # Получаем даты из QDateEdit.
+        for name in self.DATE_EDIT_NAMES:
+            widget = getattr(self, name)
+            date = widget.date()
+            if date.isValid():
+                # Формат: dd MMMM yyyy (пробелы, месяц в родительном падеже на русском)
+                locale = QLocale('ru_RU')
+                self.data[name] = locale.toString(date, 'dd MMMM yyyy')
+            else:
+                self.data[name] = ""
 
         # Получаем текст из QTableWidget.
         for name in self.TABLE_WIDGET:
@@ -154,10 +191,9 @@ class MainWindow(QMainWindow):
             form_data = self.get_form_data()
             print("Данные для Word:", form_data)
 
-            # 3. Проверяем наличие шаблона
-            template_path = "Шаблон_финал.docx"
-            if not os.path.exists(template_path):
-                raise FileNotFoundError(f"Шаблон не найден: {template_path}")
+            # 3. Проверяем наличие шаблона (используем config.py)
+            from src.config import find_template
+            template_path = find_template()
 
             # 4. Загружаем и заполняем шаблон
             doc = DocxTemplate(template_path)
@@ -213,12 +249,27 @@ class MainWindow(QMainWindow):
         msg.setStandardButtons(QMessageBox.StandardButton.Ok)
         msg.exec()
 
-    def generate_csv(self):
-        """Обработчик нажатия кнопки генерации CSV"""
-        form_data = self.get_form_data()
-        print("Данные для CSV:", form_data)
-        # Здесь будет ваша логика генерации CSV
+    # --- Методы импорта/экспорта ---
 
+    def import_csv(self):
+        """Импорт баллонов из CSV файла."""
+        if self.file_handler:
+            self.file_handler.import_csv_balloon_list()
+
+    def export_csv(self):
+        """Экспорт баллонов в CSV файл."""
+        if self.file_handler:
+            self.file_handler.export_csv_balloon_list()
+
+    def save_project(self):
+        """Сохранение проекта в JSON файл."""
+        if self.file_handler:
+            self.file_handler.save_project_json()
+
+    def open_project(self):
+        """Загрузка проекта из JSON файла."""
+        if self.file_handler:
+            self.file_handler.open_project_json()
     def fill_table(self):
         """Заполнение таблицы баллонов. Заполняется 1й столбец!!!"""
         self.text = (self.zav_nums.toPlainText()).split(', ')
@@ -241,6 +292,12 @@ class MainWindow(QMainWindow):
         years_min_max_lst = []
         table = self.table_ballons
 
+        # Проверка наличия данных в self.text
+        if not self.text:
+            print("Ошибка: список заводских номеров пуст. Нажмите кнопку 'Количество'")
+            self.s_min_total.setPlainText("Нет данных")
+            return
+
         # Собираем все числовые значения из второго столбца
         for row in range(table.rowCount()):
             item = table.item(row, 1)
@@ -254,12 +311,23 @@ class MainWindow(QMainWindow):
                 # Вычисляем минимум (если есть данные)
         if self.s_min_lst:
             s_min_tot = str(min(self.s_min_lst)).replace('.', ',')
-            zav_s_min = self.text[self.s_min_lst.index(min(self.s_min_lst))]
-            # Выводим результат в QPlainTextEdit
-            self.s_min_total.setPlainText(s_min_tot)
-            self.zav_s_min.setPlainText(zav_s_min)
+            # Находим индекс минимального значения
+            min_val = min(self.s_min_lst)
+            min_index = self.s_min_lst.index(min_val)
+            
+            # Проверяем что индекс валиден
+            if min_index < len(self.text):
+                zav_s_min = self.text[min_index]
+                # Выводим результат в QPlainTextEdit
+                self.s_min_total.setPlainText(s_min_tot)
+                self.zav_s_min.setPlainText(zav_s_min)
+            else:
+                print(f"Ошибка: индекс {min_index} выходит за пределы списка {len(self.text)}")
+                self.s_min_total.setPlainText(s_min_tot)
+                self.zav_s_min.setPlainText("Нет данных")
         else:
             self.s_min_total.setPlainText("Нет данных")
+            self.zav_s_min.setPlainText("Нет данных")
             print("Ошибка: нет числовых данных для вычисления минимума")
 
         # Собираем все года из третьего столбца.
@@ -275,13 +343,16 @@ class MainWindow(QMainWindow):
         # Вычисляем минимальный и максимальный года изготовления (если есть данные).
         # Если года совпадают - выводим один год (минимальный).
         # И добавляем их в словарь data на вывод в ворд.
-        min_year = min(years_min_max_lst)
-        max_year = max(years_min_max_lst)
+        if years_min_max_lst:
+            min_year = min(years_min_max_lst)
+            max_year = max(years_min_max_lst)
 
-        if years_min_max_lst and min_year != max_year:
-            self.data.update({"min_year": f'{min_year} - {max_year} гг.'})
+            if min_year != max_year:
+                self.data.update({"min_year": f'{min_year} - {max_year} гг.'})
+            else:
+                self.data.update({"min_year": f'{min_year} г.'})
         else:
-            self.data.update({"min_year": f'{min_year} г.'})
+            self.data.update({"min_year": "Нет данных"})
 
     def calc_thick(self):
         """Функция - генератор толщин."""
