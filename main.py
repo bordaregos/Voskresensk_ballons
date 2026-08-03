@@ -1,20 +1,14 @@
-"""
-Точка входа в приложение.
-
-Этот файл использует старый UI из ui_logic.py, но подключает
-новые сервисы из пакета src/ для расчётов и генерации документов.
-"""
+"""Точка входа в приложение."""
 
 import sys
 import os
 
-# Добавляем путь к src/ в sys.path
+# Добавляем корень проекта в sys.path, чтобы работали импорты пакета src/
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from PyQt6.QtWidgets import QApplication
 
-# Используем старый UI
-from ui_logic import MainWindow
+from src.ui.main_window import MainWindow
 
 
 def main():
