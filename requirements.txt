@@ -1,0 +1,19 @@
+# Зависимости проекта
+
+# GUI framework
+PyQt6>=6.5.0
+
+# Работа с Word документами
+docxtpl>=0.16.0
+
+# Работа с JSON
+# json - встроен в Python
+
+# Работа с CSV
+# csv - встроен в Python
+
+# Работа с Excel (.xlsx)
+openpyxl>=3.1.0
+
+# Дополнительные утилиты
+python-dateutil>=2.8.2
