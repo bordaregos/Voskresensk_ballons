@@ -1,7 +1,5 @@
 """Главное окно приложения: связывает main_window.ui с расчётными сервисами."""
 
-from pathlib import Path
-
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QPlainTextEdit, QComboBox,
                              QPushButton, QSpinBox, QDateEdit, QTableWidgetItem, QTableWidget,
                              QMessageBox)
@@ -12,7 +10,7 @@ from docxtpl import DocxTemplate
 
 import os
 
-from . import widget_names
+from ..equipment_types import EquipmentType, REGISTRY
 from ..services.calculations import (
     calculate_strength,
     calculate_residual_life,
@@ -24,39 +22,26 @@ from ..services.calculations import (
     format_year_range,
 )
 from ..services.formatting import format_ru, format_ru_fixed, parse_ru, format_thickness_block
-
-DESIGNER_UI_PATH = Path(__file__).resolve().parent / "designer" / "main_window.ui"
+from ..services.calculations_pipeline import (
+    calculate_pipeline_strength,
+    calculate_pipeline_residual_life,
+    generate_pipeline_thickness_measurements,
+    get_allowable_stress,
+    SegmentSpec,
+)
+from .widget_names_pipeline import SEGMENT_TYPES
 
 
 class MainWindow(QMainWindow):
-    # Списки для автоматической инициализации виджетов
-    PLAIN_TEXT_EDIT_NAMES = widget_names.PLAIN_TEXT_EDIT_NAMES
-    COMBO_BOX_NAMES = widget_names.COMBO_BOX_NAMES
-    DATE_EDIT_NAMES = widget_names.DATE_EDIT_NAMES
-    BUTTON_NAMES = widget_names.BUTTON_NAMES
-    SPIN_BOX_NAMES = widget_names.SPIN_BOX_NAMES
-    TABLE_WIDGET = widget_names.TABLE_WIDGET
-
-    # Обязательный порядок выполнения расчётов перед генерацией документа.
-    # Нарушение порядка раньше давало документ с пустыми циклами без единой
-    # ошибки — see _check_prerequisite().
-    STEP_ORDER = [
-        "amount", "s_min_min", "thickness", "strength",
-        "residual_life", "ovalness", "hardness",
-    ]
-    STEP_LABELS = {
-        "amount": "«Кол-во баллонов»",
-        "s_min_min": "«Smin-min»",
-        "thickness": "«Расчитать толщины»",
-        "strength": "«Расчёт на прочность»",
-        "residual_life": "«Остаточный ресурс»",
-        "ovalness": "«Расчёт овальности»",
-        "hardness": "«Расчёт твёрдости»",
-    }
-
-    def __init__(self):
+    def __init__(self, equipment_type: EquipmentType = REGISTRY["balloon"]):
         """Инициализация конструктора класса. Пишем все атрибуты,
-        что пригодятся нам по коду."""
+        что пригодятся нам по коду.
+
+        equipment_type определяет, какой .ui загружать, какие виджеты
+        резолвить и в каком порядке требовать шаги расчёта — см.
+        src/equipment_types.py. По умолчанию баллоны, чтобы существующие
+        вызовы MainWindow() не меняли поведение.
+        """
         super().__init__()
         self.data = {}
         self.text = []
@@ -64,7 +49,17 @@ class MainWindow(QMainWindow):
         self.file_handler = None
         self._completed_steps = set()
 
-        loadUi(str(DESIGNER_UI_PATH), self)
+        self.equipment_type = equipment_type
+        self.PLAIN_TEXT_EDIT_NAMES = equipment_type.widget_names.PLAIN_TEXT_EDIT_NAMES
+        self.COMBO_BOX_NAMES = equipment_type.widget_names.COMBO_BOX_NAMES
+        self.DATE_EDIT_NAMES = equipment_type.widget_names.DATE_EDIT_NAMES
+        self.BUTTON_NAMES = equipment_type.widget_names.BUTTON_NAMES
+        self.SPIN_BOX_NAMES = equipment_type.widget_names.SPIN_BOX_NAMES
+        self.TABLE_WIDGET = equipment_type.widget_names.TABLE_WIDGET
+        self.STEP_ORDER = equipment_type.step_order
+        self.STEP_LABELS = equipment_type.step_labels
+
+        loadUi(str(equipment_type.ui_path), self)
 
         # Автоматическая инициализация виджетов
         self.init_widgets()
@@ -72,19 +67,26 @@ class MainWindow(QMainWindow):
         # Инициализация FileHandler
         self.init_file_handler()
 
-        # Подключение сигналов
+        # Подключение сигналов — общие для всех типов
         self.pushButt_generateWord.clicked.connect(self.calculate)
-        self.pushButton_exportCSV.clicked.connect(self.export_csv)
-        self.pushButt_amount.clicked.connect(self.fill_table)
-        self.pushButt_sMinMin.clicked.connect(self.s_min_min_calc)
-        self.pushButton_creatThickness.clicked.connect(self.calc_thick)
-        self.pushButton_creatRasschProchn.clicked.connect(self.prochnost)
-        self.pushButton_creatOstRes.clicked.connect(self.ost_res)
-        self.pushButt_ovalnost.clicked.connect(self.ovalnost_calc)
-        self.pushButt_tverdost.clicked.connect(self.tverdost)
-        self.pushButton_importCSV.clicked.connect(self.import_csv)
         self.pushButton_saveProject.clicked.connect(self.save_project)
         self.pushButton_openProject.clicked.connect(self.open_project)
+
+        if equipment_type.id == "balloon":
+            self.pushButton_exportCSV.clicked.connect(self.export_csv)
+            self.pushButt_amount.clicked.connect(self.fill_table)
+            self.pushButt_sMinMin.clicked.connect(self.s_min_min_calc)
+            self.pushButton_creatThickness.clicked.connect(self.calc_thick)
+            self.pushButton_creatRasschProchn.clicked.connect(self.prochnost)
+            self.pushButton_creatOstRes.clicked.connect(self.ost_res)
+            self.pushButt_ovalnost.clicked.connect(self.ovalnost_calc)
+            self.pushButt_tverdost.clicked.connect(self.tverdost)
+            self.pushButton_importCSV.clicked.connect(self.import_csv)
+        elif equipment_type.id == "pipeline":
+            self.pushButt_segments.clicked.connect(self.fill_segments_table)
+            self.pushButton_genThickness.clicked.connect(self.calc_pipeline_thickness)
+            self.pushButton_calcStrength.clicked.connect(self.calc_pipeline_strength_ui)
+            self.pushButton_calcResidualLife.clicked.connect(self.calc_pipeline_residual_life_ui)
 
     def init_file_handler(self):
         """Инициализация FileHandler для импорта/экспорта."""
@@ -164,7 +166,9 @@ class MainWindow(QMainWindow):
             else:
                 self.data[name] = ""
 
-        # Получаем текст из QTableWidget.
+        # Получаем текст из QTableWidget. Ячейка может быть обычным
+        # QTableWidgetItem или виджетом (например, QComboBox -- см.
+        # table_segments), поэтому при отсутствии item проверяем cellWidget.
         for name in self.TABLE_WIDGET:
             widget = getattr(self, name)
             table_data = []
@@ -172,7 +176,14 @@ class MainWindow(QMainWindow):
                 row_data = []
                 for col in range(widget.columnCount()):
                     item = widget.item(row, col)
-                    row_data.append(item.text() if item else "")
+                    if item is not None:
+                        row_data.append(item.text())
+                    else:
+                        cell_widget = widget.cellWidget(row, col)
+                        if isinstance(cell_widget, QComboBox):
+                            row_data.append(cell_widget.currentText())
+                        else:
+                            row_data.append("")
                 table_data.append(row_data)
             self.data[name] = table_data
 
@@ -192,11 +203,10 @@ class MainWindow(QMainWindow):
 
         try:
             # 1. Проверка заполненности полей
-            if not all([
-                self.zakl_number.toPlainText().strip(),
-                self.reg_number.toPlainText().strip(),
-                self.p_rab.toPlainText().strip()
-            ]):
+            if not all(
+                getattr(self, name).toPlainText().strip()
+                for name in self.equipment_type.required_fields
+            ):
                 raise ValueError("Не все обязательные поля заполнены")
 
             # 2. Получаем данные формы
@@ -204,24 +214,32 @@ class MainWindow(QMainWindow):
             print("Данные для Word:", form_data)
 
             # 3. Проверяем наличие шаблона (используем config.py)
-            from ..config import find_template
-            template_path = find_template()
+            from ..config import find_template, OUTPUT_DIR
+            template_path = find_template(self.equipment_type.id)
 
             # 4. Загружаем и заполняем шаблон
             doc = DocxTemplate(template_path)
             doc.render(form_data)
 
             # 5. Генерируем имя файла
-            output_filename = (
-                f"закл_{self.zakl_number.toPlainText().strip()}_"
-                f"рег-{self.reg_number.toPlainText().strip()}_"
-                f"р-{self.p_rab.toPlainText().strip()}_"
-                f"{self.rab_sreda.currentText()}_"
-                f"кбХиммаш_{self.amount.value()}шт.docx"
-            )
+            if self.equipment_type.id == "balloon":
+                output_filename = (
+                    f"закл_{self.zakl_number.toPlainText().strip()}_"
+                    f"рег-{self.reg_number.toPlainText().strip()}_"
+                    f"р-{self.p_rab.toPlainText().strip()}_"
+                    f"{self.rab_sreda.currentText()}_"
+                    f"кбХиммаш_{self.amount.value()}шт.docx"
+                )
+            else:
+                output_filename = (
+                    f"отчёт_{self.report_number.toPlainText().strip()}_"
+                    f"рег-{self.reg_number.toPlainText().strip()}_"
+                    f"р-{self.p_rab_mpa.toPlainText().strip()}_"
+                    f"{self.work_medium.currentText()}.docx"
+                )
 
             # 6. Сохраняем документ
-            output_dir = "output"
+            output_dir = str(OUTPUT_DIR)
             os.makedirs(output_dir, exist_ok=True)
             output_path = os.path.join(output_dir, output_filename)
 
@@ -584,6 +602,146 @@ class MainWindow(QMainWindow):
             print(f"Ошибка ввода данных: {e}")
             self.a_corr.setPlainText("Ошибка")
             self.tk_years.setPlainText("Ошибка")
+
+    # --- Методы для трубопровода (ГОСТ 32388-2013) ---
+
+    def _install_segment_type_combo(self, table, row, current_text=SEGMENT_TYPES[0]):
+        """Устанавливает выпадающий список типа элемента в ячейку (row, 1)
+        таблицы участков трассы -- вместо свободного ввода текста."""
+        combo = QComboBox()
+        combo.addItems(SEGMENT_TYPES)
+        if current_text not in SEGMENT_TYPES:
+            combo.addItem(current_text)
+        combo.setCurrentText(current_text)
+        table.setCellWidget(row, 1, combo)
+
+    def fill_segments_table(self):
+        """Заполнение таблицы участков трассы. STEP_ORDER: 'segments'."""
+        count = self.segments_count.value()
+        size = self.pipe_size.toPlainText().strip() or "-"
+        table = self.table_segments
+        table.setRowCount(count)
+        for row in range(count):
+            table.setItem(row, 0, QTableWidgetItem(str(row + 1)))
+            self._install_segment_type_combo(table, row)
+            table.setItem(row, 2, QTableWidgetItem(size))
+        self._completed_steps.add("segments")
+
+    def _read_segments(self):
+        """Читает участки трассы из table_segments в список SegmentSpec."""
+        table = self.table_segments
+        segments = []
+        for row in range(table.rowCount()):
+            number_item = table.item(row, 0)
+            size_item = table.item(row, 2)
+            if number_item is None or not number_item.text():
+                continue
+            type_combo = table.cellWidget(row, 1)
+            element_type = type_combo.currentText() if type_combo else SEGMENT_TYPES[0]
+            segments.append(SegmentSpec(
+                number=int(number_item.text()),
+                element_type=element_type,
+                size=size_item.text() if size_item and size_item.text() else "",
+            ))
+        return segments
+
+    def calc_pipeline_thickness(self):
+        """Синтетическая генерация замеров толщины по участкам. STEP_ORDER: 'thickness'."""
+        if not self._check_prerequisite("thickness"):
+            return
+        try:
+            s_min = parse_ru(self.thick_seed_min.toPlainText())
+            segments = self._read_segments()
+            if not segments:
+                raise ValueError("Сначала заполните участки трассы")
+
+            measurements = generate_pipeline_thickness_measurements(segments, s_min)
+
+            table = self.table_thick_pipeline
+            table.setRowCount(len(measurements))
+            for row, m in enumerate(measurements):
+                table.setItem(row, 0, QTableWidgetItem(str(m.number)))
+                table.setItem(row, 1, QTableWidgetItem(m.element_type))
+                table.setItem(row, 2, QTableWidgetItem(m.size))
+                table.setItem(row, 3, QTableWidgetItem(format_ru_fixed(m.thickness, 2)))
+
+            self.data.update({"segments": [
+                {
+                    "number": m.number, "element_type": m.element_type,
+                    "size": m.size, "thickness": format_ru_fixed(m.thickness, 2),
+                }
+                for m in measurements
+            ]})
+
+            # Фактическая минимальная толщина -- минимум из сгенерированных
+            # замеров, автоматически подставляется как вход для расчёта на
+            # прочность (calc_sf), как Sф в контрольном примере из отчёта.
+            s_fact_min = min(m.thickness for m in measurements)
+            self.calc_sf.setPlainText(format_ru_fixed(s_fact_min, 2))
+
+            self._completed_steps.add("thickness")
+
+        except ValueError as e:
+            print(f"Ошибка ввода данных: {e}")
+            self.show_message("Ошибка ввода", str(e), QMessageBox.Icon.Warning)
+
+    def calc_pipeline_strength_ui(self):
+        """Расчёт на прочность по ГОСТ 32388-2013. STEP_ORDER: 'strength'."""
+        if not self._check_prerequisite("strength"):
+            return
+        try:
+            p_working = parse_ru(self.p_rab_mpa.toPlainText())
+            d_outer = parse_ru(self.calc_da.toPlainText())
+            temp = parse_ru(self.calc_temp.toPlainText())
+            phi = parse_ru(self.calc_phi.toPlainText())
+            c2 = parse_ru(self.calc_c2.toPlainText())
+            s_actual = parse_ru(self.calc_sf.toPlainText())
+            steel_grade = self.steel_grade.currentText()
+
+            allowable_stress = get_allowable_stress(steel_grade, temp)
+            result = calculate_pipeline_strength(
+                p_working=p_working, d_outer=d_outer, allowable_stress=allowable_stress,
+                s_actual=s_actual, c2=c2, phi=phi,
+            )
+
+            self.calc_sigma_allow.setPlainText(format_ru(allowable_stress))
+            self.calc_sr.setPlainText(format_ru(result.s_calc))
+            self.calc_s_reject.setPlainText(format_ru(result.s_reject))
+            self.calc_p_allow.setPlainText(format_ru(result.p_allow))
+            self.calc_strength_conclusion.setPlainText(
+                "Условие прочности выполняется" if result.strength_ok
+                else "Условие прочности не выполняется"
+            )
+            self._completed_steps.add("strength")
+
+        except (ValueError, KeyError) as e:
+            print(f"Ошибка ввода данных: {e}")
+            self.show_message("Ошибка ввода", str(e), QMessageBox.Icon.Warning)
+
+    def calc_pipeline_residual_life_ui(self):
+        """Остаточный ресурс по скорости коррозии. STEP_ORDER: 'residual_life'."""
+        if not self._check_prerequisite("residual_life"):
+            return
+        try:
+            s_nominal = parse_ru(self.calc_sn.toPlainText())
+            s_actual = parse_ru(self.calc_sf.toPlainText())
+            s_reject = parse_ru(self.calc_s_reject.toPlainText())
+            years = parse_ru(self.calc_years_operation.toPlainText())
+            k = parse_ru(self.calc_k.toPlainText()) if self.calc_k.toPlainText().strip() else 1.0
+
+            result = calculate_pipeline_residual_life(
+                s_nominal=s_nominal, s_actual=s_actual, s_reject=s_reject,
+                years_of_operation=years, k=k,
+            )
+
+            self.calc_corrosion_rate.setPlainText(format_ru(result.corrosion_rate))
+            self.calc_remaining_years.setPlainText(format_ru(result.remaining_years))
+            self.calc_residual_comment.setPlainText(result.comment)
+            self._completed_steps.add("residual_life")
+
+        except ValueError as e:
+            print(f"Ошибка ввода данных: {e}")
+            self.show_message("Ошибка ввода", str(e), QMessageBox.Icon.Warning)
 
 
 if __name__ == "__main__":

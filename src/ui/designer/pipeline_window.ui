@@ -1,0 +1,809 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry"><rect><x>0</x><y>0</y><width>1000</width><height>900</height></rect></property>
+  <property name="windowTitle"><string>MainWindow</string></property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="verticalLayout_main">
+<item><widget class="QTabWidget" name="tabWidget">
+ <property name="currentIndex"><number>0</number></property>
+ <widget class="QWidget" name="tab_general">
+ <attribute name="title"><string>Общие данные</string></attribute>
+ <layout class="QVBoxLayout" name="tab_general_outerLayout">
+  <item>
+   <widget class="QScrollArea" name="tab_general_scroll">
+    <property name="widgetResizable"><bool>true</bool></property>
+    <widget class="QWidget" name="tab_general_scrollContent">
+     <property name="geometry"><rect><x>0</x><y>0</y><width>960</width><height>1700</height></rect></property>
+     <layout class="QVBoxLayout" name="vlayout_32">
+<item><widget class="QGroupBox" name="obj_group">
+ <property name="title"><string>Объект диагностирования</string></property>
+<layout class="QFormLayout" name="formLayout_1">
+<item row="0" column="0">
+ <widget class="QLabel" name="label_2"><property name="text"><string>№ отчёта</string></property></widget>
+</item>
+<item row="0" column="1">
+ <widget class="QPlainTextEdit" name="report_number">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string>681/24</string></property>
+</widget>
+</item>
+<item row="1" column="0">
+ <widget class="QLabel" name="label_3"><property name="text"><string>Дата отчёта</string></property></widget>
+</item>
+<item row="1" column="1">
+ <widget class="QDateEdit" name="report_date">
+ <property name="calendarPopup"><bool>true</bool></property>
+ <property name="displayFormat"><string>dd.MM.yyyy</string></property>
+</widget>
+</item>
+<item row="2" column="0">
+ <widget class="QLabel" name="label_4"><property name="text"><string>Рег. № объекта</string></property></widget>
+</item>
+<item row="2" column="1">
+ <widget class="QPlainTextEdit" name="reg_number">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string>720291</string></property>
+</widget>
+</item>
+<item row="3" column="0">
+ <widget class="QLabel" name="label_5"><property name="text"><string>Наименование/назначение</string></property></widget>
+</item>
+<item row="3" column="1">
+ <widget class="QPlainTextEdit" name="obj_naznach">
+ <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
+ <property name="placeholderText"><string>Трубопровод подачи...</string></property>
+</widget>
+</item>
+<item row="4" column="0">
+ <widget class="QLabel" name="label_6"><property name="text"><string>Местонахождение</string></property></widget>
+</item>
+<item row="4" column="1">
+ <widget class="QPlainTextEdit" name="obj_location">
+ <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="5" column="0">
+ <widget class="QLabel" name="label_7"><property name="text"><string>Год изготовления</string></property></widget>
+</item>
+<item row="5" column="1">
+ <widget class="QPlainTextEdit" name="year_made">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="6" column="0">
+ <widget class="QLabel" name="label_8"><property name="text"><string>Год ввода в эксплуатацию</string></property></widget>
+</item>
+<item row="6" column="1">
+ <widget class="QPlainTextEdit" name="year_start">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="7" column="0">
+ <widget class="QLabel" name="label_9"><property name="text"><string>Срок эксплуатации, лет</string></property></widget>
+</item>
+<item row="7" column="1">
+ <widget class="QPlainTextEdit" name="years_of_operation">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="8" column="0">
+ <widget class="QLabel" name="label_10"><property name="text"><string>Рабочая среда</string></property></widget>
+</item>
+<item row="8" column="1">
+ <widget class="QComboBox" name="work_medium">
+<item><property name="text"><string>азот</string></property></item>
+<item><property name="text"><string>воздух</string></property></item>
+<item><property name="text"><string>кислород</string></property></item>
+<item><property name="text"><string>гелий</string></property></item>
+<item><property name="text"><string>аргон</string></property></item>
+</widget>
+</item>
+<item row="9" column="0">
+ <widget class="QLabel" name="label_11"><property name="text"><string>№ проекта/чертежи</string></property></widget>
+</item>
+<item row="9" column="1">
+ <widget class="QPlainTextEdit" name="project_docs">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="10" column="0">
+ <widget class="QLabel" name="label_12"><property name="text"><string>Давление, МПа</string></property></widget>
+</item>
+<item row="10" column="1">
+ <widget class="QPlainTextEdit" name="p_rab_mpa">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="11" column="0">
+ <widget class="QLabel" name="label_13"><property name="text"><string>Давление, кгс/см2</string></property></widget>
+</item>
+<item row="11" column="1">
+ <widget class="QPlainTextEdit" name="p_rab_kgs">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="12" column="0">
+ <widget class="QLabel" name="label_14"><property name="text"><string>Рабочая температура</string></property></widget>
+</item>
+<item row="12" column="1">
+ <widget class="QPlainTextEdit" name="work_temp">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="13" column="0">
+ <widget class="QLabel" name="label_15"><property name="text"><string>Протяжённость, м</string></property></widget>
+</item>
+<item row="13" column="1">
+ <widget class="QPlainTextEdit" name="length_m">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="14" column="0">
+ <widget class="QLabel" name="label_16"><property name="text"><string>Конструкция (кратко)</string></property></widget>
+</item>
+<item row="14" column="1">
+ <widget class="QPlainTextEdit" name="construction_desc">
+ <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="15" column="0">
+ <widget class="QLabel" name="label_17"><property name="text"><string>Марка стали</string></property></widget>
+</item>
+<item row="15" column="1">
+ <widget class="QComboBox" name="steel_grade">
+<item><property name="text"><string>12Х18Н10Т</string></property></item>
+</widget>
+</item>
+<item row="16" column="0">
+ <widget class="QLabel" name="label_18"><property name="text"><string>Типоразмер трубы, мм</string></property></widget>
+</item>
+<item row="16" column="1">
+ <widget class="QPlainTextEdit" name="pipe_size">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string>8,0х2,0</string></property>
+</widget>
+</item>
+<item row="17" column="0">
+ <widget class="QLabel" name="label_19"><property name="text"><string>ГОСТ/ТУ трубы</string></property></widget>
+</item>
+<item row="17" column="1">
+ <widget class="QPlainTextEdit" name="pipe_gost">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+</layout>
+</widget></item>
+<item><widget class="QGroupBox" name="customer_group">
+ <property name="title"><string>Заказчик</string></property>
+<layout class="QFormLayout" name="formLayout_20">
+<item row="0" column="0">
+ <widget class="QLabel" name="label_21"><property name="text"><string>Наименование организации</string></property></widget>
+</item>
+<item row="0" column="1">
+ <widget class="QPlainTextEdit" name="customer_name">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="1" column="0">
+ <widget class="QLabel" name="label_22"><property name="text"><string>Сокращённое наименование</string></property></widget>
+</item>
+<item row="1" column="1">
+ <widget class="QPlainTextEdit" name="customer_short_name">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="2" column="0">
+ <widget class="QLabel" name="label_23"><property name="text"><string>Юридический адрес</string></property></widget>
+</item>
+<item row="2" column="1">
+ <widget class="QPlainTextEdit" name="customer_address">
+ <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="3" column="0">
+ <widget class="QLabel" name="label_24"><property name="text"><string>Руководитель</string></property></widget>
+</item>
+<item row="3" column="1">
+ <widget class="QPlainTextEdit" name="customer_head">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="4" column="0">
+ <widget class="QLabel" name="label_25"><property name="text"><string>Телефон</string></property></widget>
+</item>
+<item row="4" column="1">
+ <widget class="QPlainTextEdit" name="customer_phone">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="5" column="0">
+ <widget class="QLabel" name="label_26"><property name="text"><string>ИНН/КПП</string></property></widget>
+</item>
+<item row="5" column="1">
+ <widget class="QPlainTextEdit" name="customer_inn">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+</layout>
+</widget></item>
+<item><widget class="QGroupBox" name="expert_group">
+ <property name="title"><string>Экспертная организация и специалист</string></property>
+<layout class="QFormLayout" name="formLayout_27">
+<item row="0" column="0">
+ <widget class="QLabel" name="label_28"><property name="text"><string>Экспертная организация</string></property></widget>
+</item>
+<item row="0" column="1">
+ <widget class="QPlainTextEdit" name="expert_org_name">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="1" column="0">
+ <widget class="QLabel" name="label_29"><property name="text"><string>Специалист НК (ФИО)</string></property></widget>
+</item>
+<item row="1" column="1">
+ <widget class="QPlainTextEdit" name="specialist_name">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="2" column="0">
+ <widget class="QLabel" name="label_30"><property name="text"><string>№ удостоверения</string></property></widget>
+</item>
+<item row="2" column="1">
+ <widget class="QPlainTextEdit" name="specialist_cert">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+</layout>
+</widget></item>
+<item><widget class="QGroupBox" name="docs_group">
+ <property name="title"><string>Документы, рассмотренные при диагностировании (Таблица 4)</string></property>
+ <layout class="QVBoxLayout" name="docs_vlayout"><item><widget class="QTableWidget" name="table_reviewed_docs">
+ <property name="minimumSize"><size><width>0</width><height>160</height></size></property>
+ <property name="rowCount"><number>7</number></property>
+ <property name="columnCount"><number>2</number></property>
+<row/>
+<row/>
+<row/>
+<row/>
+<row/>
+<row/>
+<row/>
+<column><property name="text"><string>Документ</string></property></column>
+<column><property name="text"><string>Примечание</string></property></column>
+</widget></item></layout>
+</widget></item>
+</layout>
+    </widget>
+   </widget>
+  </item>
+ </layout>
+</widget>
+ <widget class="QWidget" name="tab_acts">
+ <attribute name="title"><string>Акты и протоколы</string></attribute>
+ <layout class="QVBoxLayout" name="tab_acts_outerLayout">
+  <item>
+   <widget class="QScrollArea" name="tab_acts_scroll">
+    <property name="widgetResizable"><bool>true</bool></property>
+    <widget class="QWidget" name="tab_acts_scrollContent">
+     <property name="geometry"><rect><x>0</x><y>0</y><width>960</width><height>1700</height></rect></property>
+     <layout class="QVBoxLayout" name="vlayout_42">
+<item><widget class="QGroupBox" name="act2_group">
+ <property name="title"><string>Приложение 2 — Акт анализа документации</string></property>
+<layout class="QFormLayout" name="formLayout_33">
+<item row="0" column="0">
+ <widget class="QLabel" name="label_34"><property name="text"><string>Дата проведения</string></property></widget>
+</item>
+<item row="0" column="1">
+ <widget class="QDateEdit" name="act2_date">
+ <property name="calendarPopup"><bool>true</bool></property>
+ <property name="displayFormat"><string>dd.MM.yyyy</string></property>
+</widget>
+</item>
+<item row="1" column="0">
+ <widget class="QLabel" name="label_35"><property name="text"><string>Вывод</string></property></widget>
+</item>
+<item row="1" column="1">
+ <widget class="QPlainTextEdit" name="act2_conclusion">
+ <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+</layout>
+</widget></item>
+<item><widget class="QGroupBox" name="vik_group">
+ <property name="title"><string>Приложение 3 — Акт ВИК (наружный осмотр)</string></property>
+ <layout class="QVBoxLayout" name="vik_vlayout">
+  <item><layout class="QFormLayout" name="vik_form">
+   <item row="0" column="0"><widget class="QLabel" name="label_vik_date"><property name="text"><string>Дата проведения</string></property></widget></item>
+   <item row="0" column="1"><widget class="QDateEdit" name="vik_date">
+ <property name="calendarPopup"><bool>true</bool></property>
+ <property name="displayFormat"><string>dd.MM.yyyy</string></property>
+</widget></item>
+  </layout></item>
+  <item><widget class="QTableWidget" name="table_vik">
+ <property name="minimumSize"><size><width>0</width><height>160</height></size></property>
+ <property name="rowCount"><number>6</number></property>
+ <property name="columnCount"><number>2</number></property>
+<row/>
+<row/>
+<row/>
+<row/>
+<row/>
+<row/>
+<column><property name="text"><string>Элемент</string></property></column>
+<column><property name="text"><string>Состояние</string></property></column>
+</widget></item>
+  <item><layout class="QFormLayout" name="vik_form2">
+   <item row="0" column="0"><widget class="QLabel" name="label_vik_concl"><property name="text"><string>Вывод</string></property></widget></item>
+   <item row="0" column="1"><widget class="QPlainTextEdit" name="vik_conclusion">
+ <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget></item>
+  </layout></item>
+ </layout>
+</widget></item>
+<item><widget class="QGroupBox" name="thick_group">
+ <property name="title"><string>Приложение 4 — Толщинометрия</string></property>
+ <layout class="QVBoxLayout" name="thick_vlayout">
+  <item><layout class="QFormLayout" name="thick_form">
+   <item row="0" column="0"><widget class="QLabel" name="label_thick_date"><property name="text"><string>Дата проведения</string></property></widget></item>
+   <item row="0" column="1"><widget class="QDateEdit" name="thick_date">
+ <property name="calendarPopup"><bool>true</bool></property>
+ <property name="displayFormat"><string>dd.MM.yyyy</string></property>
+</widget></item>
+   <item row="1" column="0"><widget class="QLabel" name="label_thick_device"><property name="text"><string>Толщиномер (тип, зав.№)</string></property></widget></item>
+   <item row="1" column="1"><widget class="QPlainTextEdit" name="thick_device">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget></item>
+   <item row="2" column="0"><widget class="QLabel" name="label_segments_count"><property name="text"><string>Количество участков</string></property></widget></item>
+   <item row="2" column="1"><widget class="QSpinBox" name="segments_count">
+ <property name="minimum"><number>1</number></property>
+ <property name="maximum"><number>200</number></property>
+</widget></item>
+   <item row="3" column="0"><widget class="QLabel" name="label_thick_seed_min"><property name="text"><string>Ожидаемая мин. толщина, мм</string></property></widget></item>
+   <item row="3" column="1"><widget class="QPlainTextEdit" name="thick_seed_min">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string>предварительный замер</string></property>
+</widget></item>
+  </layout></item>
+  <item><layout class="QHBoxLayout" name="thick_buttons">
+<item><widget class="QPushButton" name="pushButt_segments">
+ <property name="text"><string>Участки трассы</string></property>
+</widget></item>
+<item><widget class="QPushButton" name="pushButton_genThickness">
+ <property name="text"><string>Замерить толщины</string></property>
+</widget></item>
+</layout></item>
+  <item><widget class="QLabel" name="label_segments_table"><property name="text"><string>Участки трассы (ввод):</string></property></widget></item>
+  <item><widget class="QTableWidget" name="table_segments">
+ <property name="minimumSize"><size><width>0</width><height>140</height></size></property>
+ <property name="rowCount"><number>1</number></property>
+ <property name="columnCount"><number>3</number></property>
+<row/>
+<column><property name="text"><string>№</string></property></column>
+<column><property name="text"><string>Тип элемента</string></property></column>
+<column><property name="text"><string>Типоразмер</string></property></column>
+</widget></item>
+  <item><widget class="QLabel" name="label_thick_table"><property name="text"><string>Результаты замеров (генерация):</string></property></widget></item>
+  <item><widget class="QTableWidget" name="table_thick_pipeline">
+ <property name="minimumSize"><size><width>0</width><height>140</height></size></property>
+ <property name="rowCount"><number>1</number></property>
+ <property name="columnCount"><number>4</number></property>
+<row/>
+<column><property name="text"><string>№</string></property></column>
+<column><property name="text"><string>Тип элемента</string></property></column>
+<column><property name="text"><string>Типоразмер</string></property></column>
+<column><property name="text"><string>Замер, мм</string></property></column>
+</widget></item>
+  <item><layout class="QFormLayout" name="thick_form2">
+   <item row="0" column="0"><widget class="QLabel" name="label_thick_concl"><property name="text"><string>Вывод</string></property></widget></item>
+   <item row="0" column="1"><widget class="QPlainTextEdit" name="thick_conclusion">
+ <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget></item>
+  </layout></item>
+ </layout>
+</widget></item>
+<item><widget class="QGroupBox" name="uzk_group">
+ <property name="title"><string>Приложение 5 — УЗК сварных соединений</string></property>
+ <layout class="QVBoxLayout" name="uzk_vlayout">
+  <item><layout class="QFormLayout" name="uzk_form">
+   <item row="0" column="0"><widget class="QLabel" name="label_uzk_date"><property name="text"><string>Дата проведения</string></property></widget></item>
+   <item row="0" column="1"><widget class="QDateEdit" name="uzk_date">
+ <property name="calendarPopup"><bool>true</bool></property>
+ <property name="displayFormat"><string>dd.MM.yyyy</string></property>
+</widget></item>
+   <item row="1" column="0"><widget class="QLabel" name="label_uzk_device"><property name="text"><string>Дефектоскоп (тип, зав.№)</string></property></widget></item>
+   <item row="1" column="1"><widget class="QPlainTextEdit" name="uzk_device">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget></item>
+  </layout></item>
+  <item><widget class="QTableWidget" name="table_uzk">
+ <property name="minimumSize"><size><width>0</width><height>140</height></size></property>
+ <property name="rowCount"><number>1</number></property>
+ <property name="columnCount"><number>5</number></property>
+<row/>
+<column><property name="text"><string>№</string></property></column>
+<column><property name="text"><string>Участок</string></property></column>
+<column><property name="text"><string>Типоразмер</string></property></column>
+<column><property name="text"><string>Дефекты</string></property></column>
+<column><property name="text"><string>Оценка</string></property></column>
+</widget></item>
+  <item><layout class="QFormLayout" name="uzk_form2">
+   <item row="0" column="0"><widget class="QLabel" name="label_uzk_concl"><property name="text"><string>Вывод</string></property></widget></item>
+   <item row="0" column="1"><widget class="QPlainTextEdit" name="uzk_conclusion">
+ <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget></item>
+  </layout></item>
+ </layout>
+</widget></item>
+<item><widget class="QGroupBox" name="pnevmo_group">
+ <property name="title"><string>Приложения 8-9 — Пневмоиспытание с АЭ-контролем</string></property>
+<layout class="QFormLayout" name="formLayout_36">
+<item row="0" column="0">
+ <widget class="QLabel" name="label_37"><property name="text"><string>Дата проведения</string></property></widget>
+</item>
+<item row="0" column="1">
+ <widget class="QDateEdit" name="pnevmo_date">
+ <property name="calendarPopup"><bool>true</bool></property>
+ <property name="displayFormat"><string>dd.MM.yyyy</string></property>
+</widget>
+</item>
+<item row="1" column="0">
+ <widget class="QLabel" name="label_38"><property name="text"><string>Испытательное давление</string></property></widget>
+</item>
+<item row="1" column="1">
+ <widget class="QPlainTextEdit" name="pnevmo_pressure">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="2" column="0">
+ <widget class="QLabel" name="label_39"><property name="text"><string>Аппаратура АЭ (тип, зав.№)</string></property></widget>
+</item>
+<item row="2" column="1">
+ <widget class="QPlainTextEdit" name="pnevmo_device">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="3" column="0">
+ <widget class="QLabel" name="label_40"><property name="text"><string>Число датчиков</string></property></widget>
+</item>
+<item row="3" column="1">
+ <widget class="QSpinBox" name="pnevmo_sensors_count">
+ <property name="minimum"><number>1</number></property>
+ <property name="maximum"><number>50</number></property>
+</widget>
+</item>
+<item row="4" column="0">
+ <widget class="QLabel" name="label_41"><property name="text"><string>Вывод</string></property></widget>
+</item>
+<item row="4" column="1">
+ <widget class="QPlainTextEdit" name="pnevmo_conclusion">
+ <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+</layout>
+</widget></item>
+</layout>
+    </widget>
+   </widget>
+  </item>
+ </layout>
+</widget>
+ <widget class="QWidget" name="tab_calc">
+ <attribute name="title"><string>Расчёты</string></attribute>
+ <layout class="QVBoxLayout" name="tab_calc_outerLayout">
+  <item>
+   <widget class="QScrollArea" name="tab_calc_scroll">
+    <property name="widgetResizable"><bool>true</bool></property>
+    <widget class="QWidget" name="tab_calc_scrollContent">
+     <property name="geometry"><rect><x>0</x><y>0</y><width>960</width><height>1700</height></rect></property>
+     <layout class="QVBoxLayout" name="vlayout_67">
+<item><widget class="QGroupBox" name="strength_inputs_group">
+ <property name="title"><string>Исходные данные для расчёта</string></property>
+<layout class="QFormLayout" name="formLayout_43">
+<item row="0" column="0">
+ <widget class="QLabel" name="label_44"><property name="text"><string>Температура стенки tст, °C</string></property></widget>
+</item>
+<item row="0" column="1">
+ <widget class="QPlainTextEdit" name="calc_temp">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string>20</string></property>
+</widget>
+</item>
+<item row="1" column="0">
+ <widget class="QLabel" name="label_45"><property name="text"><string>Коэффициент прочности шва φw</string></property></widget>
+</item>
+<item row="1" column="1">
+ <widget class="QPlainTextEdit" name="calc_phi">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string>1,0</string></property>
+</widget>
+</item>
+<item row="2" column="0">
+ <widget class="QLabel" name="label_46"><property name="text"><string>Номинальный диаметр Da, мм</string></property></widget>
+</item>
+<item row="2" column="1">
+ <widget class="QPlainTextEdit" name="calc_da">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="3" column="0">
+ <widget class="QLabel" name="label_47"><property name="text"><string>Номинальная толщина Sн, мм</string></property></widget>
+</item>
+<item row="3" column="1">
+ <widget class="QPlainTextEdit" name="calc_sn">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="4" column="0">
+ <widget class="QLabel" name="label_48"><property name="text"><string>Эксплуатационная прибавка C2, мм</string></property></widget>
+</item>
+<item row="4" column="1">
+ <widget class="QPlainTextEdit" name="calc_c2">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="5" column="0">
+ <widget class="QLabel" name="label_49"><property name="text"><string>Фактическая мин. толщина Sф, мм</string></property></widget>
+</item>
+<item row="5" column="1">
+ <widget class="QPlainTextEdit" name="calc_sf">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+</layout>
+</widget></item>
+<item><layout class="QHBoxLayout" name="calc_buttons">
+<item><widget class="QPushButton" name="pushButton_calcStrength">
+ <property name="text"><string>Расчёт на прочность</string></property>
+</widget></item>
+<item><widget class="QPushButton" name="pushButton_calcResidualLife">
+ <property name="text"><string>Остаточный ресурс</string></property>
+</widget></item>
+</layout></item>
+<item><widget class="QGroupBox" name="strength_outputs_group">
+ <property name="title"><string>Результаты расчёта на прочность</string></property>
+<layout class="QFormLayout" name="formLayout_50">
+<item row="0" column="0">
+ <widget class="QLabel" name="label_51"><property name="text"><string>Допускаемое напряжение [σ], МПа</string></property></widget>
+</item>
+<item row="0" column="1">
+ <widget class="QPlainTextEdit" name="calc_sigma_allow">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="1" column="0">
+ <widget class="QLabel" name="label_52"><property name="text"><string>Расчётная толщина Sr, мм</string></property></widget>
+</item>
+<item row="1" column="1">
+ <widget class="QPlainTextEdit" name="calc_sr">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="2" column="0">
+ <widget class="QLabel" name="label_53"><property name="text"><string>Минимально допустимая [S], мм</string></property></widget>
+</item>
+<item row="2" column="1">
+ <widget class="QPlainTextEdit" name="calc_s_reject">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="3" column="0">
+ <widget class="QLabel" name="label_54"><property name="text"><string>Допускаемое давление [P], МПа</string></property></widget>
+</item>
+<item row="3" column="1">
+ <widget class="QPlainTextEdit" name="calc_p_allow">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="4" column="0">
+ <widget class="QLabel" name="label_55"><property name="text"><string>Условие прочности</string></property></widget>
+</item>
+<item row="4" column="1">
+ <widget class="QPlainTextEdit" name="calc_strength_conclusion">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+</layout>
+</widget></item>
+<item><widget class="QGroupBox" name="residual_inputs_group">
+ <property name="title"><string>Остаточный ресурс — исходные данные</string></property>
+<layout class="QFormLayout" name="formLayout_56">
+<item row="0" column="0">
+ <widget class="QLabel" name="label_57"><property name="text"><string>Срок эксплуатации t, лет</string></property></widget>
+</item>
+<item row="0" column="1">
+ <widget class="QPlainTextEdit" name="calc_years_operation">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="1" column="0">
+ <widget class="QLabel" name="label_58"><property name="text"><string>Коэффициент K</string></property></widget>
+</item>
+<item row="1" column="1">
+ <widget class="QPlainTextEdit" name="calc_k">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string>1,0</string></property>
+</widget>
+</item>
+</layout>
+</widget></item>
+<item><widget class="QGroupBox" name="residual_outputs_group">
+ <property name="title"><string>Остаточный ресурс — результат</string></property>
+<layout class="QFormLayout" name="formLayout_59">
+<item row="0" column="0">
+ <widget class="QLabel" name="label_60"><property name="text"><string>Скорость коррозии Аф, мм/год</string></property></widget>
+</item>
+<item row="0" column="1">
+ <widget class="QPlainTextEdit" name="calc_corrosion_rate">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="1" column="0">
+ <widget class="QLabel" name="label_61"><property name="text"><string>Остаточный ресурс Тост, лет</string></property></widget>
+</item>
+<item row="1" column="1">
+ <widget class="QPlainTextEdit" name="calc_remaining_years">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="2" column="0">
+ <widget class="QLabel" name="label_62"><property name="text"><string>Комментарий</string></property></widget>
+</item>
+<item row="2" column="1">
+ <widget class="QPlainTextEdit" name="calc_residual_comment">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+</layout>
+</widget></item>
+<item><widget class="QGroupBox" name="final_group">
+ <property name="title"><string>Выводы (раздел 9)</string></property>
+<layout class="QFormLayout" name="formLayout_63">
+<item row="0" column="0">
+ <widget class="QLabel" name="label_64"><property name="text"><string>Оценка технического состояния</string></property></widget>
+</item>
+<item row="0" column="1">
+ <widget class="QPlainTextEdit" name="final_condition">
+ <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="1" column="0">
+ <widget class="QLabel" name="label_65"><property name="text"><string>Разрешённый срок эксплуатации, лет</string></property></widget>
+</item>
+<item row="1" column="1">
+ <widget class="QPlainTextEdit" name="final_years_allowed">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="2" column="0">
+ <widget class="QLabel" name="label_66"><property name="text"><string>Дата, до которой разрешена эксплуатация</string></property></widget>
+</item>
+<item row="2" column="1">
+ <widget class="QDateEdit" name="final_deadline_date">
+ <property name="calendarPopup"><bool>true</bool></property>
+ <property name="displayFormat"><string>dd.MM.yyyy</string></property>
+</widget>
+</item>
+</layout>
+</widget></item>
+</layout>
+    </widget>
+   </widget>
+  </item>
+ </layout>
+</widget>
+</widget></item>
+<item><layout class="QHBoxLayout" name="bottom_buttons">
+<item><widget class="QPushButton" name="pushButt_generateWord">
+ <property name="text"><string>Выгрузить в Word</string></property>
+</widget></item>
+<item><widget class="QPushButton" name="pushButton_saveProject">
+ <property name="text"><string>Сохранить проект</string></property>
+</widget></item>
+<item><widget class="QPushButton" name="pushButton_openProject">
+ <property name="text"><string>Открыть проект</string></property>
+</widget></item>
+</layout></item>
+</layout>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
