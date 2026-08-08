@@ -699,13 +699,25 @@
 </layout>
 </widget></item>
 <item><widget class="QGroupBox" name="vik_group">
- <property name="title"><string>Приложение 3 — Акт ВИК (наружный осмотр)</string></property>
+ <property name="title"><string>Приложение 3 — Акт ВИК</string></property>
  <layout class="QVBoxLayout" name="vik_vlayout">
   <item><layout class="QFormLayout" name="vik_form">
    <item row="0" column="0"><widget class="QLabel" name="label_vik_date"><property name="text"><string>Дата проведения</string></property></widget></item>
    <item row="0" column="1"><widget class="QDateEdit" name="vik_date">
  <property name="calendarPopup"><bool>true</bool></property>
  <property name="displayFormat"><string>dd.MM.yyyy</string></property>
+</widget></item>
+   <item row="1" column="0"><widget class="QLabel" name="label_vik_guidance_docs"><property name="text"><string>Руководящие документы</string></property></widget></item>
+   <item row="1" column="1"><widget class="QPlainTextEdit" name="vik_guidance_docs">
+ <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
+ <property name="plainText"><string>Приказ Ростехнадзора № 8 от 16.01.24 г. Об утверждении Руководства по безопасности «Методические рекомендации о порядке проведения визуального и измерительного контроля»</string></property>
+</widget></item>
+   <item row="2" column="0"><widget class="QLabel" name="label_vik_equipment"><property name="text"><string>Оборудование и инструменты</string></property></widget></item>
+   <item row="2" column="1"><widget class="QPlainTextEdit" name="vik_equipment">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="plainText"><string>Комплект для визуального и измерительного контроля ВИК №1312</string></property>
 </widget></item>
   </layout></item>
   <item><widget class="QTableWidget" name="table_vik">
@@ -726,6 +738,8 @@
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
  <property name="placeholderText"><string></string></property>
 </widget></item>
+   <item row="1" column="0"><widget class="QLabel" name="label_vik_specialist"><property name="text"><string>Контроль провёл</string></property></widget></item>
+   <item row="1" column="1"><widget class="QComboBox" name="vik_specialist"/></item>
   </layout></item>
  </layout>
 </widget></item>
