@@ -292,6 +292,22 @@ class MainWindow(QMainWindow):
                 self.data["programm_specialist_name_initials"] = programm_specialist["name_initials"]
                 self.data["programm_specialist_cert_number"] = programm_specialist["cert_number"]
 
+                # "Анализ документации провёл" (Приложение 2) -- тот же
+                # паттерн, что и "Программу составил" выше.
+                act2_specialist_idx = self.act2_specialist.currentData()
+                if (
+                    act2_specialist_idx is None
+                    or act2_specialist_idx >= len(self.data["specialists"])
+                ):
+                    raise ValueError(
+                        "Выберите специалиста в поле «Анализ документации провёл» "
+                        "(Приложение 2) -- источник вариантов: Таблица 2 (1.3)"
+                    )
+                act2_specialist = self.data["specialists"][act2_specialist_idx]
+                self.data["act2_specialist_position"] = act2_specialist["position"]
+                self.data["act2_specialist_name_initials"] = act2_specialist["name_initials"]
+                self.data["act2_specialist_cert_number"] = act2_specialist["cert_number"]
+
                 # 8.2 -- "5 (пять) лет": число прописью в скобках рядом с цифрой.
                 years_allowed_text = self.final_years_allowed.toPlainText().strip()
                 try:
@@ -1028,15 +1044,24 @@ class MainWindow(QMainWindow):
                 item.setText(f"{top}.{sub}.")
 
     def _refresh_program_specialist_combo(self):
-        """Обновляет список в program_specialist (поле "Программу составил",
-        Приложение 1) при переключении на вкладку "Приложения" -- источник
-        вариантов: table_specialists (1.3 Сведения о специалистах, Таблица
-        2). Комбобокс не входит ни в один список widget_names_pipeline.py
-        (как pnevmo_pressure_hint) -- он даёт индекс строки специалиста, а не
-        текст для .docx напрямую, итоговые плейсхолдеры собирает calculate()."""
+        """Обновляет списки в program_specialist (поле "Программу составил",
+        Приложение 1) и act2_specialist (поле "Анализ документации провёл",
+        Приложение 2) при переключении на вкладку "Приложения" -- источник
+        вариантов для обоих один и тот же: table_specialists (1.3 Сведения о
+        специалистах, Таблица 2). Ни один из комбобоксов не входит ни в один
+        список widget_names_pipeline.py (как pnevmo_pressure_hint) -- каждый
+        даёт индекс строки специалиста, а не текст для .docx напрямую,
+        итоговые плейсхолдеры собирает calculate()."""
         if self.tabWidget.widget(self.tabWidget.currentIndex()) is not self.tab_acts:
             return
-        combo = self.program_specialist
+        self._refresh_specialist_combo(self.program_specialist)
+        self._refresh_specialist_combo(self.act2_specialist)
+
+    def _refresh_specialist_combo(self, combo):
+        """Перезаполняет один комбобокс-выбор специалиста вариантами из
+        table_specialists, сохраняя текущий выбор (по индексу строки), если
+        он всё ещё существует -- общая логика для program_specialist и
+        act2_specialist, см. _refresh_program_specialist_combo()."""
         previous = combo.currentData()
         combo.blockSignals(True)
         combo.clear()

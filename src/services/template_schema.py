@@ -296,7 +296,16 @@ PIPELINE_SCHEMA = ReportSchema(
                     "эксплуатационной документации",
             rows=[
                 FieldLabel("Дата проведения", "act2_date"),
+                FieldLabel("Вводная часть акта", "act2_intro_text"),
                 FieldLabel("Вывод", "act2_conclusion"),
+            ],
+        ),
+        FieldsTableSection(
+            heading="Приложение 2 — Анализ документации провёл",
+            rows=[
+                FieldLabel("Должность", "act2_specialist_position"),
+                FieldLabel("ФИО", "act2_specialist_name_initials"),
+                FieldLabel("Удостоверение", "act2_specialist_cert_number"),
             ],
         ),
         RepeatingTableSection(
