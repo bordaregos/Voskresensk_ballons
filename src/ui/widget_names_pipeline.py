@@ -12,33 +12,47 @@ objectName виджета в designer/pipeline_window.ui == ключ в MainWind
 """
 
 PLAIN_TEXT_EDIT_NAMES = [
+    # Вводная часть (1.1, 1.2 -- сейчас редактируемые поля формы, а не
+    # статичный текст/таблица, выпеченная из organization_config.py при
+    # генерации заготовки; см. template_schema.py)
+    "intro_text",
+    "org_name", "org_address", "org_head", "org_phone", "org_fax",
+    "org_email", "org_website", "org_license", "org_license_issuer",
+    "org_license_number_date", "org_activity_type", "org_activity_scope",
     # Отчёт и объект
-    "report_number", "reg_number", "obj_naznach", "obj_location",
+    "report_number", "report_year", "reg_number", "obj_naznach", "obj_location",
+    "obj_name",
     "year_made", "year_start", "years_of_operation", "project_docs",
     "p_rab_mpa", "p_rab_kgs", "work_temp", "length_m", "construction_desc",
-    "pipe_size", "pipe_gost",
     # Заказчик
-    "customer_name", "customer_short_name", "customer_address",
+    "customer_name", "customer_short_name", "customer_legal_form",
+    "customer_address", "customer_actual_address",
     "customer_head", "customer_phone", "customer_inn",
-    # Экспертная организация и специалист
-    "expert_org_name", "specialist_name", "specialist_cert",
+    # Цель технического диагностирования
+    "goal_text",
+    # 7. Результаты технического диагностирования (7.1-7.7)
+    "result_71", "result_72", "result_73", "result_74", "result_75",
+    "result_76", "result_77",
     # Акты и протоколы (Приложения 2-5, 8-9)
     "act2_conclusion", "vik_conclusion",
-    "thick_device", "thick_seed_min", "thick_conclusion",
-    "uzk_device", "uzk_conclusion",
-    "pnevmo_pressure", "pnevmo_device", "pnevmo_conclusion",
+    "thick_seed_min", "thick_conclusion",
+    "uzk_conclusion",
+    "pnevmo_pressure", "pnevmo_conclusion",
     # Расчёт на прочность и остаточный ресурс (Приложение 6)
     "calc_temp", "calc_phi", "calc_da", "calc_sn", "calc_c2", "calc_sf",
     "calc_sigma_allow", "calc_sr", "calc_s_reject", "calc_p_allow",
     "calc_strength_conclusion",
     "calc_years_operation", "calc_k", "calc_corrosion_rate",
     "calc_remaining_years", "calc_residual_comment",
-    # Выводы (раздел 9)
+    # Выводы (раздел 8)
     "final_condition", "final_years_allowed",
 ]
 
 COMBO_BOX_NAMES = [
-    "work_medium", "steel_grade",
+    "work_medium",
+    # Редактируемые -- список пополняется вводом оператора (см.
+    # SEGMENT_TYPES ниже для контраста: там фиксированный набор вариантов).
+    "thick_device", "uzk_device", "pnevmo_device", "report_title",
 ]
 
 DATE_EDIT_NAMES = [
@@ -50,6 +64,12 @@ BUTTON_NAMES = [
     "pushButt_generateWord", "pushButton_saveProject", "pushButton_openProject",
     "pushButt_segments", "pushButton_genThickness",
     "pushButton_calcStrength", "pushButton_calcResidualLife",
+    "pushButt_addSpecialist", "pushButt_removeSpecialist",
+    "pushButt_addReviewedDoc", "pushButt_removeReviewedDoc",
+    "pushButt_addVikRow", "pushButt_removeVikRow",
+    "pushButt_removeThickDevice", "pushButt_removeUzkDevice",
+    "pushButt_removePnevmoDevice", "pushButt_removeReportTitle",
+    "pushButt_addPipeMaterial", "pushButt_removePipeMaterial",
 ]
 
 SPIN_BOX_NAMES = [
@@ -58,7 +78,8 @@ SPIN_BOX_NAMES = [
 
 TABLE_WIDGET = [
     "table_reviewed_docs", "table_vik", "table_segments",
-    "table_thick_pipeline", "table_uzk",
+    "table_thick_pipeline", "table_uzk", "table_specialists",
+    "table_pipe_materials",
 ]
 
 # Варианты "Тип элемента" для выпадающего списка в table_segments (колонка 1).

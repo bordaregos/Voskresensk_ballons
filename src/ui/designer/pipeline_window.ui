@@ -17,192 +17,261 @@
     <widget class="QWidget" name="tab_general_scrollContent">
      <property name="geometry"><rect><x>0</x><y>0</y><width>960</width><height>1700</height></rect></property>
      <layout class="QVBoxLayout" name="vlayout_32">
-<item><widget class="QGroupBox" name="obj_group">
- <property name="title"><string>Объект диагностирования</string></property>
-<layout class="QFormLayout" name="formLayout_1">
+<item><widget class="QGroupBox" name="title_group">
+ <property name="title"><string>Титульный лист</string></property>
+<layout class="QFormLayout" name="formLayout_0">
 <item row="0" column="0">
- <widget class="QLabel" name="label_2"><property name="text"><string>№ отчёта</string></property></widget>
+ <widget class="QLabel" name="label_1"><property name="text"><string>Заголовок отчёта</string></property></widget>
 </item>
 <item row="0" column="1">
+ <layout class="QHBoxLayout" name="hlayout_reportTitle">
+<item><widget class="QComboBox" name="report_title">
+ <property name="editable"><bool>true</bool></property>
+ <item><property name="text"><string>Отчёт по результатам технического диагностирования</string></property></item>
+</widget></item>
+<item><widget class="QPushButton" name="pushButt_removeReportTitle"><property name="text"><string>−</string></property></widget></item>
+</layout>
+</item>
+<item row="1" column="0">
+ <widget class="QLabel" name="label_report_number"><property name="text"><string>№ отчёта</string></property></widget>
+</item>
+<item row="1" column="1">
  <widget class="QPlainTextEdit" name="report_number">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
  <property name="placeholderText"><string>681/24</string></property>
 </widget>
 </item>
-<item row="1" column="0">
- <widget class="QLabel" name="label_3"><property name="text"><string>Дата отчёта</string></property></widget>
+<item row="2" column="0">
+ <widget class="QLabel" name="label_report_date"><property name="text"><string>Дата отчёта</string></property></widget>
 </item>
-<item row="1" column="1">
+<item row="2" column="1">
  <widget class="QDateEdit" name="report_date">
  <property name="calendarPopup"><bool>true</bool></property>
  <property name="displayFormat"><string>dd.MM.yyyy</string></property>
 </widget>
 </item>
+<item row="3" column="0">
+ <widget class="QLabel" name="label_report_year"><property name="text"><string>Год составления отчёта</string></property></widget>
+</item>
+<item row="3" column="1">
+ <widget class="QPlainTextEdit" name="report_year">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string>2024</string></property>
+</widget>
+</item>
+</layout>
+</widget></item>
+<item><widget class="QGroupBox" name="intro_group">
+ <property name="title"><string>Вводная часть</string></property>
+<layout class="QFormLayout" name="formLayout_intro">
+<item row="0" column="0">
+ <widget class="QLabel" name="label_intro"><property name="text"><string>1.1</string></property></widget>
+</item>
+<item row="0" column="1">
+ <widget class="QPlainTextEdit" name="intro_text">
+ <property name="minimumSize"><size><width>0</width><height>140</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>280</height></size></property>
+ <property name="plainText"><string>1.1. Указание на конкретные структурные единицы нормативных правовых актов в области промышленной безопасности (пункт, подпункт, часть, статья) на соответствие, которым проводится оценка соответствия объекта диагностирования:
+- Федеральные нормы и правила в области промышленной безопасности "Правила безопасной эксплуатации технологических трубопроводов" (далее по тексту – ФНП ТТ) раздел II – п.п. 10, 19, 21, 27, 35-39, 44, 65, 73, 74, 82; раздел III – п.п. 85, 86; раздел IV – п.п. 94, 100; раздел V.IX – п. 141, 149-153, 170; раздел V.X – п. 176, раздел V.XVI – п. 204, раздел VII п. 218, 219.
+Проведение технического диагностирования выполнено на основании требований п.198 ФНП ТТ.</string></property>
+</widget>
+</item>
+</layout>
+</widget></item>
+<item><widget class="QGroupBox" name="org_group">
+ <property name="title"><string>1.2 Сведения об экспертной организации</string></property>
+<layout class="QFormLayout" name="formLayout_org">
+<item row="0" column="0">
+ <widget class="QLabel" name="label_org_name"><property name="text"><string>Экспертная организация</string></property></widget>
+</item>
+<item row="0" column="1">
+ <widget class="QPlainTextEdit" name="org_name">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="plainText"><string>ООО «Экспертно-диагностический центр ИМПУЛЬС»</string></property>
+</widget>
+</item>
+<item row="1" column="0">
+ <widget class="QLabel" name="label_org_address"><property name="text"><string>Адрес</string></property></widget>
+</item>
+<item row="1" column="1">
+ <widget class="QPlainTextEdit" name="org_address">
+ <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
+ <property name="plainText"><string>141090, Московская обл., г.о. Королев, г. Королев, мкр. Болшево,
+ул. Пушкинская, дом 15, помещение LIX</string></property>
+</widget>
+</item>
 <item row="2" column="0">
- <widget class="QLabel" name="label_4"><property name="text"><string>Рег. № объекта</string></property></widget>
+ <widget class="QLabel" name="label_org_head"><property name="text"><string>Руководитель</string></property></widget>
 </item>
 <item row="2" column="1">
+ <widget class="QPlainTextEdit" name="org_head">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="plainText"><string>Генеральный директор Сафронов Сергей Васильевич</string></property>
+</widget>
+</item>
+<item row="3" column="0">
+ <widget class="QLabel" name="label_org_phone"><property name="text"><string>Телефон</string></property></widget>
+</item>
+<item row="3" column="1">
+ <widget class="QPlainTextEdit" name="org_phone">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="plainText"><string>(495) 500-47-47</string></property>
+</widget>
+</item>
+<item row="4" column="0">
+ <widget class="QLabel" name="label_org_fax"><property name="text"><string>Факс</string></property></widget>
+</item>
+<item row="4" column="1">
+ <widget class="QPlainTextEdit" name="org_fax">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="plainText"><string>(495) 508-96-88</string></property>
+</widget>
+</item>
+<item row="5" column="0">
+ <widget class="QLabel" name="label_org_email"><property name="text"><string>Е-mail</string></property></widget>
+</item>
+<item row="5" column="1">
+ <widget class="QPlainTextEdit" name="org_email">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="plainText"><string>impuls2000@inbox.ru</string></property>
+</widget>
+</item>
+<item row="6" column="0">
+ <widget class="QLabel" name="label_org_website"><property name="text"><string>Официальный сайт организации</string></property></widget>
+</item>
+<item row="6" column="1">
+ <widget class="QPlainTextEdit" name="org_website">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="plainText"><string>edc-impuls.com</string></property>
+</widget>
+</item>
+<item row="7" column="0">
+ <widget class="QLabel" name="label_org_license"><property name="text"><string>Лицензия</string></property></widget>
+</item>
+<item row="7" column="1">
+ <widget class="QPlainTextEdit" name="org_license">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="plainText"><string>Лицензия</string></property>
+</widget>
+</item>
+<item row="8" column="0">
+ <widget class="QLabel" name="label_org_license_issuer"><property name="text"><string>Кем выдана</string></property></widget>
+</item>
+<item row="8" column="1">
+ <widget class="QPlainTextEdit" name="org_license_issuer">
+ <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
+ <property name="plainText"><string>Федеральной службой по экологическому,
+технологическому и атомному надзору</string></property>
+</widget>
+</item>
+<item row="9" column="0">
+ <widget class="QLabel" name="label_org_license_number_date"><property name="text"><string>Номер и дата выдачи</string></property></widget>
+</item>
+<item row="9" column="1">
+ <widget class="QPlainTextEdit" name="org_license_number_date">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="plainText"><string>ДЭ-00-007889 от 04.10.2007 г.</string></property>
+</widget>
+</item>
+<item row="10" column="0">
+ <widget class="QLabel" name="label_org_activity_type"><property name="text"><string>Вид деятельности</string></property></widget>
+</item>
+<item row="10" column="1">
+ <widget class="QPlainTextEdit" name="org_activity_type">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="plainText"><string>Проведение экспертизы промышленной безопасности</string></property>
+</widget>
+</item>
+<item row="11" column="0">
+ <widget class="QLabel" name="label_org_activity_scope"><property name="text"><string>Вид работ, выполняемых в составе лицензируемого вида деятельности</string></property></widget>
+</item>
+<item row="11" column="1">
+ <widget class="QPlainTextEdit" name="org_activity_scope">
+ <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
+ <property name="plainText"><string>Проведение экспертизы промышленной безопасности технических устройств, применяемых на опасном производственном объекте, в случаях установленных статьей 7 Федерального закона «О промышленной безопасности опасных производственных объектов», проведение экспертизы промышленной безопасности зданий и сооружений на опасном производственном объекте, предназначенных для осуществления технологических процессов, хранения сырья или продукции, перемещения людей и грузов, локализации и ликвидации последствий аварий.</string></property>
+</widget>
+</item>
+</layout>
+</widget></item>
+<item><widget class="QGroupBox" name="specialists_group">
+ <property name="title"><string>1.3 Сведения о специалистах</string></property>
+<layout class="QVBoxLayout" name="specialists_group_vlayout">
+<item><widget class="QLabel" name="label_specialists"><property name="text"><string>Специалисты, принимавшие участие в диагностировании (Таблица 2)</string></property></widget></item>
+<item><widget class="QTableWidget" name="table_specialists">
+ <property name="minimumSize"><size><width>0</width><height>120</height></size></property>
+ <property name="rowCount"><number>0</number></property>
+ <property name="columnCount"><number>3</number></property>
+ <column><property name="text"><string>Должность</string></property></column>
+ <column><property name="text"><string>ФИО</string></property></column>
+ <column><property name="text"><string>Удостоверение</string></property></column>
+</widget></item>
+<item><layout class="QHBoxLayout" name="specialists_buttons">
+<item><widget class="QPushButton" name="pushButt_addSpecialist"><property name="text"><string>+ Добавить специалиста</string></property></widget></item>
+<item><widget class="QPushButton" name="pushButt_removeSpecialist"><property name="text"><string>− Удалить</string></property></widget></item>
+</layout></item>
+</layout>
+</widget></item>
+<item><widget class="QGroupBox" name="obj_name_group">
+ <property name="title"><string>2. Наименование объекта технического диагностирования</string></property>
+<layout class="QFormLayout" name="formLayout_objname">
+<item row="0" column="0">
+ <widget class="QLabel" name="label_4"><property name="text"><string>Рег. № объекта</string></property></widget>
+</item>
+<item row="0" column="1">
  <widget class="QPlainTextEdit" name="reg_number">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
  <property name="placeholderText"><string>720291</string></property>
 </widget>
 </item>
-<item row="3" column="0">
- <widget class="QLabel" name="label_5"><property name="text"><string>Наименование/назначение</string></property></widget>
+<item row="1" column="0">
+ <widget class="QLabel" name="label_objname"><property name="text"><string>Наименование</string></property></widget>
 </item>
-<item row="3" column="1">
+<item row="1" column="1">
+ <widget class="QPlainTextEdit" name="obj_name">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="2" column="0">
+ <widget class="QLabel" name="label_5"><property name="text"><string>Назначение</string></property></widget>
+</item>
+<item row="2" column="1">
  <widget class="QPlainTextEdit" name="obj_naznach">
  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
  <property name="placeholderText"><string>Трубопровод подачи...</string></property>
 </widget>
 </item>
-<item row="4" column="0">
+<item row="3" column="0">
  <widget class="QLabel" name="label_6"><property name="text"><string>Местонахождение</string></property></widget>
 </item>
-<item row="4" column="1">
+<item row="3" column="1">
  <widget class="QPlainTextEdit" name="obj_location">
  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
  <property name="placeholderText"><string></string></property>
 </widget>
 </item>
-<item row="5" column="0">
- <widget class="QLabel" name="label_7"><property name="text"><string>Год изготовления</string></property></widget>
-</item>
-<item row="5" column="1">
- <widget class="QPlainTextEdit" name="year_made">
- <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
-</widget>
-</item>
-<item row="6" column="0">
- <widget class="QLabel" name="label_8"><property name="text"><string>Год ввода в эксплуатацию</string></property></widget>
-</item>
-<item row="6" column="1">
- <widget class="QPlainTextEdit" name="year_start">
- <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
-</widget>
-</item>
-<item row="7" column="0">
- <widget class="QLabel" name="label_9"><property name="text"><string>Срок эксплуатации, лет</string></property></widget>
-</item>
-<item row="7" column="1">
- <widget class="QPlainTextEdit" name="years_of_operation">
- <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
-</widget>
-</item>
-<item row="8" column="0">
- <widget class="QLabel" name="label_10"><property name="text"><string>Рабочая среда</string></property></widget>
-</item>
-<item row="8" column="1">
- <widget class="QComboBox" name="work_medium">
-<item><property name="text"><string>азот</string></property></item>
-<item><property name="text"><string>воздух</string></property></item>
-<item><property name="text"><string>кислород</string></property></item>
-<item><property name="text"><string>гелий</string></property></item>
-<item><property name="text"><string>аргон</string></property></item>
-</widget>
-</item>
-<item row="9" column="0">
- <widget class="QLabel" name="label_11"><property name="text"><string>№ проекта/чертежи</string></property></widget>
-</item>
-<item row="9" column="1">
- <widget class="QPlainTextEdit" name="project_docs">
- <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
-</widget>
-</item>
-<item row="10" column="0">
- <widget class="QLabel" name="label_12"><property name="text"><string>Давление, МПа</string></property></widget>
-</item>
-<item row="10" column="1">
- <widget class="QPlainTextEdit" name="p_rab_mpa">
- <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
-</widget>
-</item>
-<item row="11" column="0">
- <widget class="QLabel" name="label_13"><property name="text"><string>Давление, кгс/см2</string></property></widget>
-</item>
-<item row="11" column="1">
- <widget class="QPlainTextEdit" name="p_rab_kgs">
- <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
-</widget>
-</item>
-<item row="12" column="0">
- <widget class="QLabel" name="label_14"><property name="text"><string>Рабочая температура</string></property></widget>
-</item>
-<item row="12" column="1">
- <widget class="QPlainTextEdit" name="work_temp">
- <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
-</widget>
-</item>
-<item row="13" column="0">
- <widget class="QLabel" name="label_15"><property name="text"><string>Протяжённость, м</string></property></widget>
-</item>
-<item row="13" column="1">
- <widget class="QPlainTextEdit" name="length_m">
- <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
-</widget>
-</item>
-<item row="14" column="0">
- <widget class="QLabel" name="label_16"><property name="text"><string>Конструкция (кратко)</string></property></widget>
-</item>
-<item row="14" column="1">
- <widget class="QPlainTextEdit" name="construction_desc">
- <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
- <property name="placeholderText"><string></string></property>
-</widget>
-</item>
-<item row="15" column="0">
- <widget class="QLabel" name="label_17"><property name="text"><string>Марка стали</string></property></widget>
-</item>
-<item row="15" column="1">
- <widget class="QComboBox" name="steel_grade">
-<item><property name="text"><string>12Х18Н10Т</string></property></item>
-</widget>
-</item>
-<item row="16" column="0">
- <widget class="QLabel" name="label_18"><property name="text"><string>Типоразмер трубы, мм</string></property></widget>
-</item>
-<item row="16" column="1">
- <widget class="QPlainTextEdit" name="pipe_size">
- <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string>8,0х2,0</string></property>
-</widget>
-</item>
-<item row="17" column="0">
- <widget class="QLabel" name="label_19"><property name="text"><string>ГОСТ/ТУ трубы</string></property></widget>
-</item>
-<item row="17" column="1">
- <widget class="QPlainTextEdit" name="pipe_gost">
- <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
-</widget>
-</item>
 </layout>
 </widget></item>
 <item><widget class="QGroupBox" name="customer_group">
- <property name="title"><string>Заказчик</string></property>
+ <property name="title"><string>3. Данные о заказчике</string></property>
 <layout class="QFormLayout" name="formLayout_20">
 <item row="0" column="0">
  <widget class="QLabel" name="label_21"><property name="text"><string>Наименование организации</string></property></widget>
@@ -225,39 +294,59 @@
 </widget>
 </item>
 <item row="2" column="0">
- <widget class="QLabel" name="label_23"><property name="text"><string>Юридический адрес</string></property></widget>
+ <widget class="QLabel" name="label_customer_legal_form"><property name="text"><string>Организационно-правовая форма</string></property></widget>
 </item>
 <item row="2" column="1">
+ <widget class="QPlainTextEdit" name="customer_legal_form">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="3" column="0">
+ <widget class="QLabel" name="label_23"><property name="text"><string>Юридический адрес</string></property></widget>
+</item>
+<item row="3" column="1">
  <widget class="QPlainTextEdit" name="customer_address">
  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
  <property name="placeholderText"><string></string></property>
 </widget>
 </item>
-<item row="3" column="0">
+<item row="4" column="0">
+ <widget class="QLabel" name="label_customer_actual_address"><property name="text"><string>Адрес местонахождения</string></property></widget>
+</item>
+<item row="4" column="1">
+ <widget class="QPlainTextEdit" name="customer_actual_address">
+ <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="5" column="0">
  <widget class="QLabel" name="label_24"><property name="text"><string>Руководитель</string></property></widget>
 </item>
-<item row="3" column="1">
+<item row="5" column="1">
  <widget class="QPlainTextEdit" name="customer_head">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
  <property name="placeholderText"><string></string></property>
 </widget>
 </item>
-<item row="4" column="0">
+<item row="6" column="0">
  <widget class="QLabel" name="label_25"><property name="text"><string>Телефон</string></property></widget>
 </item>
-<item row="4" column="1">
+<item row="6" column="1">
  <widget class="QPlainTextEdit" name="customer_phone">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
  <property name="placeholderText"><string></string></property>
 </widget>
 </item>
-<item row="5" column="0">
+<item row="7" column="0">
  <widget class="QLabel" name="label_26"><property name="text"><string>ИНН/КПП</string></property></widget>
 </item>
-<item row="5" column="1">
+<item row="7" column="1">
  <widget class="QPlainTextEdit" name="customer_inn">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
@@ -266,57 +355,270 @@
 </item>
 </layout>
 </widget></item>
-<item><widget class="QGroupBox" name="expert_group">
- <property name="title"><string>Экспертная организация и специалист</string></property>
-<layout class="QFormLayout" name="formLayout_27">
+<item><widget class="QGroupBox" name="goal_group">
+ <property name="title"><string>4. Цель технического диагностирования</string></property>
+<layout class="QVBoxLayout" name="goal_group_vlayout">
+<item><widget class="QPlainTextEdit" name="goal_text">
+ <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>108</height></size></property>
+ <property name="plainText"><string>Целью технического диагностирования является оценка технического состояния трубопровода и продление срока его безопасной эксплуатации.</string></property>
+</widget></item>
+</layout>
+</widget></item>
+<item><widget class="QGroupBox" name="docs_group">
+ <property name="title"><string>5. Сведения о рассмотренных документах</string></property>
+ <layout class="QVBoxLayout" name="docs_vlayout">
+<item><widget class="QTableWidget" name="table_reviewed_docs">
+ <property name="minimumSize"><size><width>0</width><height>160</height></size></property>
+ <property name="rowCount"><number>0</number></property>
+ <property name="columnCount"><number>2</number></property>
+<column><property name="text"><string>Документ</string></property></column>
+<column><property name="text"><string>Примечание</string></property></column>
+</widget></item>
+<item><layout class="QHBoxLayout" name="docs_buttons">
+<item><widget class="QPushButton" name="pushButt_addReviewedDoc"><property name="text"><string>+ Добавить документ</string></property></widget></item>
+<item><widget class="QPushButton" name="pushButt_removeReviewedDoc"><property name="text"><string>− Удалить</string></property></widget></item>
+</layout></item>
+</layout>
+</widget></item>
+<item><widget class="QGroupBox" name="obj_group">
+ <property name="title"><string>6. Краткая характеристика и назначение объекта технического диагностирования</string></property>
+<layout class="QVBoxLayout" name="obj_group_vlayout">
+<item><layout class="QFormLayout" name="formLayout_1">
 <item row="0" column="0">
- <widget class="QLabel" name="label_28"><property name="text"><string>Экспертная организация</string></property></widget>
+ <widget class="QLabel" name="label_7"><property name="text"><string>Год изготовления</string></property></widget>
 </item>
 <item row="0" column="1">
- <widget class="QPlainTextEdit" name="expert_org_name">
+ <widget class="QPlainTextEdit" name="year_made">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
  <property name="placeholderText"><string></string></property>
 </widget>
 </item>
 <item row="1" column="0">
- <widget class="QLabel" name="label_29"><property name="text"><string>Специалист НК (ФИО)</string></property></widget>
+ <widget class="QLabel" name="label_8"><property name="text"><string>Год ввода в эксплуатацию</string></property></widget>
 </item>
 <item row="1" column="1">
- <widget class="QPlainTextEdit" name="specialist_name">
+ <widget class="QPlainTextEdit" name="year_start">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
  <property name="placeholderText"><string></string></property>
 </widget>
 </item>
 <item row="2" column="0">
- <widget class="QLabel" name="label_30"><property name="text"><string>№ удостоверения</string></property></widget>
+ <widget class="QLabel" name="label_9"><property name="text"><string>Срок эксплуатации, лет</string></property></widget>
 </item>
 <item row="2" column="1">
- <widget class="QPlainTextEdit" name="specialist_cert">
+ <widget class="QPlainTextEdit" name="years_of_operation">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
  <property name="placeholderText"><string></string></property>
 </widget>
 </item>
+<item row="3" column="0">
+ <widget class="QLabel" name="label_10"><property name="text"><string>Рабочая среда</string></property></widget>
+</item>
+<item row="3" column="1">
+ <widget class="QComboBox" name="work_medium">
+<item><property name="text"><string>азот</string></property></item>
+<item><property name="text"><string>воздух</string></property></item>
+<item><property name="text"><string>кислород</string></property></item>
+<item><property name="text"><string>гелий</string></property></item>
+<item><property name="text"><string>аргон</string></property></item>
+</widget>
+</item>
+<item row="4" column="0">
+ <widget class="QLabel" name="label_11"><property name="text"><string>№ проекта/чертежи</string></property></widget>
+</item>
+<item row="4" column="1">
+ <widget class="QPlainTextEdit" name="project_docs">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="5" column="0">
+ <widget class="QLabel" name="label_12"><property name="text"><string>Давление, МПа</string></property></widget>
+</item>
+<item row="5" column="1">
+ <widget class="QPlainTextEdit" name="p_rab_mpa">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="6" column="0">
+ <widget class="QLabel" name="label_13"><property name="text"><string>Давление, кгс/см2</string></property></widget>
+</item>
+<item row="6" column="1">
+ <widget class="QPlainTextEdit" name="p_rab_kgs">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="readOnly"><bool>true</bool></property>
+ <property name="placeholderText"><string>рассчитывается автоматически</string></property>
+</widget>
+</item>
+<item row="7" column="0">
+ <widget class="QLabel" name="label_14"><property name="text"><string>Рабочая температура</string></property></widget>
+</item>
+<item row="7" column="1">
+ <widget class="QPlainTextEdit" name="work_temp">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="8" column="0">
+ <widget class="QLabel" name="label_15"><property name="text"><string>Протяжённость, м</string></property></widget>
+</item>
+<item row="8" column="1">
+ <widget class="QPlainTextEdit" name="length_m">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="9" column="0">
+ <widget class="QLabel" name="label_16"><property name="text"><string>Конструкция (кратко)</string></property></widget>
+</item>
+<item row="9" column="1">
+ <widget class="QPlainTextEdit" name="construction_desc">
+ <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+</layout></item>
+<item><widget class="QLabel" name="label_pipe_materials_caption"><property name="text"><string>Таблица 6 — Сведения о трубах</string></property></widget></item>
+<item><widget class="QTableWidget" name="table_pipe_materials">
+ <property name="minimumSize"><size><width>0</width><height>120</height></size></property>
+ <property name="rowCount"><number>0</number></property>
+ <property name="columnCount"><number>6</number></property>
+ <column><property name="text"><string>№ п/п</string></property></column>
+ <column><property name="text"><string>Наименование элемента</string></property></column>
+ <column><property name="text"><string>Количество, п.м.</string></property></column>
+ <column><property name="text"><string>Типоразмер, мм</string></property></column>
+ <column><property name="text"><string>Марка стали, ГОСТ или ТУ</string></property></column>
+ <column><property name="text"><string>Трубы, ГОСТ или ТУ</string></property></column>
+</widget></item>
+<item><layout class="QHBoxLayout" name="pipe_materials_buttons">
+<item><widget class="QPushButton" name="pushButt_addPipeMaterial"><property name="text"><string>+ Добавить элемент</string></property></widget></item>
+<item><widget class="QPushButton" name="pushButt_removePipeMaterial"><property name="text"><string>− Удалить</string></property></widget></item>
+</layout></item>
 </layout>
 </widget></item>
-<item><widget class="QGroupBox" name="docs_group">
- <property name="title"><string>Документы, рассмотренные при диагностировании (Таблица 4)</string></property>
- <layout class="QVBoxLayout" name="docs_vlayout"><item><widget class="QTableWidget" name="table_reviewed_docs">
- <property name="minimumSize"><size><width>0</width><height>160</height></size></property>
- <property name="rowCount"><number>7</number></property>
- <property name="columnCount"><number>2</number></property>
-<row/>
-<row/>
-<row/>
-<row/>
-<row/>
-<row/>
-<row/>
-<column><property name="text"><string>Документ</string></property></column>
-<column><property name="text"><string>Примечание</string></property></column>
-</widget></item></layout>
+<item><widget class="QGroupBox" name="results_group">
+ <property name="title"><string>7. Результаты технического диагностирования</string></property>
+<layout class="QFormLayout" name="formLayout_results">
+<item row="0" column="0">
+ <widget class="QLabel" name="label_result_71"><property name="text"><string>7.1. Анализ технической документации</string></property></widget>
+</item>
+<item row="0" column="1">
+ <widget class="QPlainTextEdit" name="result_71">
+ <property name="minimumSize"><size><width>0</width><height>80</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>160</height></size></property>
+ <property name="plainText"><string>При анализе технической документации было установлено соответствие фактических режимов эксплуатации паспортным по давлению, рабочей среде и температуре. Были рассмотрены чертежи, акты приемки в эксплуатацию, акт об испытании на прочность и плотность, заключение о качестве сварных соединений и другая исполнительная документация, наличие которой удовлетворяет требованиям п. 204ФНП ТТ.
+Акт по результатам анализа технической и эксплуатационной документации технологического трубопровода представлен в приложении 2 к Отчёту.</string></property>
+</widget>
+</item>
+<item row="1" column="0">
+ <widget class="QLabel" name="label_result_72"><property name="text"><string>7.2 Оценка соответствия трубопровода требованиям промышленной безопасности при эксплуатации</string></property></widget>
+</item>
+<item row="1" column="1">
+ <widget class="QPlainTextEdit" name="result_72">
+ <property name="minimumSize"><size><width>0</width><height>220</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>440</height></size></property>
+ <property name="plainText"><string>- размещение трубопровода и трубопроводной арматуры обеспечивает удобство и безопасность их эксплуатации, возможность проведения ремонтных работ и принятия оперативных мер по предотвращению аварийных ситуаций или локализации аварий, что соответствует требованию п. 27 ФНП ТТ;
+- размещение трубопровода и трубопроводной арматуры осуществлено с учетом возможности проведения визуального контроля за их состоянием, выполнения работ по обслуживанию, ремонту и замене, что соответствует требованию п. 65 ФНП ТТ;
+- при прокладке трубопровода через строительные конструкции здания и другие препятствия приняты меры, исключающие возможность передачи дополнительных нагрузок на трубы, что соответствует требованию п. 44 ФНП ТТ;
+- трубопровод имеет опознавательную окраску, предупреждающие знаки и маркировочные щитки, что соответствует требованию п. 82 ФНП ТТ;
+- в процессе эксплуатации технологический трубопровод и арматура подвергается периодическим осмотрам, ревизии и обследованию, что соответствует требованию п. 170 ФНП ТТ;
+- организация, осуществляющая эксплуатацию технологического трубопровода, обеспечивает безопасные условия эксплуатации и контроль работы технологического трубопровода, своевременность и качество проведения освидетельствований и ремонтов, технического диагностирования и обследования, что соответствует требованию п. 10 ФНП ТТ;
+- технологический трубопровод изготовлен из материалов, устойчивых к рабочей среде, что соответствует требованию п. 21 ФНП ТТ;
+- прокладка технологического трубопровода, оснащение его арматурой, дренажными устройствами, разъемными соединениями выполнена в соответствии с п.п. 35-39 ФНП ТТ;
+- технологический трубопровод оборудован П-образными компенсаторами, что соответствует требованиям п.п. 73, 74 ФНП ТТ;
+- запорная арматура, установленная на технологическом трубопроводе, не применяется в качестве регулирующей, что соответствует требованию п. 85 ФНП ТТ;
+- материалы трубопроводной арматуры стойкие по отношению к транспортируемой среде, соответствуют параметрам и условиям эксплуатации, что соответствует требованию п. 86 ФНП ТТ;
+- технологический трубопровод оборудован дренажами и воздушниками, что соответствует требованию п. 94 ФНП ТТ;
+- служба технического надзора предприятия совместно с лицами, ответственными за безопасную эксплуатацию трубопровода своевременно проводит периодическое техническое освидетельствование, что соответствует требованию п. 176 ФНП ТТ.</string></property>
+</widget>
+</item>
+<item row="2" column="0">
+ <widget class="QLabel" name="label_result_73"><property name="text"><string>7.3 Осмотр, визуальный и измерительный контроль</string></property></widget>
+</item>
+<item row="2" column="1">
+ <widget class="QPlainTextEdit" name="result_73">
+ <property name="minimumSize"><size><width>0</width><height>110</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>220</height></size></property>
+ <property name="plainText"><string>В результате проведенного визуального и измерительного контроля установлено:
+-соответствие трассы исполнительной схеме трубопровода в паспорте;
+на наружной поверхности элементов трубопровода видимых механических повреждений, коррозионного износа, трещин, надрывов, выпучин, вмятин, отслаиваний, деформаций, раковин и других видимых недопустимых дефектов, препятствующих дальнейшей эксплуатации, не обнаружено;
+на сварных швах недопустимых дефектов в виде трещин, непроваров, пористости, свищей, подрезов, прожогов, незаплавленных кратеров, чешуйчатости поверхности, смещения и увода кромок труб не обнаружено;
+Акт по результатам визуального контроля представлен в Приложении 3.</string></property>
+</widget>
+</item>
+<item row="3" column="0">
+ <widget class="QLabel" name="label_result_74"><property name="text"><string>7.4 Измерение толщины стенки элементов трубопровода</string></property></widget>
+</item>
+<item row="3" column="1">
+ <widget class="QPlainTextEdit" name="result_74">
+ <property name="minimumSize"><size><width>0</width><height>80</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>160</height></size></property>
+ <property name="plainText"><string>Контроль толщин металла элементов трубопровода проведен с целью выявления возможного утонения стенки в процессе эксплуатации и выхода за пределы допустимых значений.
+Значения фактической толщины труб трубопровода выше минимальных значения, указанных в таблице 14.1 (ГОСТ 32569-2013) и минимальных значений, полученных в результате расчёта на прочность (Приложение 6)
+Протокол по результатам проведения ультразвуковой толщинометрии трубопровода представлен в Приложении 4.</string></property>
+</widget>
+</item>
+<item row="4" column="0">
+ <widget class="QLabel" name="label_result_75"><property name="text"><string>7.5. Ультразвуковой контроль сварных соединений (УЗК)</string></property></widget>
+</item>
+<item row="4" column="1">
+ <widget class="QPlainTextEdit" name="result_75">
+ <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>108</height></size></property>
+ <property name="plainText"><string>Проведена ультразвуковая дефектоскопия с целью выявления внутренних дефектов в сварных соединениях. Качество сварных соединений оценивается как удовлетворительное. Дефектов не обнаружено.
+Протокол по результатам проведения УЗК представлен в Приложении 5.</string></property>
+</widget>
+</item>
+<item row="5" column="0">
+ <widget class="QLabel" name="label_result_76"><property name="text"><string>7.6. Испытание технологического трубопровода на прочность и плотность</string></property></widget>
+</item>
+<item row="5" column="1">
+ <widget class="QPlainTextEdit" name="result_76">
+ <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>108</height></size></property>
+ <property name="plainText"><string>При техническом диагностировании проведено пневматическое испытание трубопровода давлением P=__________ кгс/см2 с применением акустико-эмиссионного контроля. При проведении испытаний активных источников акустической эмиссии не выявлено.
+Протокол проведения пневматических испытаний приведен в Приложениях № 8,9.</string></property>
+</widget>
+</item>
+<item row="6" column="0">
+ <widget class="QLabel" name="label_pnevmo_pressure_hint">
+ <property name="styleSheet"><string notr="true">color: red;</string></property>
+ <property name="text"><string>Заполнить руками</string></property>
+</widget>
+</item>
+<item row="6" column="1">
+ <widget class="QPlainTextEdit" name="pnevmo_pressure_hint">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="readOnly"><bool>true</bool></property>
+ <property name="placeholderText"><string>давление появится здесь после ввода в Приложениях 8-9 -- впишите его в текст 7.6 вручную</string></property>
+</widget>
+</item>
+<item row="7" column="0">
+ <widget class="QLabel" name="label_result_77"><property name="text"><string>7.7 Поверочный расчёт на прочность и определение остаточного ресурса</string></property></widget>
+</item>
+<item row="7" column="1">
+ <widget class="QPlainTextEdit" name="result_77">
+ <property name="minimumSize"><size><width>0</width><height>80</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>160</height></size></property>
+ <property name="plainText"><string>Расчёт на прочность и остаточного ресурса по скорости коррозии элементов трубопровода выполнен в соответствии с ГОСТ 32388-2013 «Межгосударственный стандарт, трубопроводы технологические. Нормы и методы расчета на прочность, вибрацию и сейсмические воздействия».
+Результаты расчета показали, что условия прочности при рабочих параметрах (рабочее давление и температура) и фактической толщине стенки трубопровода выполняются.
+Для определения остаточного ресурса сосуда в объеме технического диагностирования выполнена расчетная оценка остаточного ресурса. По результатам расчета остаточный ресурс составляет более 10 лет.
+Результаты расчётов приведены в Приложении № 6</string></property>
+</widget>
+</item>
+</layout>
 </widget></item>
 </layout>
     </widget>
@@ -369,17 +671,15 @@
   </layout></item>
   <item><widget class="QTableWidget" name="table_vik">
  <property name="minimumSize"><size><width>0</width><height>160</height></size></property>
- <property name="rowCount"><number>6</number></property>
+ <property name="rowCount"><number>0</number></property>
  <property name="columnCount"><number>2</number></property>
-<row/>
-<row/>
-<row/>
-<row/>
-<row/>
-<row/>
 <column><property name="text"><string>Элемент</string></property></column>
 <column><property name="text"><string>Состояние</string></property></column>
 </widget></item>
+  <item><layout class="QHBoxLayout" name="vik_buttons">
+<item><widget class="QPushButton" name="pushButt_addVikRow"><property name="text"><string>+ Добавить элемент</string></property></widget></item>
+<item><widget class="QPushButton" name="pushButt_removeVikRow"><property name="text"><string>− Удалить</string></property></widget></item>
+</layout></item>
   <item><layout class="QFormLayout" name="vik_form2">
    <item row="0" column="0"><widget class="QLabel" name="label_vik_concl"><property name="text"><string>Вывод</string></property></widget></item>
    <item row="0" column="1"><widget class="QPlainTextEdit" name="vik_conclusion">
@@ -400,11 +700,13 @@
  <property name="displayFormat"><string>dd.MM.yyyy</string></property>
 </widget></item>
    <item row="1" column="0"><widget class="QLabel" name="label_thick_device"><property name="text"><string>Толщиномер (тип, зав.№)</string></property></widget></item>
-   <item row="1" column="1"><widget class="QPlainTextEdit" name="thick_device">
- <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+   <item row="1" column="1"><layout class="QHBoxLayout" name="thick_device_layout">
+<item><widget class="QComboBox" name="thick_device">
+ <property name="editable"><bool>true</bool></property>
+ <item><property name="text"><string>Толщиномер ультразвуковой A1209</string></property></item>
 </widget></item>
+<item><widget class="QPushButton" name="pushButt_removeThickDevice"><property name="text"><string>−</string></property></widget></item>
+</layout></item>
    <item row="2" column="0"><widget class="QLabel" name="label_segments_count"><property name="text"><string>Количество участков</string></property></widget></item>
    <item row="2" column="1"><widget class="QSpinBox" name="segments_count">
  <property name="minimum"><number>1</number></property>
@@ -466,11 +768,13 @@
  <property name="displayFormat"><string>dd.MM.yyyy</string></property>
 </widget></item>
    <item row="1" column="0"><widget class="QLabel" name="label_uzk_device"><property name="text"><string>Дефектоскоп (тип, зав.№)</string></property></widget></item>
-   <item row="1" column="1"><widget class="QPlainTextEdit" name="uzk_device">
- <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+   <item row="1" column="1"><layout class="QHBoxLayout" name="uzk_device_layout">
+<item><widget class="QComboBox" name="uzk_device">
+ <property name="editable"><bool>true</bool></property>
+ <item><property name="text"><string>Дефектоскоп ультразвуковой A1211 Mini</string></property></item>
 </widget></item>
+<item><widget class="QPushButton" name="pushButt_removeUzkDevice"><property name="text"><string>−</string></property></widget></item>
+</layout></item>
   </layout></item>
   <item><widget class="QTableWidget" name="table_uzk">
  <property name="minimumSize"><size><width>0</width><height>140</height></size></property>
@@ -519,11 +823,13 @@
  <widget class="QLabel" name="label_39"><property name="text"><string>Аппаратура АЭ (тип, зав.№)</string></property></widget>
 </item>
 <item row="2" column="1">
- <widget class="QPlainTextEdit" name="pnevmo_device">
- <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
-</widget>
+ <layout class="QHBoxLayout" name="pnevmo_device_layout">
+<item><widget class="QComboBox" name="pnevmo_device">
+ <property name="editable"><bool>true</bool></property>
+ <item><property name="text"><string>Акустико-эмиссионное «Поиск-2М»</string></property></item>
+</widget></item>
+<item><widget class="QPushButton" name="pushButt_removePnevmoDevice"><property name="text"><string>−</string></property></widget></item>
+</layout>
 </item>
 <item row="3" column="0">
  <widget class="QLabel" name="label_40"><property name="text"><string>Число датчиков</string></property></widget>
@@ -750,10 +1056,10 @@
 </layout>
 </widget></item>
 <item><widget class="QGroupBox" name="final_group">
- <property name="title"><string>Выводы (раздел 9)</string></property>
+ <property name="title"><string>8. Выводы по результатам технического диагностирования</string></property>
 <layout class="QFormLayout" name="formLayout_63">
 <item row="0" column="0">
- <widget class="QLabel" name="label_64"><property name="text"><string>Оценка технического состояния</string></property></widget>
+ <widget class="QLabel" name="label_64"><property name="text"><string>8.1 Оценка технического состояния</string></property></widget>
 </item>
 <item row="0" column="1">
  <widget class="QPlainTextEdit" name="final_condition">
@@ -763,7 +1069,7 @@
 </widget>
 </item>
 <item row="1" column="0">
- <widget class="QLabel" name="label_65"><property name="text"><string>Разрешённый срок эксплуатации, лет</string></property></widget>
+ <widget class="QLabel" name="label_65"><property name="text"><string>8.2 Разрешённый срок дальнейшей эксплуатации, лет</string></property></widget>
 </item>
 <item row="1" column="1">
  <widget class="QPlainTextEdit" name="final_years_allowed">
@@ -773,7 +1079,7 @@
 </widget>
 </item>
 <item row="2" column="0">
- <widget class="QLabel" name="label_66"><property name="text"><string>Дата, до которой разрешена эксплуатация</string></property></widget>
+ <widget class="QLabel" name="label_66"><property name="text"><string>Дата, до которой разрешена эксплуатация (к 8.2)</string></property></widget>
 </item>
 <item row="2" column="1">
  <widget class="QDateEdit" name="final_deadline_date">
