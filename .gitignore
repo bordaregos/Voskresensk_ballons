@@ -37,8 +37,12 @@ env/
 .DS_Store
 Thumbs.db
 
+## LibreOffice/OpenOffice lock files (создаются, пока .docx открыт в редакторе)
+.~lock.*#
+
 ## Project specific
 templates/**/*.docx
+templates/_backup/
 output/*.docx
 output/*.csv
 output/*.json
