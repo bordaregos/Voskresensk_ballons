@@ -269,6 +269,21 @@ PIPELINE_SCHEMA = ReportSchema(
             ],
         ),
         RepeatingTableSection(
+            heading="Приложение 1 — Программа технического диагностирования",
+            list_field="table_program",
+            loop_var="row",
+            header_cells=["№ п/п", "Состав работ"],
+            positional=True,
+        ),
+        FieldsTableSection(
+            heading="Приложение 1 — Программу составил",
+            rows=[
+                FieldLabel("Должность", "programm_specialist_position"),
+                FieldLabel("ФИО", "programm_specialist_name_initials"),
+                FieldLabel("Удостоверение", "programm_specialist_cert_number"),
+            ],
+        ),
+        RepeatingTableSection(
             heading="Приложение 2 — Сведения о рассмотренных документах",
             caption="Таблица 1",
             list_field="table_reviewed_docs",
