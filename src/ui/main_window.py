@@ -3,7 +3,7 @@
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QPlainTextEdit, QComboBox,
                              QPushButton, QSpinBox, QDateEdit, QTableWidgetItem, QTableWidget,
                              QMessageBox, QFileDialog)
-from PyQt6.QtCore import QLocale
+from PyQt6.QtCore import QLocale, Qt
 from PyQt6.uic import loadUi
 from typing import Dict, Union
 from docxtpl import DocxTemplate
@@ -32,7 +32,7 @@ from ..services.calculations_pipeline import (
     get_allowable_stress,
     SegmentSpec,
 )
-from .widget_names_pipeline import SEGMENT_TYPES
+from .widget_names_pipeline import SEGMENT_TYPES, PROGRAM_DEFAULT_ITEMS
 
 
 class MainWindow(QMainWindow):
@@ -104,6 +104,11 @@ class MainWindow(QMainWindow):
             self.pushButt_removePipeMaterial.clicked.connect(lambda: self._remove_table_row(self.table_pipe_materials))
             self.p_rab_mpa.textChanged.connect(self._update_p_rab_kgs)
             self.pnevmo_pressure.textChanged.connect(self._update_pnevmo_pressure_hint)
+            self.pushButt_addProgramItem.clicked.connect(self._add_program_item_row)
+            self.pushButt_addProgramSubitem.clicked.connect(self._add_program_subitem_row)
+            self.pushButt_removeProgramRow.clicked.connect(self._remove_program_row)
+            self.tabWidget.currentChanged.connect(self._refresh_program_specialist_combo)
+            self._seed_program_table_defaults()
 
     def init_file_handler(self):
         """Инициализация FileHandler для импорта/экспорта."""
@@ -261,6 +266,23 @@ class MainWindow(QMainWindow):
                 self.data["lead_specialist_position"] = lead_specialist["position"]
                 self.data["lead_specialist_name_initials"] = lead_specialist["name_initials"]
                 self.data["lead_specialist_cert_number"] = lead_specialist["cert_number"]
+
+                # "Программу составил" (Приложение 1) -- специалиста выбирает
+                # оператор через program_specialist (индекс строки Таблицы 2),
+                # а не жёстко первая строка, как у lead_specialist_* выше.
+                programm_specialist_idx = self.program_specialist.currentData()
+                if (
+                    programm_specialist_idx is None
+                    or programm_specialist_idx >= len(self.data["specialists"])
+                ):
+                    raise ValueError(
+                        "Выберите специалиста в поле «Программу составил» "
+                        "(Приложение 1) -- источник вариантов: Таблица 2 (1.3)"
+                    )
+                programm_specialist = self.data["specialists"][programm_specialist_idx]
+                self.data["programm_specialist_position"] = programm_specialist["position"]
+                self.data["programm_specialist_name_initials"] = programm_specialist["name_initials"]
+                self.data["programm_specialist_cert_number"] = programm_specialist["cert_number"]
 
                 # 8.2 -- "5 (пять) лет": число прописью в скобках рядом с цифрой.
                 years_allowed_text = self.final_years_allowed.toPlainText().strip()
@@ -915,6 +937,122 @@ class MainWindow(QMainWindow):
         self._install_growable_combo(table, row, 1)
         self._install_growable_combo(table, row, 4)
         self._install_growable_combo(table, row, 5)
+
+    def _seed_program_table_defaults(self):
+        """Предзаполняет table_program (Приложение 1 -- Программа) стандартным
+        составом работ из PROGRAM_DEFAULT_ITEMS -- только если таблица ещё
+        пустая (не перетирает восстановленный из проекта или уже
+        отредактированный оператором список). Дальше строки полностью
+        редактируются/удаляются/добавляются через UI, как обычные строки."""
+        if self.table_program.rowCount() > 0:
+            return
+        table = self.table_program
+        for level, text in PROGRAM_DEFAULT_ITEMS:
+            row = table.rowCount()
+            table.insertRow(row)
+            number_item = QTableWidgetItem("")
+            number_item.setData(Qt.ItemDataRole.UserRole, level)
+            table.setItem(row, 0, number_item)
+            table.setItem(row, 1, QTableWidgetItem(text))
+        self._renumber_program_table()
+
+    def _add_program_item_row(self):
+        """Добавляет пункт верхнего уровня в table_program -- № вида "N.",
+        см. _renumber_program_table()."""
+        self._insert_program_row(level=0)
+
+    def _add_program_subitem_row(self):
+        """Добавляет подпункт в table_program -- № вида "N.M." под текущим
+        (последним) пунктом верхнего уровня, см. _renumber_program_table()."""
+        self._insert_program_row(level=1)
+
+    def _insert_program_row(self, level):
+        """Общая часть _add_program_item_row()/_add_program_subitem_row():
+        строка всегда добавляется в конец таблицы (как и все остальные
+        таблицы в проекте -- ни у одной сейчас нет reorder/insert-в-середину),
+        уровень хранится в Qt.ItemDataRole.UserRole на item(row, 0)."""
+        table = self.table_program
+        row = table.rowCount()
+        table.insertRow(row)
+        number_item = QTableWidgetItem("")
+        number_item.setData(Qt.ItemDataRole.UserRole, level)
+        table.setItem(row, 0, number_item)
+        table.setItem(row, 1, QTableWidgetItem(""))
+        self._renumber_program_table()
+
+    def _remove_program_row(self):
+        """Удаляет выбранную строку table_program и пересчитывает номера --
+        обычный _remove_table_row() номера не трогает."""
+        self._remove_table_row(self.table_program)
+        self._renumber_program_table()
+
+    def _renumber_program_table(self):
+        """Пересчитывает колонку "№ п/п" в table_program по уровням: level 0
+        -> "N.", level 1 -> "N.M." под текущим top-level пунктом. Уровень
+        читается из Qt.ItemDataRole.UserRole на item(row, 0); если он не
+        выставлен (например, после восстановления проекта из JSON -- Project
+        хранит только текст ячеек, см. src/ui/file_handler.py), определяется
+        эвристикой по уже отображённому номеру ("1.1." -> подпункт, иначе --
+        пункт верхнего уровня), чтобы повторное открытие сохранённого
+        проекта не расплющивало уже сохранённую иерархию при следующем
+        добавлении строки. Подпункт раньше первого пункта верхнего уровня
+        трактуется как пункт верхнего уровня (без "0.1.")."""
+        table = self.table_program
+        top = 0
+        sub = 0
+        for row in range(table.rowCount()):
+            item = table.item(row, 0)
+            if item is None:
+                item = QTableWidgetItem("")
+                table.setItem(row, 0, item)
+            level = item.data(Qt.ItemDataRole.UserRole)
+            if level is None:
+                level = 1 if item.text().strip(".").count(".") >= 1 else 0
+            if level != 0 and top == 0:
+                level = 0
+            item.setData(Qt.ItemDataRole.UserRole, level)
+            if level == 0:
+                top += 1
+                sub = 0
+                item.setText(f"{top}.")
+            else:
+                sub += 1
+                item.setText(f"{top}.{sub}.")
+
+    def _refresh_program_specialist_combo(self):
+        """Обновляет список в program_specialist (поле "Программу составил",
+        Приложение 1) при переключении на вкладку "Приложения" -- источник
+        вариантов: table_specialists (1.3 Сведения о специалистах, Таблица
+        2). Комбобокс не входит ни в один список widget_names_pipeline.py
+        (как pnevmo_pressure_hint) -- он даёт индекс строки специалиста, а не
+        текст для .docx напрямую, итоговые плейсхолдеры собирает calculate()."""
+        if self.tabWidget.widget(self.tabWidget.currentIndex()) is not self.tab_acts:
+            return
+        combo = self.program_specialist
+        previous = combo.currentData()
+        combo.blockSignals(True)
+        combo.clear()
+        for row in range(self.table_specialists.rowCount()):
+            position = self._cell_text(self.table_specialists, row, 0)
+            name = self._cell_text(self.table_specialists, row, 1)
+            label = " — ".join(part for part in (position, name) if part) or f"Специалист {row + 1}"
+            combo.addItem(label, row)
+        if previous is not None:
+            index = combo.findData(previous)
+            if index >= 0:
+                combo.setCurrentIndex(index)
+        combo.blockSignals(False)
+
+    def _cell_text(self, table, row, col):
+        """Текст ячейки (row, col) независимо от того, обычный это
+        QTableWidgetItem или виджет (QComboBox, см. _install_growable_combo())."""
+        item = table.item(row, col)
+        if item is not None:
+            return item.text()
+        cell_widget = table.cellWidget(row, col)
+        if isinstance(cell_widget, QComboBox):
+            return cell_widget.currentText()
+        return ""
 
     def _update_p_rab_kgs(self):
         """Автоматически пересчитывает "Давление, кгс/см2" из "Давление,

@@ -627,7 +627,7 @@
  </layout>
 </widget>
  <widget class="QWidget" name="tab_acts">
- <attribute name="title"><string>Акты и протоколы</string></attribute>
+ <attribute name="title"><string>Приложения</string></attribute>
  <layout class="QVBoxLayout" name="tab_acts_outerLayout">
   <item>
    <widget class="QScrollArea" name="tab_acts_scroll">
@@ -635,6 +635,27 @@
     <widget class="QWidget" name="tab_acts_scrollContent">
      <property name="geometry"><rect><x>0</x><y>0</y><width>960</width><height>1700</height></rect></property>
      <layout class="QVBoxLayout" name="vlayout_42">
+<item><widget class="QGroupBox" name="program_group">
+ <property name="title"><string>Приложение 1 — Программа технического диагностирования</string></property>
+ <layout class="QVBoxLayout" name="program_vlayout">
+  <item><widget class="QTableWidget" name="table_program">
+ <property name="minimumSize"><size><width>0</width><height>260</height></size></property>
+ <property name="rowCount"><number>0</number></property>
+ <property name="columnCount"><number>2</number></property>
+<column><property name="text"><string>№ п/п</string></property></column>
+<column><property name="text"><string>Состав работ</string></property></column>
+</widget></item>
+  <item><layout class="QHBoxLayout" name="program_buttons">
+<item><widget class="QPushButton" name="pushButt_addProgramItem"><property name="text"><string>+ Добавить пункт</string></property></widget></item>
+<item><widget class="QPushButton" name="pushButt_addProgramSubitem"><property name="text"><string>+ Добавить подпункт</string></property></widget></item>
+<item><widget class="QPushButton" name="pushButt_removeProgramRow"><property name="text"><string>− Удалить</string></property></widget></item>
+</layout></item>
+  <item><layout class="QFormLayout" name="program_signer_form">
+   <item row="0" column="0"><widget class="QLabel" name="label_program_specialist"><property name="text"><string>Программу составил</string></property></widget></item>
+   <item row="0" column="1"><widget class="QComboBox" name="program_specialist"/></item>
+  </layout></item>
+ </layout>
+</widget></item>
 <item><widget class="QGroupBox" name="act2_group">
  <property name="title"><string>Приложение 2 — Акт анализа документации</string></property>
 <layout class="QFormLayout" name="formLayout_33">
