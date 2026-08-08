@@ -320,7 +320,17 @@ PIPELINE_SCHEMA = ReportSchema(
             heading="Приложение 3 — Вывод",
             rows=[
                 FieldLabel("Дата проведения", "vik_date"),
+                FieldLabel("Руководящие документы", "vik_guidance_docs"),
+                FieldLabel("Оборудование и инструменты", "vik_equipment"),
                 FieldLabel("Вывод по результатам ВИК", "vik_conclusion"),
+            ],
+        ),
+        FieldsTableSection(
+            heading="Приложение 3 — Контроль провёл",
+            rows=[
+                FieldLabel("Должность", "vik_specialist_position"),
+                FieldLabel("ФИО", "vik_specialist_name_initials"),
+                FieldLabel("Удостоверение", "vik_specialist_cert_number"),
             ],
         ),
         RepeatingTableSection(

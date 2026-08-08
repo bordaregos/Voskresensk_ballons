@@ -308,6 +308,21 @@ class MainWindow(QMainWindow):
                 self.data["act2_specialist_name_initials"] = act2_specialist["name_initials"]
                 self.data["act2_specialist_cert_number"] = act2_specialist["cert_number"]
 
+                # "Контроль провёл" (Приложение 3) -- тот же паттерн.
+                vik_specialist_idx = self.vik_specialist.currentData()
+                if (
+                    vik_specialist_idx is None
+                    or vik_specialist_idx >= len(self.data["specialists"])
+                ):
+                    raise ValueError(
+                        "Выберите специалиста в поле «Контроль провёл» "
+                        "(Приложение 3) -- источник вариантов: Таблица 2 (1.3)"
+                    )
+                vik_specialist = self.data["specialists"][vik_specialist_idx]
+                self.data["vik_specialist_position"] = vik_specialist["position"]
+                self.data["vik_specialist_name_initials"] = vik_specialist["name_initials"]
+                self.data["vik_specialist_cert_number"] = vik_specialist["cert_number"]
+
                 # 8.2 -- "5 (пять) лет": число прописью в скобках рядом с цифрой.
                 years_allowed_text = self.final_years_allowed.toPlainText().strip()
                 try:
@@ -1045,9 +1060,10 @@ class MainWindow(QMainWindow):
 
     def _refresh_program_specialist_combo(self):
         """Обновляет списки в program_specialist (поле "Программу составил",
-        Приложение 1) и act2_specialist (поле "Анализ документации провёл",
-        Приложение 2) при переключении на вкладку "Приложения" -- источник
-        вариантов для обоих один и тот же: table_specialists (1.3 Сведения о
+        Приложение 1), act2_specialist (поле "Анализ документации провёл",
+        Приложение 2) и vik_specialist (поле "Контроль провёл", Приложение
+        3) при переключении на вкладку "Приложения" -- источник вариантов
+        для всех один и тот же: table_specialists (1.3 Сведения о
         специалистах, Таблица 2). Ни один из комбобоксов не входит ни в один
         список widget_names_pipeline.py (как pnevmo_pressure_hint) -- каждый
         даёт индекс строки специалиста, а не текст для .docx напрямую,
@@ -1056,6 +1072,7 @@ class MainWindow(QMainWindow):
             return
         self._refresh_specialist_combo(self.program_specialist)
         self._refresh_specialist_combo(self.act2_specialist)
+        self._refresh_specialist_combo(self.vik_specialist)
 
     def _refresh_specialist_combo(self, combo):
         """Перезаполняет один комбобокс-выбор специалиста вариантами из
