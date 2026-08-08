@@ -42,6 +42,7 @@ templates/**/*.docx
 output/*.docx
 output/*.csv
 output/*.json
+data/
 
 ## Logs
 *.log
