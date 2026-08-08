@@ -13,6 +13,7 @@ from src.services.exporter import (
 )
 from src.models.project import Project
 from src.config import OUTPUT_DIR
+from src.ui.widget_names_pipeline import SEGMENT_TYPES
 
 
 class FileHandler:
@@ -324,17 +325,28 @@ class FileHandler:
     def _create_project(self) -> Project:
         """
         Создание объекта Project из текущих данных UI.
-        
+
         Returns:
             Объект Project
         """
-        # Получение данных формы
+        equipment_type_id = self.main_window.equipment_type.id
         form_data = self.main_window.get_form_data()
-        
+
+        if equipment_type_id != "balloon":
+            # Для не-баллонных типов таблицы уже внутри form_data (см.
+            # get_form_data() -- TABLE_WIDGET кладётся туда же), отдельное
+            # поле под них не нужно.
+            return Project(
+                equipment_type=equipment_type_id,
+                report_data=form_data,
+                output_dir=str(OUTPUT_DIR),
+            )
+
         # Получение данных баллонов
         balloons_data = self._get_balloon_data_from_table()
-        
+
         project = Project(
+            equipment_type=equipment_type_id,
             report_data=form_data,
             balloons_data=balloons_data,
             settings={
@@ -344,7 +356,7 @@ class FileHandler:
             },
             output_dir=str(OUTPUT_DIR),
         )
-        
+
         return project
     
     def _fill_ui_from_project(self, project: Project):
@@ -394,6 +406,28 @@ class FileHandler:
                     elif isinstance(value, (int, float)):
                         # Если передан год, создаем дату (например, 2026 -> 01.01.2026)
                         widget.setDate(QDate(int(value), 1, 1))
-        
-        # Заполнение таблицы баллонов
-        self._fill_balloon_table_from_data(project.balloons_data)
+
+        if self.main_window.equipment_type.id == "balloon":
+            self._fill_balloon_table_from_data(project.balloons_data)
+        else:
+            # Для не-баллонных типов таблицы лежат прямо в report_data под
+            # своим именем (см. _create_project) -- восстанавливаем каждую
+            # генерически, без баллонной миграционной логики.
+            for name in self.main_window.TABLE_WIDGET:
+                rows = project.report_data.get(name)
+                if not rows:
+                    continue
+                table = getattr(self.main_window, name, None)
+                if table is None:
+                    continue
+                table.setRowCount(len(rows))
+                for row_idx, row_values in enumerate(rows):
+                    for col_idx, cell_text in enumerate(row_values):
+                        # table_segments, колонка 1 -- выпадающий список типа
+                        # элемента (QComboBox), не обычный текстовый item.
+                        if name == "table_segments" and col_idx == 1:
+                            self.main_window._install_segment_type_combo(
+                                table, row_idx, str(cell_text) or SEGMENT_TYPES[0]
+                            )
+                        else:
+                            table.setItem(row_idx, col_idx, QTableWidgetItem(str(cell_text)))

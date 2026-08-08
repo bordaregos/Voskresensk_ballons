@@ -14,6 +14,7 @@ BACKUP_DIR = PROJECT_ROOT / "backup"
 # Шаблоны
 TEMPLATE_WORD = TEMPLATES_DIR / "Шаблон_финал.docx"
 TEMPLATE_WORD_OLD = TEMPLATES_DIR / "Шаблон_баллоны_2.docx"
+TEMPLATE_WORD_PIPELINE = TEMPLATES_DIR / "Шаблон_трубопровод.docx"
 
 # Пути к старым шаблонам (для совместимости)
 LEGACY_TEMPLATES = [
@@ -60,15 +61,26 @@ def ensure_directories():
 
 
 def get_template_paths():
-    """Получить все возможные пути к шаблонам."""
+    """Получить все возможные пути к шаблонам (баллоны, для обратной совместимости)."""
     paths = [TEMPLATE_WORD]
     paths.extend(LEGACY_TEMPLATES)
     return paths
 
 
-def find_template():
-    """Найти первый доступный шаблон."""
-    for path in get_template_paths():
+# Пути к шаблону по типу объекта. Новый тип добавляется отдельной записью,
+# не меняя порядок поиска для существующих типов.
+TEMPLATE_PATHS_BY_TYPE = {
+    "balloon": get_template_paths(),
+    "pipeline": [TEMPLATE_WORD_PIPELINE],
+}
+
+
+def find_template(equipment_type: str = "balloon"):
+    """Найти первый доступный шаблон Word для указанного типа объекта."""
+    paths = TEMPLATE_PATHS_BY_TYPE.get(equipment_type)
+    if paths is None:
+        raise ValueError(f"Неизвестный тип объекта: {equipment_type}")
+    for path in paths:
         if path.exists():
             return path
     raise FileNotFoundError(

@@ -5,6 +5,8 @@ from src.services.formatting import (
     format_ru_fixed,
     parse_ru,
     format_thickness_block,
+    format_fio_initials,
+    number_to_words_ru,
 )
 
 
@@ -48,3 +50,41 @@ def test_format_thickness_block_five_lines_of_four():
 def test_format_thickness_block_uses_comma():
     block = format_thickness_block([26.5, 27.0, 27.5, 28.0])
     assert block == "26,5 27,0 27,5 28,0"
+
+
+def test_format_fio_initials_first_and_patronymic_shortened():
+    # Реальный порядок ввода в Таблице 2 -- Фамилия Имя Отчество
+    assert format_fio_initials("Грищенко Сергей Вадимович") == "С. В. Грищенко"
+
+
+def test_format_fio_initials_wrong_word_count_raises_value_error():
+    with pytest.raises(ValueError):
+        format_fio_initials("Грищенко")
+    with pytest.raises(ValueError):
+        format_fio_initials("Грищенко Сергей Вадимович Александрович")
+
+
+def test_number_to_words_ru_single_digits():
+    assert number_to_words_ru(0) == "ноль"
+    assert number_to_words_ru(5) == "пять"
+
+
+def test_number_to_words_ru_teens():
+    assert number_to_words_ru(15) == "пятнадцать"
+
+
+def test_number_to_words_ru_tens_and_units():
+    assert number_to_words_ru(20) == "двадцать"
+    assert number_to_words_ru(25) == "двадцать пять"
+
+
+def test_number_to_words_ru_hundreds():
+    assert number_to_words_ru(100) == "сто"
+    assert number_to_words_ru(152) == "сто пятьдесят два"
+
+
+def test_number_to_words_ru_out_of_range_raises_value_error():
+    with pytest.raises(ValueError):
+        number_to_words_ru(-1)
+    with pytest.raises(ValueError):
+        number_to_words_ru(1000)

@@ -16,9 +16,16 @@ class Project:
     created_date: str = field(default_factory=lambda: date.today().strftime('%d.%m.%Y'))
     last_modified: str = field(default_factory=lambda: date.today().strftime('%d.%m.%Y'))
     
-    # Данные заключения
+    # Тип объекта освидетельствования — см. src/equipment_types.py
+    equipment_type: str = "balloon"
+
+    # Данные заключения. Для баллонов сюда попадают только "простые" поля
+    # (без таблицы) — таблица баллонов лежит отдельно в balloons_data. Для
+    # остальных типов get_form_data() кладёт сюда и данные таблиц тоже
+    # (TABLE_WIDGET уже входит в общий словарь self.data), отдельное поле
+    # под таблицы не заводится, чтобы не дублировать один и тот же список.
     report_data: Dict[str, Any] = field(default_factory=dict)
-    
+
     # Данные баллонов
     balloons_data: List[Dict[str, Any]] = field(default_factory=list)
     
@@ -51,6 +58,7 @@ class Project:
             version=data.get('version', '1.0.0'),
             created_date=data.get('created_date', date.today().strftime('%d.%m.%Y')),
             last_modified=data.get('last_modified', date.today().strftime('%d.%m.%Y')),
+            equipment_type=data.get('equipment_type', 'balloon'),
             report_data=data.get('report_data', {}),
             balloons_data=data.get('balloons_data', []),
             settings=data.get('settings', {}),
