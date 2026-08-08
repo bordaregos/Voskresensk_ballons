@@ -346,7 +346,16 @@ PIPELINE_SCHEMA = ReportSchema(
             rows=[
                 FieldLabel("Толщиномер (тип, зав. №)", "thick_device"),
                 FieldLabel("Дата проведения", "thick_date"),
+                FieldLabel("Руководящие документы", "thick_guidance_docs"),
                 FieldLabel("Вывод", "thick_conclusion"),
+            ],
+        ),
+        FieldsTableSection(
+            heading="Приложение 4 — Измерение провёл",
+            rows=[
+                FieldLabel("Должность", "thick_specialist_position"),
+                FieldLabel("ФИО", "thick_specialist_name_initials"),
+                FieldLabel("Удостоверение", "thick_specialist_cert_number"),
             ],
         ),
         RepeatingTableSection(
