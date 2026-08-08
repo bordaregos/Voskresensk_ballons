@@ -11,6 +11,13 @@ TEMPLATES_DIR = PROJECT_ROOT / "templates"
 OUTPUT_DIR = PROJECT_ROOT / "output"
 BACKUP_DIR = PROJECT_ROOT / "backup"
 
+# Справочник сотрудников — общий для компании, не привязан к конкретному
+# отчёту/проекту (см. src/services/employees_store.py). Реальные
+# персональные данные, поэтому папка data/ в .gitignore.
+DATA_DIR = PROJECT_ROOT / "data"
+EMPLOYEES_FILE = DATA_DIR / "employees.json"
+KLEISHE_DIR = DATA_DIR / "kleishe"
+
 # Шаблоны
 TEMPLATE_WORD = TEMPLATES_DIR / "Шаблон_финал.docx"
 TEMPLATE_WORD_OLD = TEMPLATES_DIR / "Шаблон_баллоны_2.docx"
@@ -56,7 +63,7 @@ GOST_HARDNESS_ALLOWANCE = 20
 
 def ensure_directories():
     """Создание необходимых директорий, если их нет."""
-    for directory in [TEMPLATES_DIR, OUTPUT_DIR, BACKUP_DIR]:
+    for directory in [TEMPLATES_DIR, OUTPUT_DIR, BACKUP_DIR, DATA_DIR, KLEISHE_DIR]:
         directory.mkdir(parents=True, exist_ok=True)
 
 

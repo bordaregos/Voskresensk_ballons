@@ -110,6 +110,14 @@ class MainWindow(QMainWindow):
             self.tabWidget.currentChanged.connect(self._refresh_program_specialist_combo)
             self._seed_program_table_defaults()
 
+            from .employees_tab import EmployeesTabController
+            self.employees_tab = EmployeesTabController(self)
+
+            # «Сотрудники» — общий справочник компании, не часть текущего
+            # отчёта: кнопки генерации Word и работы с проектом там неуместны.
+            self.tabWidget.currentChanged.connect(self._update_report_buttons_visibility)
+            self._update_report_buttons_visibility()
+
     def init_file_handler(self):
         """Инициализация FileHandler для импорта/экспорта."""
         from .file_handler import FileHandler
@@ -1042,6 +1050,16 @@ class MainWindow(QMainWindow):
             if index >= 0:
                 combo.setCurrentIndex(index)
         combo.blockSignals(False)
+
+    def _update_report_buttons_visibility(self):
+        """Скрывает кнопки "Выгрузить в Word"/"Сохранить проект"/"Открыть
+        проект" на вкладке "Сотрудники" -- это общий справочник компании, не
+        часть текущего отчёта (см. EmployeesTabController), эти действия к
+        нему не относятся."""
+        is_employees_tab = self.tabWidget.currentWidget() is self.tab_employees
+        self.pushButt_generateWord.setVisible(not is_employees_tab)
+        self.pushButton_saveProject.setVisible(not is_employees_tab)
+        self.pushButton_openProject.setVisible(not is_employees_tab)
 
     def _cell_text(self, table, row, col):
         """Текст ячейки (row, col) независимо от того, обычный это

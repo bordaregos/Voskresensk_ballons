@@ -1116,6 +1116,91 @@
   </item>
  </layout>
 </widget>
+ <widget class="QWidget" name="tab_employees">
+ <attribute name="title"><string>Сотрудники</string></attribute>
+ <layout class="QVBoxLayout" name="tab_employees_outerLayout">
+  <item>
+   <widget class="QScrollArea" name="tab_employees_scroll">
+    <property name="widgetResizable"><bool>true</bool></property>
+    <widget class="QWidget" name="tab_employees_scrollContent">
+     <property name="geometry"><rect><x>0</x><y>0</y><width>960</width><height>700</height></rect></property>
+     <layout class="QVBoxLayout" name="vlayout_employees">
+<item><widget class="QGroupBox" name="employees_list_group">
+ <property name="title"><string>Справочник сотрудников</string></property>
+ <layout class="QVBoxLayout" name="employees_list_vlayout">
+  <item><widget class="QTableWidget" name="table_employees">
+ <property name="minimumSize"><size><width>0</width><height>160</height></size></property>
+ <property name="rowCount"><number>0</number></property>
+ <property name="columnCount"><number>4</number></property>
+ <column><property name="text"><string>Должность</string></property></column>
+ <column><property name="text"><string>ФИО</string></property></column>
+ <column><property name="text"><string>Удостоверения</string></property></column>
+ <column><property name="text"><string>Клише</string></property></column>
+</widget></item>
+  <item><layout class="QHBoxLayout" name="employees_list_buttons">
+<item><widget class="QPushButton" name="pushButt_newEmployee"><property name="text"><string>+ Новый сотрудник</string></property></widget></item>
+<item><widget class="QPushButton" name="pushButt_deleteEmployee"><property name="text"><string>− Удалить сотрудника</string></property></widget></item>
+</layout></item>
+ </layout>
+</widget></item>
+<item><widget class="QGroupBox" name="employee_card_group">
+ <property name="title"><string>Карточка сотрудника</string></property>
+<layout class="QFormLayout" name="employee_card_form">
+<item row="0" column="0">
+ <widget class="QLabel" name="label_employee_position"><property name="text"><string>Должность</string></property></widget>
+</item>
+<item row="0" column="1">
+ <widget class="QPlainTextEdit" name="employee_position">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+</widget>
+</item>
+<item row="1" column="0">
+ <widget class="QLabel" name="label_employee_fio"><property name="text"><string>ФИО</string></property></widget>
+</item>
+<item row="1" column="1">
+ <widget class="QPlainTextEdit" name="employee_fio">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+</widget>
+</item>
+</layout>
+</widget></item>
+<item><widget class="QGroupBox" name="employee_certificates_group">
+ <property name="title"><string>Удостоверения</string></property>
+ <layout class="QVBoxLayout" name="employee_certificates_vlayout">
+  <item><widget class="QListWidget" name="employee_certificates_list"/></item>
+  <item><layout class="QHBoxLayout" name="employee_certificate_input_layout">
+<item><widget class="QPlainTextEdit" name="employee_certificate_input">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+</widget></item>
+<item><widget class="QPushButton" name="pushButt_addCertificate"><property name="text"><string>+ Добавить</string></property></widget></item>
+<item><widget class="QPushButton" name="pushButt_removeCertificate"><property name="text"><string>− Удалить</string></property></widget></item>
+</layout></item>
+ </layout>
+</widget></item>
+<item><widget class="QGroupBox" name="employee_kleishe_group">
+ <property name="title"><string>Клише (подпись)</string></property>
+ <layout class="QHBoxLayout" name="employee_kleishe_hlayout">
+  <item><widget class="QLabel" name="employee_kleishe_preview">
+ <property name="minimumSize"><size><width>150</width><height>80</height></size></property>
+ <property name="maximumSize"><size><width>150</width><height>80</height></size></property>
+ <property name="text"><string>нет изображения</string></property>
+</widget></item>
+  <item><layout class="QVBoxLayout" name="employee_kleishe_buttons">
+<item><widget class="QPushButton" name="pushButt_chooseKleishe"><property name="text"><string>Загрузить изображение…</string></property></widget></item>
+<item><widget class="QPushButton" name="pushButt_clearKleishe"><property name="text"><string>Очистить</string></property></widget></item>
+</layout></item>
+ </layout>
+</widget></item>
+<item><widget class="QPushButton" name="pushButt_saveEmployee"><property name="text"><string>Сохранить сотрудника</string></property></widget></item>
+     </layout>
+    </widget>
+   </widget>
+  </item>
+ </layout>
+</widget>
 </widget></item>
 <item><layout class="QHBoxLayout" name="bottom_buttons">
 <item><widget class="QPushButton" name="pushButt_generateWord">
