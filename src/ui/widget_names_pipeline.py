@@ -36,7 +36,7 @@ PLAIN_TEXT_EDIT_NAMES = [
     # Акты и протоколы (Приложения 2-5, 8-9)
     "act2_intro_text", "act2_conclusion",
     "vik_guidance_docs", "vik_equipment", "vik_conclusion",
-    "thick_seed_min", "thick_conclusion",
+    "thick_seed_min", "thick_guidance_docs", "thick_conclusion",
     "uzk_conclusion",
     "pnevmo_pressure", "pnevmo_conclusion",
     # Расчёт на прочность и остаточный ресурс (Приложение 6)

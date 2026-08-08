@@ -771,6 +771,13 @@
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
  <property name="placeholderText"><string>предварительный замер</string></property>
 </widget></item>
+   <item row="4" column="0"><widget class="QLabel" name="label_thick_guidance_docs"><property name="text"><string>Руководящие документы</string></property></widget></item>
+   <item row="4" column="1"><widget class="QPlainTextEdit" name="thick_guidance_docs">
+ <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
+ <property name="plainText"><string>ГОСТ 55614-2013 «Контроль неразрушающий. Толщиномеры ультразвуковые. Общие технические требования»
+ГОСТ Р ИСО 16809-2015 «Контроль неразрушающий. Контроль ультразвуковой. Измерение толщины»</string></property>
+</widget></item>
   </layout></item>
   <item><layout class="QHBoxLayout" name="thick_buttons">
 <item><widget class="QPushButton" name="pushButt_segments">
@@ -808,6 +815,8 @@
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
  <property name="placeholderText"><string></string></property>
 </widget></item>
+   <item row="1" column="0"><widget class="QLabel" name="label_thick_specialist"><property name="text"><string>Измерение провёл</string></property></widget></item>
+   <item row="1" column="1"><widget class="QComboBox" name="thick_specialist"/></item>
   </layout></item>
  </layout>
 </widget></item>
