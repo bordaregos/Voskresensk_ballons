@@ -34,7 +34,7 @@ PLAIN_TEXT_EDIT_NAMES = [
     "result_71", "result_72", "result_73", "result_74", "result_75",
     "result_76", "result_77",
     # Акты и протоколы (Приложения 2-5, 8-9)
-    "act2_conclusion", "vik_conclusion",
+    "act2_intro_text", "act2_conclusion", "vik_conclusion",
     "thick_seed_min", "thick_conclusion",
     "uzk_conclusion",
     "pnevmo_pressure", "pnevmo_conclusion",

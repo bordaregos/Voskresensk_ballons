@@ -265,7 +265,7 @@
  <widget class="QPlainTextEdit" name="obj_location">
  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="plainText"><string>Отдел №214 АО «КБхиммаш им. А.М. Исаева»</string></property>
 </widget>
 </item>
 </layout>
@@ -657,7 +657,7 @@
  </layout>
 </widget></item>
 <item><widget class="QGroupBox" name="act2_group">
- <property name="title"><string>Приложение 2 — Акт анализа документации</string></property>
+ <property name="title"><string>Приложение 2 — Акт анализа технической и эксплуатационной документации</string></property>
 <layout class="QFormLayout" name="formLayout_33">
 <item row="0" column="0">
  <widget class="QLabel" name="label_34"><property name="text"><string>Дата проведения</string></property></widget>
@@ -669,14 +669,32 @@
 </widget>
 </item>
 <item row="1" column="0">
- <widget class="QLabel" name="label_35"><property name="text"><string>Вывод</string></property></widget>
+ <widget class="QLabel" name="label_act2_intro"><property name="text"><string>Вводная часть акта</string></property></widget>
 </item>
 <item row="1" column="1">
+ <widget class="QPlainTextEdit" name="act2_intro_text">
+ <property name="minimumSize"><size><width>0</width><height>90</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>90</height></size></property>
+ <property name="plainText"><string>1. Настоящий акт составлен в том, что специалистами проведен анализ и изучение технической и эксплуатационной документации.
+2. Анализ эксплуатационной и технической документации проводится в целях детального ознакомления с конструкцией, материалами и особенностями изготовления, характером и конкретными условиями работы трубопровода, а также для предварительной оценки его технического состояния на протяжении всего срока эксплуатации.
+3. Рассмотренный в ходе проведения обследования комплект технической документации на основании требования п. 204 Приказа Ростехнадзора от 21 декабря 2021 года № 444 представлен в таблице 1.</string></property>
+</widget>
+</item>
+<item row="2" column="0">
+ <widget class="QLabel" name="label_35"><property name="text"><string>Вывод</string></property></widget>
+</item>
+<item row="2" column="1">
  <widget class="QPlainTextEdit" name="act2_conclusion">
  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
  <property name="placeholderText"><string></string></property>
 </widget>
+</item>
+<item row="3" column="0">
+ <widget class="QLabel" name="label_act2_specialist"><property name="text"><string>Анализ документации провёл</string></property></widget>
+</item>
+<item row="3" column="1">
+ <widget class="QComboBox" name="act2_specialist"/>
 </item>
 </layout>
 </widget></item>
