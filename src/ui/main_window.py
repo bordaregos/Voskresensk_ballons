@@ -103,6 +103,8 @@ class MainWindow(QMainWindow):
             self.pushButt_addPipeMaterial.clicked.connect(self._add_pipe_material_row)
             self.pushButt_removePipeMaterial.clicked.connect(lambda: self._remove_table_row(self.table_pipe_materials))
             self.p_rab_mpa.textChanged.connect(self._update_p_rab_kgs)
+            self.p_rab_mpa.textChanged.connect(self._update_calc_p_rab_display)
+            self.work_temp.textChanged.connect(self._update_calc_temp_display)
             self.pnevmo_pressure.textChanged.connect(self._update_pnevmo_pressure_hint)
             self.pushButt_addProgramItem.clicked.connect(self._add_program_item_row)
             self.pushButt_addProgramSubitem.clicked.connect(self._add_program_subitem_row)
@@ -352,6 +354,21 @@ class MainWindow(QMainWindow):
                 self.data["uzk_specialist_position"] = uzk_specialist["position"]
                 self.data["uzk_specialist_name_initials"] = uzk_specialist["name_initials"]
                 self.data["uzk_specialist_cert_number"] = uzk_specialist["cert_number"]
+
+                # "Расчёт выполнил" (Приложение 6) -- тот же паттерн.
+                calc_specialist_idx = self.calc_specialist.currentData()
+                if (
+                    calc_specialist_idx is None
+                    or calc_specialist_idx >= len(self.data["specialists"])
+                ):
+                    raise ValueError(
+                        "Выберите специалиста в поле «Расчёт выполнил» "
+                        "(Приложение 6) -- источник вариантов: Таблица 2 (1.3)"
+                    )
+                calc_specialist = self.data["specialists"][calc_specialist_idx]
+                self.data["calc_specialist_position"] = calc_specialist["position"]
+                self.data["calc_specialist_name_initials"] = calc_specialist["name_initials"]
+                self.data["calc_specialist_cert_number"] = calc_specialist["cert_number"]
 
                 # 8.2 -- "5 (пять) лет": число прописью в скобках рядом с цифрой.
                 years_allowed_text = self.final_years_allowed.toPlainText().strip()
@@ -886,6 +903,7 @@ class MainWindow(QMainWindow):
                 raise ValueError(
                     "Сначала заполните марку стали в Таблице 6 (Сведения о трубах)"
                 )
+            self.calc_steel_grade.setPlainText(steel_grade)
 
             allowable_stress = get_allowable_stress(steel_grade, temp)
             result = calculate_pipeline_strength(
@@ -925,7 +943,10 @@ class MainWindow(QMainWindow):
 
             self.calc_corrosion_rate.setPlainText(format_ru(result.corrosion_rate))
             self.calc_remaining_years.setPlainText(format_ru(result.remaining_years))
-            self.calc_residual_comment.setPlainText(result.comment)
+            # calc_residual_comment -- вывод формулируется инженером текстом
+            # вручную (как thick_conclusion/uzk_conclusion), кнопка его не
+            # перезаписывает -- иначе правки в UI терялись бы при каждом
+            # повторном расчёте.
             self._completed_steps.add("residual_life")
 
         except ValueError as e:
@@ -1092,21 +1113,24 @@ class MainWindow(QMainWindow):
         """Обновляет списки в program_specialist (поле "Программу составил",
         Приложение 1), act2_specialist (поле "Анализ документации провёл",
         Приложение 2), vik_specialist (поле "Контроль провёл", Приложение 3),
-        thick_specialist (поле "Измерение провёл", Приложение 4) и
-        uzk_specialist (поле "Измерение провёл", Приложение 5) при
-        переключении на вкладку "Приложения" -- источник вариантов для всех
-        один и тот же: table_specialists (1.3 Сведения о специалистах,
-        Таблица 2). Ни один из комбобоксов не входит ни в один список
-        widget_names_pipeline.py (как pnevmo_pressure_hint) -- каждый даёт
-        индекс строки специалиста, а не текст для .docx напрямую, итоговые
-        плейсхолдеры собирает calculate()."""
-        if self.tabWidget.widget(self.tabWidget.currentIndex()) is not self.tab_acts:
+        thick_specialist (поле "Измерение провёл", Приложение 4),
+        uzk_specialist (поле "Измерение провёл", Приложение 5) и
+        calc_specialist (поле "Расчёт выполнил", Приложение 6) при
+        переключении на вкладку "Приложения" или "Расчёты" -- источник
+        вариантов для всех один и тот же: table_specialists (1.3 Сведения о
+        специалистах, Таблица 2). Ни один из комбобоксов не входит ни в один
+        список widget_names_pipeline.py (как pnevmo_pressure_hint) -- каждый
+        даёт индекс строки специалиста, а не текст для .docx напрямую,
+        итоговые плейсхолдеры собирает calculate()."""
+        current_tab = self.tabWidget.widget(self.tabWidget.currentIndex())
+        if current_tab not in (self.tab_acts, self.tab_calc):
             return
         self._refresh_specialist_combo(self.program_specialist)
         self._refresh_specialist_combo(self.act2_specialist)
         self._refresh_specialist_combo(self.vik_specialist)
         self._refresh_specialist_combo(self.thick_specialist)
         self._refresh_specialist_combo(self.uzk_specialist)
+        self._refresh_specialist_combo(self.calc_specialist)
 
     def _refresh_specialist_combo(self, combo):
         """Перезаполняет один комбобокс-выбор специалиста вариантами из
@@ -1159,6 +1183,21 @@ class MainWindow(QMainWindow):
             self.p_rab_kgs.setPlainText("")
             return
         self.p_rab_kgs.setPlainText(format_ru_fixed(mpa / 0.0980665, 1))
+
+    def _update_calc_temp_display(self):
+        """Зеркалит work_temp (1. Общие данные) в read-only calc_temp
+        (Приложение 6) -- для расчёта на прочность температура стенки
+        принимается равной рабочей температуре среды, повторный ввод не
+        нужен (тот же принцип, что и у типоразмера/марки стали в
+        table_pipe_materials, см. _first_pipe_material_value)."""
+        self.calc_temp.setPlainText(self.work_temp.toPlainText())
+
+    def _update_calc_p_rab_display(self):
+        """Зеркалит p_rab_mpa (1. Общие данные) в read-only
+        calc_p_rab_display (Приложение 6) -- само это поле не резолвится
+        через widget_names_pipeline.py и в шаблон .docx не попадает, это
+        чисто UI-подсказка (тот же приём, что и pnevmo_pressure_hint)."""
+        self.calc_p_rab_display.setPlainText(self.p_rab_mpa.toPlainText())
 
     def _update_pnevmo_pressure_hint(self):
         """Зеркалит "Испытательное давление" (pnevmo_pressure, Приложения

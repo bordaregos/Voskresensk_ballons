@@ -405,6 +405,19 @@ PIPELINE_SCHEMA = ReportSchema(
                 FieldLabel("Скорость коррозии Аф, мм/год", "calc_corrosion_rate"),
                 FieldLabel("Остаточный ресурс Тост, лет", "calc_remaining_years"),
                 FieldLabel("Комментарий", "calc_residual_comment"),
+                FieldLabel("Основание для расчёта", "calc_gost_basis"),
+                FieldLabel("Обоснование методики оценки остаточного ресурса", "calc_residual_methodology_note"),
+                FieldLabel("Формула остаточного ресурса (пояснение)", "calc_residual_formula_text"),
+                FieldLabel("Формула скорости коррозии (пояснение)", "calc_corrosion_formula_text"),
+                FieldLabel("Пояснение к расчётному примеру", "calc_worked_example_note"),
+            ],
+        ),
+        FieldsTableSection(
+            heading="Приложение 6 — Расчёт выполнил",
+            rows=[
+                FieldLabel("Должность", "calc_specialist_position"),
+                FieldLabel("ФИО", "calc_specialist_name_initials"),
+                FieldLabel("Удостоверение", "calc_specialist_cert_number"),
             ],
         ),
         FieldsTableSection(

@@ -45,6 +45,9 @@ PLAIN_TEXT_EDIT_NAMES = [
     "calc_strength_conclusion",
     "calc_years_operation", "calc_k", "calc_corrosion_rate",
     "calc_remaining_years", "calc_residual_comment",
+    "calc_gost_basis", "calc_residual_methodology_note",
+    "calc_residual_formula_text", "calc_corrosion_formula_text",
+    "calc_worked_example_note",
     # Выводы (раздел 8)
     "final_condition", "final_years_allowed",
 ]
