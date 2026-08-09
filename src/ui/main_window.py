@@ -338,6 +338,21 @@ class MainWindow(QMainWindow):
                 self.data["thick_specialist_name_initials"] = thick_specialist["name_initials"]
                 self.data["thick_specialist_cert_number"] = thick_specialist["cert_number"]
 
+                # "Измерение провёл" (Приложение 5) -- тот же паттерн.
+                uzk_specialist_idx = self.uzk_specialist.currentData()
+                if (
+                    uzk_specialist_idx is None
+                    or uzk_specialist_idx >= len(self.data["specialists"])
+                ):
+                    raise ValueError(
+                        "Выберите специалиста в поле «Измерение провёл» "
+                        "(Приложение 5) -- источник вариантов: Таблица 2 (1.3)"
+                    )
+                uzk_specialist = self.data["specialists"][uzk_specialist_idx]
+                self.data["uzk_specialist_position"] = uzk_specialist["position"]
+                self.data["uzk_specialist_name_initials"] = uzk_specialist["name_initials"]
+                self.data["uzk_specialist_cert_number"] = uzk_specialist["cert_number"]
+
                 # 8.2 -- "5 (пять) лет": число прописью в скобках рядом с цифрой.
                 years_allowed_text = self.final_years_allowed.toPlainText().strip()
                 try:
@@ -1076,8 +1091,9 @@ class MainWindow(QMainWindow):
     def _refresh_program_specialist_combo(self):
         """Обновляет списки в program_specialist (поле "Программу составил",
         Приложение 1), act2_specialist (поле "Анализ документации провёл",
-        Приложение 2), vik_specialist (поле "Контроль провёл", Приложение 3)
-        и thick_specialist (поле "Измерение провёл", Приложение 4) при
+        Приложение 2), vik_specialist (поле "Контроль провёл", Приложение 3),
+        thick_specialist (поле "Измерение провёл", Приложение 4) и
+        uzk_specialist (поле "Измерение провёл", Приложение 5) при
         переключении на вкладку "Приложения" -- источник вариантов для всех
         один и тот же: table_specialists (1.3 Сведения о специалистах,
         Таблица 2). Ни один из комбобоксов не входит ни в один список
@@ -1090,6 +1106,7 @@ class MainWindow(QMainWindow):
         self._refresh_specialist_combo(self.act2_specialist)
         self._refresh_specialist_combo(self.vik_specialist)
         self._refresh_specialist_combo(self.thick_specialist)
+        self._refresh_specialist_combo(self.uzk_specialist)
 
     def _refresh_specialist_combo(self, combo):
         """Перезаполняет один комбобокс-выбор специалиста вариантами из

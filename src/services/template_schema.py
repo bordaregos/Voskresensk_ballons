@@ -371,7 +371,17 @@ PIPELINE_SCHEMA = ReportSchema(
             rows=[
                 FieldLabel("Дефектоскоп (тип, зав. №)", "uzk_device"),
                 FieldLabel("Дата проведения", "uzk_date"),
+                FieldLabel("Руководящие документы", "uzk_guidance_docs"),
+                FieldLabel("Оценка результатов контроля", "uzk_evaluation_text"),
                 FieldLabel("Вывод", "uzk_conclusion"),
+            ],
+        ),
+        FieldsTableSection(
+            heading="Приложение 5 — Измерение провёл",
+            rows=[
+                FieldLabel("Должность", "uzk_specialist_position"),
+                FieldLabel("ФИО", "uzk_specialist_name_initials"),
+                FieldLabel("Удостоверение", "uzk_specialist_cert_number"),
             ],
         ),
         FieldsTableSection(
