@@ -18,6 +18,11 @@ DATA_DIR = PROJECT_ROOT / "data"
 EMPLOYEES_FILE = DATA_DIR / "employees.json"
 KLEISHE_DIR = DATA_DIR / "kleishe"
 
+# Справочник приборов — тот же приём, что и справочник сотрудников: общий
+# для компании, не привязан к конкретному отчёту/проекту (см.
+# src/services/instruments_store.py).
+INSTRUMENTS_FILE = DATA_DIR / "instruments.json"
+
 # Схемы НК (Приложение 7, трубопровод) — привязаны к конкретному отчёту
 # (хранятся в report_data проекта как имя файла), но физически лежат в
 # общей папке data/, как и клише — см. store_kleishe_image().
