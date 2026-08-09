@@ -4,9 +4,12 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QPlainTextEdit, QComboBo
                              QPushButton, QSpinBox, QDateEdit, QTableWidgetItem, QTableWidget,
                              QMessageBox, QFileDialog)
 from PyQt6.QtCore import QLocale, Qt
+from PyQt6.QtGui import QPixmap
 from PyQt6.uic import loadUi
 from typing import Dict, Union
-from docxtpl import DocxTemplate
+from pathlib import Path
+from docx.shared import Mm
+from docxtpl import DocxTemplate, InlineImage
 
 import os
 
@@ -32,6 +35,8 @@ from ..services.calculations_pipeline import (
     get_allowable_stress,
     SegmentSpec,
 )
+from ..services.employees_store import store_kleishe_image
+from ..config import NK_SCHEME_DIR
 from .widget_names_pipeline import SEGMENT_TYPES, PROGRAM_DEFAULT_ITEMS
 
 
@@ -111,6 +116,8 @@ class MainWindow(QMainWindow):
             self.pushButt_removeProgramRow.clicked.connect(self._remove_program_row)
             self.tabWidget.currentChanged.connect(self._refresh_program_specialist_combo)
             self._seed_program_table_defaults()
+            self.pushButt_chooseNkScheme.clicked.connect(self._choose_nk_scheme)
+            self.pushButt_clearNkScheme.clicked.connect(self._clear_nk_scheme)
 
             from .employees_tab import EmployeesTabController
             self.employees_tab = EmployeesTabController(self)
@@ -389,6 +396,18 @@ class MainWindow(QMainWindow):
 
             # 4. Загружаем и заполняем шаблон
             doc = DocxTemplate(template_path)
+
+            if self.equipment_type.id == "pipeline":
+                # Приложение 7 -- Схема НК: картинка не обязательна, при
+                # отсутствии на месте {{ nk_scheme_image }} остаётся пусто.
+                nk_scheme_filename = self.data.get("nk_scheme_filename")
+                if nk_scheme_filename:
+                    form_data["nk_scheme_image"] = InlineImage(
+                        doc, str(NK_SCHEME_DIR / nk_scheme_filename), width=Mm(150)
+                    )
+                else:
+                    form_data["nk_scheme_image"] = ""
+
             doc.render(form_data)
 
             # 5. Генерируем имя файла
@@ -1207,6 +1226,42 @@ class MainWindow(QMainWindow):
         это поле только подсказывает уже введённое оператором значение,
         само оно в шаблон .docx не попадает."""
         self.pnevmo_pressure_hint.setPlainText(self.pnevmo_pressure.toPlainText())
+
+    def _choose_nk_scheme(self):
+        """Загрузка изображения схемы НК (Приложение 7). Тот же приём, что
+        и клише сотрудника (src/ui/employees_tab.py) -- копия файла в
+        общую папку под uuid-именем, само имя лежит в self.data и едет в
+        Project.report_data при сохранении/открытии проекта."""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "Выбрать схему НК", "", "Изображения (*.png *.jpg *.jpeg)"
+        )
+        if not file_path:
+            return
+        filename = store_kleishe_image(Path(file_path), dest_dir=NK_SCHEME_DIR)
+        self.data["nk_scheme_filename"] = filename
+        self._set_nk_scheme_preview(filename)
+
+    def _clear_nk_scheme(self):
+        self.data["nk_scheme_filename"] = None
+        self._set_nk_scheme_preview(None)
+
+    def _set_nk_scheme_preview(self, filename):
+        label = self.nk_scheme_preview
+        if not filename:
+            label.setPixmap(QPixmap())
+            label.setText("нет изображения")
+            return
+
+        pixmap = QPixmap(str(NK_SCHEME_DIR / filename))
+        if pixmap.isNull():
+            label.setPixmap(QPixmap())
+            label.setText("не удалось загрузить")
+            return
+
+        label.setText("")
+        label.setPixmap(pixmap.scaled(
+            label.width(), label.height(), Qt.AspectRatioMode.KeepAspectRatio,
+        ))
 
     def _table_to_dicts(self, table, keys):
         """Конвертирует QTableWidget (по столбцам, слева направо) в

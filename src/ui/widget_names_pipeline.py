@@ -76,6 +76,7 @@ BUTTON_NAMES = [
     "pushButt_addPipeMaterial", "pushButt_removePipeMaterial",
     "pushButt_addProgramItem", "pushButt_addProgramSubitem",
     "pushButt_removeProgramRow",
+    "pushButt_chooseNkScheme", "pushButt_clearNkScheme",
 ]
 
 SPIN_BOX_NAMES = [

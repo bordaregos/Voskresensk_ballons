@@ -431,3 +431,11 @@ class FileHandler:
                             )
                         else:
                             table.setItem(row_idx, col_idx, QTableWidgetItem(str(cell_text)))
+
+            if self.main_window.equipment_type.id == "pipeline":
+                # Схема НК (Приложение 7) -- не виджет, generic-цикл выше её
+                # не восстанавливает (getattr(main_window, "nk_scheme_filename")
+                # не находит widget), нужен явный шаг.
+                nk_filename = project.report_data.get("nk_scheme_filename")
+                self.main_window.data["nk_scheme_filename"] = nk_filename
+                self.main_window._set_nk_scheme_preview(nk_filename)

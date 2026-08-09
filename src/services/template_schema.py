@@ -421,6 +421,10 @@ PIPELINE_SCHEMA = ReportSchema(
             ],
         ),
         FieldsTableSection(
+            heading="Приложение 7 — Схема НК",
+            rows=[FieldLabel("Схема НК", "nk_scheme_image")],
+        ),
+        FieldsTableSection(
             heading="Приложения 8-9 — Протокол пневматических испытаний с "
                     "акустико-эмиссионным контролем",
             rows=[
