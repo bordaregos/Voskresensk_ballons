@@ -23,6 +23,10 @@ KLEISHE_DIR = DATA_DIR / "kleishe"
 # общей папке data/, как и клише — см. store_kleishe_image().
 NK_SCHEME_DIR = DATA_DIR / "nk_schemes"
 
+# График нагружения (Приложение 8, Рисунок 1, трубопровод) — тот же приём,
+# что и NK_SCHEME_DIR.
+PNEVMO_GRAPH_DIR = DATA_DIR / "pnevmo_graphs"
+
 # Шаблоны
 TEMPLATE_WORD = TEMPLATES_DIR / "Шаблон_финал.docx"
 TEMPLATE_WORD_OLD = TEMPLATES_DIR / "Шаблон_баллоны_2.docx"
@@ -68,7 +72,10 @@ GOST_HARDNESS_ALLOWANCE = 20
 
 def ensure_directories():
     """Создание необходимых директорий, если их нет."""
-    for directory in [TEMPLATES_DIR, OUTPUT_DIR, BACKUP_DIR, DATA_DIR, KLEISHE_DIR, NK_SCHEME_DIR]:
+    for directory in [
+        TEMPLATES_DIR, OUTPUT_DIR, BACKUP_DIR, DATA_DIR, KLEISHE_DIR,
+        NK_SCHEME_DIR, PNEVMO_GRAPH_DIR,
+    ]:
         directory.mkdir(parents=True, exist_ok=True)
 
 

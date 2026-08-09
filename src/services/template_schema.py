@@ -425,14 +425,74 @@ PIPELINE_SCHEMA = ReportSchema(
             rows=[FieldLabel("Схема НК", "nk_scheme_image")],
         ),
         FieldsTableSection(
-            heading="Приложения 8-9 — Протокол пневматических испытаний с "
+            heading="Приложение 8 — Протокол пневмоиспытания с "
                     "акустико-эмиссионным контролем",
             rows=[
-                FieldLabel("Дата проведения", "pnevmo_date"),
-                FieldLabel("Испытательное давление", "pnevmo_pressure"),
-                FieldLabel("Аппаратура АЭ (тип, зав. №)", "pnevmo_device"),
-                FieldLabel("Вывод", "pnevmo_conclusion"),
+                FieldLabel("Дата проведения (п.1)", "pnevmo_date"),
+                FieldLabel("Испытательное давление (п.4)", "pnevmo_pressure"),
+                FieldLabel("Аппаратура АЭ, тип/зав. № (п.6)", "pnevmo_device"),
+                FieldLabel("Число датчиков (п.7)", "pnevmo_sensors_count"),
+                FieldLabel("Заводской номер (п.3)", "pnevmo_pipe_serial"),
+                FieldLabel("Метод изготовления (п.3)", "pnevmo_manufacture_method"),
+                FieldLabel("Размеры контролируемой зоны (п.3)", "pnevmo_control_zone_size"),
+                FieldLabel("Рабочая температура при НК (п.3)", "pnevmo_ndt_temp_range"),
+                FieldLabel("Состояние поверхности (п.3)", "pnevmo_surface_condition"),
+                FieldLabel("Магнитные свойства (п.3)", "pnevmo_magnetic_properties"),
+                FieldLabel("Рабочее тело испытания (п.4)", "pnevmo_test_medium"),
+                FieldLabel("Температура объекта (п.4)", "pnevmo_object_temp"),
+                FieldLabel("Температура окружающей среды (п.4)", "pnevmo_ambient_temp"),
+                FieldLabel("Марка нагружающего оборудования (п.4)", "pnevmo_loading_equipment"),
+                FieldLabel("Скорость нагружения (п.5)", "pnevmo_loading_rate"),
+                FieldLabel("Изготовитель аппаратуры АЭ (п.6)", "pnevmo_device_manufacturer"),
+                FieldLabel("Модель преобразователей (п.7)", "pnevmo_sensor_model"),
+                FieldLabel("Контактная среда (п.8)", "pnevmo_contact_medium"),
+                FieldLabel("Коэффициент основного усиления (п.9)", "pnevmo_gain"),
+                FieldLabel("Уровень дискриминации (п.9)", "pnevmo_discrimination"),
+                FieldLabel("Рабочая полоса частот (п.9)", "pnevmo_frequency_band"),
+                FieldLabel("Изменение параметров в ходе испытаний (п.10)", "pnevmo_param_changes"),
+                FieldLabel("Размещение ПАЭ (п.13)", "pnevmo_sensor_placement_note"),
             ],
+        ),
+        # Read-only зеркала пункта 3 (обязательное автозаполнение из уже
+        # введённых где-то в форме значений -- см. MainWindow._update_pnevmo_mirrors())
+        # НЕ входят сюда: это чисто UI-подсказки, самих ключей нет в
+        # self.data, шаблон использует исходные obj_naznach/reg_number/...
+        RepeatingTableSection(
+            heading="Приложение 8 — Таблица 1, результаты контроля (п.11)",
+            list_field="pnevmo_ae_results",
+            loop_var="row",
+            header_cells=["ПАЭ №", "Нагрузка", "пассивный", "активный",
+                          "критически активный", "катастрофически активный"],
+            row_cells=["paje_num", "nagruzka", "klass"],
+            caption="Таблица 1",
+        ),
+        FieldsTableSection(
+            heading="Приложение 8 — Рисунок 1, график нагружения (п.12)",
+            rows=[FieldLabel("График нагружения", "pnevmo_graph_image")],
+        ),
+        RepeatingTableSection(
+            heading="Приложение 8 — Этапы пневматического испытания трубопровода",
+            list_field="table_pnevmo_stages",
+            loop_var="row",
+            header_cells=["№ этапа", "Давление, кгс/см2", "Время выдержки, мин"],
+            positional=True,
+            caption="Таблица 2",
+        ),
+        FieldsTableSection(
+            heading="Приложение 8 — Контроль выполнил",
+            rows=[
+                FieldLabel("Должность", "pnevmo_specialist_position"),
+                FieldLabel("ФИО", "pnevmo_specialist_name_initials"),
+                FieldLabel("Удостоверение", "pnevmo_specialist_cert_number"),
+            ],
+        ),
+        # pnevmo_conclusion -- поле "Вывод" в том же QGroupBox pnevmo_group
+        # (ниже подписи Приложения 8 в UI), но по содержанию -- ЗАКЛЮЧЕНИЕ
+        # Приложения 9 (используется вместе с pnevmo_date/obj_naznach/
+        # reg_number там же), не трогалось в рамках задачи Приложения 8.
+        FieldsTableSection(
+            heading="Приложение 9 — Заключение",
+            rows=[FieldLabel("Вывод", "pnevmo_conclusion")],
         ),
         FieldsTableSection(
             heading="8. Выводы по результатам технического диагностирования",

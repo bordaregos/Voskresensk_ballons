@@ -905,8 +905,9 @@ n и n0 - измеренное количество несплошностей �
  </layout>
 </widget></item>
 <item><widget class="QGroupBox" name="pnevmo_group">
- <property name="title"><string>Приложения 8-9 — Пневмоиспытание с АЭ-контролем</string></property>
-<layout class="QFormLayout" name="formLayout_36">
+ <property name="title"><string>Приложение 8 — Протокол пневмоиспытания с АЭ-контролем</string></property>
+<layout class="QVBoxLayout" name="pnevmo_vlayout">
+<item><layout class="QFormLayout" name="formLayout_36">
 <item row="0" column="0">
  <widget class="QLabel" name="label_37"><property name="text"><string>Дата проведения</string></property></widget>
 </item>
@@ -947,16 +948,221 @@ n и n0 - измеренное количество несплошностей �
  <property name="maximum"><number>50</number></property>
 </widget>
 </item>
-<item row="4" column="0">
- <widget class="QLabel" name="label_41"><property name="text"><string>Вывод</string></property></widget>
-</item>
-<item row="4" column="1">
- <widget class="QPlainTextEdit" name="pnevmo_conclusion">
+</layout></item>
+<item><widget class="QLabel" name="label_pnevmo_p3_heading"><property name="text"><string>&lt;b&gt;Пункт 3 — Данные о трубопроводе&lt;/b&gt;</string></property></widget></item>
+<item><layout class="QFormLayout" name="pnevmo_p3_form">
+<item row="0" column="0"><widget class="QLabel" name="label_pnevmo_obj"><property name="text"><string>Трубопровод (наименование)</string></property></widget></item>
+<item row="0" column="1"><widget class="QPlainTextEdit" name="pnevmo_obj_display">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="readOnly"><bool>true</bool></property>
+</widget></item>
+<item row="1" column="0"><widget class="QLabel" name="label_pnevmo_reg_number"><property name="text"><string>Внутренний рег. номер</string></property></widget></item>
+<item row="1" column="1"><widget class="QPlainTextEdit" name="pnevmo_reg_number_display">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="readOnly"><bool>true</bool></property>
+</widget></item>
+<item row="2" column="0"><widget class="QLabel" name="label_pnevmo_year_start"><property name="text"><string>Дата ввода в эксплуатацию</string></property></widget></item>
+<item row="2" column="1"><widget class="QPlainTextEdit" name="pnevmo_year_start_display">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="readOnly"><bool>true</bool></property>
+</widget></item>
+<item row="3" column="0"><widget class="QLabel" name="label_pnevmo_p_rab"><property name="text"><string>Разрешённое давление, кгс/см2</string></property></widget></item>
+<item row="3" column="1"><widget class="QPlainTextEdit" name="pnevmo_p_rab_display">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="readOnly"><bool>true</bool></property>
+</widget></item>
+<item row="4" column="0"><widget class="QLabel" name="label_pnevmo_work_medium"><property name="text"><string>Рабочая среда</string></property></widget></item>
+<item row="4" column="1"><widget class="QPlainTextEdit" name="pnevmo_work_medium_display">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="readOnly"><bool>true</bool></property>
+</widget></item>
+<item row="5" column="0"><widget class="QLabel" name="label_pnevmo_steel_grade"><property name="text"><string>Марка материала</string></property></widget></item>
+<item row="5" column="1"><widget class="QPlainTextEdit" name="pnevmo_steel_grade_display">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="readOnly"><bool>true</bool></property>
+</widget></item>
+<item row="6" column="0"><widget class="QLabel" name="label_pnevmo_pipe_size"><property name="text"><string>Диаметр наружный/толщина труб, мм</string></property></widget></item>
+<item row="6" column="1"><widget class="QPlainTextEdit" name="pnevmo_pipe_size_display">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="readOnly"><bool>true</bool></property>
+</widget></item>
+<item row="7" column="0"><widget class="QLabel" name="label_pnevmo_pipe_serial"><property name="text"><string>Заводской номер</string></property></widget></item>
+<item row="7" column="1"><widget class="QPlainTextEdit" name="pnevmo_pipe_serial">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="plainText"><string>б/н</string></property>
+</widget></item>
+<item row="8" column="0"><widget class="QLabel" name="label_pnevmo_manufacture_method"><property name="text"><string>Метод изготовления</string></property></widget></item>
+<item row="8" column="1"><widget class="QPlainTextEdit" name="pnevmo_manufacture_method">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="plainText"><string>сварка</string></property>
+</widget></item>
+<item row="9" column="0"><widget class="QLabel" name="label_pnevmo_control_zone_size"><property name="text"><string>Размеры контролируемой зоны</string></property></widget></item>
+<item row="9" column="1"><widget class="QPlainTextEdit" name="pnevmo_control_zone_size">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="plainText"><string>~42,00м</string></property>
+</widget></item>
+<item row="10" column="0"><widget class="QLabel" name="label_pnevmo_ndt_temp_range"><property name="text"><string>Рабочая температура</string></property></widget></item>
+<item row="10" column="1"><widget class="QPlainTextEdit" name="pnevmo_ndt_temp_range">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="plainText"><string>плюс 15 ÷ плюс 20°С</string></property>
+</widget></item>
+<item row="11" column="0"><widget class="QLabel" name="label_pnevmo_surface_condition"><property name="text"><string>Состояние поверхности (после "Rz")</string></property></widget></item>
+<item row="11" column="1"><widget class="QPlainTextEdit" name="pnevmo_surface_condition">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="plainText"><string>≤ 40 мкм</string></property>
+</widget></item>
+<item row="12" column="0"><widget class="QLabel" name="label_pnevmo_magnetic_properties"><property name="text"><string>Магнитные свойства</string></property></widget></item>
+<item row="12" column="1"><widget class="QPlainTextEdit" name="pnevmo_magnetic_properties">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="plainText"><string>ферромагнетик</string></property>
+</widget></item>
+</layout></item>
+<item><widget class="QLabel" name="label_pnevmo_p45_heading"><property name="text"><string>&lt;b&gt;Пункты 4-5 — Условия испытаний&lt;/b&gt;</string></property></widget></item>
+<item><layout class="QFormLayout" name="pnevmo_p45_form">
+<item row="0" column="0"><widget class="QLabel" name="label_pnevmo_test_medium"><property name="text"><string>Рабочее тело</string></property></widget></item>
+<item row="0" column="1"><widget class="QPlainTextEdit" name="pnevmo_test_medium">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="plainText"><string>азот</string></property>
+</widget></item>
+<item row="1" column="0"><widget class="QLabel" name="label_pnevmo_object_temp"><property name="text"><string>Температура объекта</string></property></widget></item>
+<item row="1" column="1"><widget class="QPlainTextEdit" name="pnevmo_object_temp">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="plainText"><string>+20 оС</string></property>
+</widget></item>
+<item row="2" column="0"><widget class="QLabel" name="label_pnevmo_ambient_temp"><property name="text"><string>Температура окружающей среды</string></property></widget></item>
+<item row="2" column="1"><widget class="QPlainTextEdit" name="pnevmo_ambient_temp">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="plainText"><string>+20о С</string></property>
+</widget></item>
+<item row="3" column="0"><widget class="QLabel" name="label_pnevmo_loading_equipment"><property name="text"><string>Марка нагружающего оборудования</string></property></widget></item>
+<item row="3" column="1"><widget class="QPlainTextEdit" name="pnevmo_loading_equipment">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="plainText"><string>компрессор</string></property>
+</widget></item>
+<item row="4" column="0"><widget class="QLabel" name="label_pnevmo_loading_rate"><property name="text"><string>Скорость нагружения</string></property></widget></item>
+<item row="4" column="1"><widget class="QPlainTextEdit" name="pnevmo_loading_rate">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="plainText"><string>0,4 МПа/мин</string></property>
+</widget></item>
+</layout></item>
+<item><widget class="QLabel" name="label_pnevmo_p69_heading"><property name="text"><string>&lt;b&gt;Пункты 6-9 — Аппаратура АЭ&lt;/b&gt;</string></property></widget></item>
+<item><layout class="QFormLayout" name="pnevmo_p69_form">
+<item row="0" column="0"><widget class="QLabel" name="label_pnevmo_device_manufacturer"><property name="text"><string>Изготовитель аппаратуры</string></property></widget></item>
+<item row="0" column="1"><widget class="QPlainTextEdit" name="pnevmo_device_manufacturer">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="plainText"><string>НПФ «Технологическая аппаратура»</string></property>
+</widget></item>
+<item row="1" column="0"><widget class="QLabel" name="label_pnevmo_sensor_model"><property name="text"><string>Число и тип преобразователей (модель)</string></property></widget></item>
+<item row="1" column="1"><widget class="QPlainTextEdit" name="pnevmo_sensor_model">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="plainText"><string>ВИДГ.410419.001</string></property>
+</widget></item>
+<item row="2" column="0"><widget class="QLabel" name="label_pnevmo_contact_medium"><property name="text"><string>Контактная среда</string></property></widget></item>
+<item row="2" column="1"><widget class="QPlainTextEdit" name="pnevmo_contact_medium">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="plainText"><string>АКС-гель для ультразвукового контроля</string></property>
+</widget></item>
+<item row="3" column="0"><widget class="QLabel" name="label_pnevmo_gain"><property name="text"><string>Коэффициент основного усиления</string></property></widget></item>
+<item row="3" column="1"><widget class="QPlainTextEdit" name="pnevmo_gain">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="plainText"><string>90</string></property>
+</widget></item>
+<item row="4" column="0"><widget class="QLabel" name="label_pnevmo_discrimination"><property name="text"><string>Уровень дискриминации</string></property></widget></item>
+<item row="4" column="1"><widget class="QPlainTextEdit" name="pnevmo_discrimination">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="plainText"><string>50</string></property>
+</widget></item>
+<item row="5" column="0"><widget class="QLabel" name="label_pnevmo_frequency_band"><property name="text"><string>Рабочая полоса частот</string></property></widget></item>
+<item row="5" column="1"><widget class="QPlainTextEdit" name="pnevmo_frequency_band">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="plainText"><string>от 80 до 220 кГц</string></property>
+</widget></item>
+<item row="6" column="0"><widget class="QLabel" name="label_pnevmo_param_changes"><property name="text"><string>Изменение параметров в ходе испытаний (п.10)</string></property></widget></item>
+<item row="6" column="1"><widget class="QPlainTextEdit" name="pnevmo_param_changes">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="plainText"><string>не было</string></property>
+</widget></item>
+</layout></item>
+<item><widget class="QLabel" name="label_pnevmo_ae_table"><property name="text"><string>&lt;b&gt;Таблица 1 — Результаты контроля (п.11)&lt;/b&gt;</string></property></widget></item>
+<item><widget class="QTableWidget" name="table_pnevmo_ae">
+ <property name="minimumSize"><size><width>0</width><height>200</height></size></property>
+ <property name="rowCount"><number>0</number></property>
+ <property name="columnCount"><number>3</number></property>
+<column><property name="text"><string>ПАЭ №</string></property></column>
+<column><property name="text"><string>Нагрузка</string></property></column>
+<column><property name="text"><string>Класс источника</string></property></column>
+</widget></item>
+<item><layout class="QHBoxLayout" name="pnevmo_ae_buttons">
+<item><widget class="QPushButton" name="pushButt_fillPnevmoAeTable"><property name="text"><string>Заполнить по числу датчиков</string></property></widget></item>
+<item><widget class="QPushButton" name="pushButt_addPnevmoAeRow"><property name="text"><string>+ Добавить строку</string></property></widget></item>
+<item><widget class="QPushButton" name="pushButt_removePnevmoAeRow"><property name="text"><string>− Удалить</string></property></widget></item>
+</layout></item>
+<item><widget class="QLabel" name="label_pnevmo_graph"><property name="text"><string>&lt;b&gt;Рисунок 1 — график нагружения (п.12)&lt;/b&gt;</string></property></widget></item>
+<item><layout class="QHBoxLayout" name="pnevmo_graph_hlayout">
+<item><widget class="QLabel" name="pnevmo_graph_preview">
+ <property name="minimumSize"><size><width>360</width><height>240</height></size></property>
+ <property name="maximumSize"><size><width>360</width><height>240</height></size></property>
+ <property name="text"><string>нет изображения</string></property>
+</widget></item>
+<item><layout class="QVBoxLayout" name="pnevmo_graph_buttons">
+<item><widget class="QPushButton" name="pushButt_choosePnevmoGraph"><property name="text"><string>Загрузить изображение…</string></property></widget></item>
+<item><widget class="QPushButton" name="pushButt_clearPnevmoGraph"><property name="text"><string>Очистить</string></property></widget></item>
+</layout></item>
+</layout></item>
+<item><widget class="QLabel" name="label_pnevmo_stages_table"><property name="text"><string>&lt;b&gt;Этапы пневматического испытания трубопровода&lt;/b&gt;</string></property></widget></item>
+<item><widget class="QTableWidget" name="table_pnevmo_stages">
+ <property name="minimumSize"><size><width>0</width><height>140</height></size></property>
+ <property name="rowCount"><number>0</number></property>
+ <property name="columnCount"><number>3</number></property>
+<column><property name="text"><string>№ этапа</string></property></column>
+<column><property name="text"><string>Давление, кгс/см2</string></property></column>
+<column><property name="text"><string>Время выдержки, мин</string></property></column>
+</widget></item>
+<item><layout class="QHBoxLayout" name="pnevmo_stages_buttons">
+<item><widget class="QPushButton" name="pushButt_addPnevmoStageRow"><property name="text"><string>+ Добавить этап</string></property></widget></item>
+<item><widget class="QPushButton" name="pushButt_removePnevmoStageRow"><property name="text"><string>− Удалить</string></property></widget></item>
+</layout></item>
+<item><layout class="QFormLayout" name="pnevmo_p13_form">
+<item row="0" column="0"><widget class="QLabel" name="label_pnevmo_sensor_placement"><property name="text"><string>Размещение ПАЭ (п.13)</string></property></widget></item>
+<item row="0" column="1"><widget class="QPlainTextEdit" name="pnevmo_sensor_placement_note">
+ <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
+ <property name="plainText"><string>Размещение ПАЭ и их количество определено конфигурацией трубопровода и оптимальностью расстановки на контролируемых участках. Расстановки ПАЭ соответствует схеме технологии контроля</string></property>
+</widget></item>
+<item row="1" column="0"><widget class="QLabel" name="label_pnevmo_specialist"><property name="text"><string>Контроль выполнил</string></property></widget></item>
+<item row="1" column="1"><widget class="QComboBox" name="pnevmo_specialist"/></item>
+<item row="2" column="0"><widget class="QLabel" name="label_41"><property name="text"><string>Вывод</string></property></widget></item>
+<item row="2" column="1"><widget class="QPlainTextEdit" name="pnevmo_conclusion">
  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
  <property name="placeholderText"><string></string></property>
-</widget>
-</item>
+</widget></item>
+</layout></item>
 </layout>
 </widget></item>
 </layout>

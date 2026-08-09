@@ -39,6 +39,19 @@ PLAIN_TEXT_EDIT_NAMES = [
     "thick_seed_min", "thick_guidance_docs", "thick_conclusion",
     "uzk_guidance_docs", "uzk_evaluation_text", "uzk_conclusion",
     "pnevmo_pressure", "pnevmo_conclusion",
+    # Приложение 8 -- Протокол пневмоиспытания с АЭ-контролем (п.2-13,
+    # литералы шаблона, доведённые до редактируемых полей формы). Мирроры
+    # уже введённых где-то в форме значений (обязательное значение
+    # трубопровода, дата ввода и т.п.) сюда НЕ входят -- см.
+    # pnevmo_obj_display и др. в pipeline_window.ui, они не резолвятся в
+    # self.data (шаблон использует исходные ключи obj_naznach и т.п.).
+    "pnevmo_pipe_serial", "pnevmo_manufacture_method", "pnevmo_control_zone_size",
+    "pnevmo_ndt_temp_range", "pnevmo_surface_condition", "pnevmo_magnetic_properties",
+    "pnevmo_test_medium", "pnevmo_object_temp", "pnevmo_ambient_temp",
+    "pnevmo_loading_equipment", "pnevmo_loading_rate",
+    "pnevmo_device_manufacturer", "pnevmo_sensor_model", "pnevmo_contact_medium",
+    "pnevmo_gain", "pnevmo_discrimination", "pnevmo_frequency_band",
+    "pnevmo_param_changes", "pnevmo_sensor_placement_note",
     # Расчёт на прочность и остаточный ресурс (Приложение 6)
     "calc_temp", "calc_phi", "calc_da", "calc_sn", "calc_c2", "calc_sf",
     "calc_sigma_allow", "calc_sr", "calc_s_reject", "calc_p_allow",
@@ -87,10 +100,16 @@ TABLE_WIDGET = [
     "table_reviewed_docs", "table_vik", "table_segments",
     "table_thick_pipeline", "table_uzk", "table_specialists",
     "table_pipe_materials", "table_program",
+    "table_pnevmo_ae", "table_pnevmo_stages",
 ]
 
 # Варианты "Тип элемента" для выпадающего списка в table_segments (колонка 1).
 SEGMENT_TYPES = ["Прямой участок", "Отвод", "Тройник", "Переход"]
+
+# Варианты "Класс источника" для выпадающего списка в table_pnevmo_ae
+# (колонка 2, Приложение 8, Таблица 1) -- фиксированный список классификации
+# источников АЭ по ГОСТ Р 52727.
+AE_CLASS_TYPES = ["пассивный", "активный", "критически активный", "катастрофически активный"]
 
 # Стартовое содержимое table_program (Приложение 1 -- Программа технического
 # диагностирования): пары (уровень, текст), level 0 -- пункт верхнего уровня
