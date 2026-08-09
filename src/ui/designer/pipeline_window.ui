@@ -837,6 +837,12 @@
 </widget></item>
 <item><widget class="QPushButton" name="pushButt_removeUzkDevice"><property name="text"><string>−</string></property></widget></item>
 </layout></item>
+   <item row="2" column="0"><widget class="QLabel" name="label_uzk_guidance_docs"><property name="text"><string>Руководящие документы</string></property></widget></item>
+   <item row="2" column="1"><widget class="QPlainTextEdit" name="uzk_guidance_docs">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="plainText"><string>ГОСТ Р 55724-2013 «Контроль неразрушающий. Соединения сварные. Методы ультразвуковые»</string></property>
+</widget></item>
   </layout></item>
   <item><widget class="QTableWidget" name="table_uzk">
  <property name="minimumSize"><size><width>0</width><height>140</height></size></property>
@@ -849,6 +855,29 @@
 <column><property name="text"><string>Дефекты</string></property></column>
 <column><property name="text"><string>Оценка</string></property></column>
 </widget></item>
+  <item><widget class="QLabel" name="label_uzk_evaluation_text"><property name="text"><string>Оценка результатов контроля</string></property></widget></item>
+  <item><widget class="QPlainTextEdit" name="uzk_evaluation_text">
+ <property name="minimumSize"><size><width>0</width><height>160</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>160</height></size></property>
+ <property name="plainText"><string>Оценка качества контроля сварных соединений и околошовной зоны проводилась по амплитуде эхо-сигнала и суммарному количеству дефектов на каждые 100 мм длины сварного соединения.
+Качество сварных соединений оценивают по двухбалльной системе:
+- балл 1 - неудовлетворительное качество:
+- балл 2 - удовлетворительное качество.
+Баллом 1 оценивают сварные соединения с несплошностями, измеренные характеристики или количество которых превышают максимально допустимые значения по действующим нормам.
+Баллом 2 оценивают сварные соединения с несплошностями, измеренные характеристики или количество которых не превышают установленных норм.
+Балл 2а - сварные соединения считают ограниченно годными, если в них обнаружены несплошности с Ак ≤ А ≤ Aбр; DL ≤ DL0 n ＜ n0,
+Балл 2б – сварные соединения считают абсолютно годными, если в них не обнаружены несплошности с А ≥ Ак.
+где, А - измеренная амплитуда эхо-сигнала от несплошности;
+Ак и Абр - амплитуды контрольного и браковочного уровней чувствительности на глубине залегания несплошности;
+DL и DL0 - измеренная условная протяженность несплошности и ее предельно допустимое значение;
+n и n0 - измеренное количество несплошностей с n ≤ n0 на единицу длины сварного соединения (удельное количество) и предельно допустимое количество.
+Допустимость несплошности по амплитуде А эхо-сигнала
+Эхо-сигнал от несплошности превышает браковочный уровень и, следовательно, несплошность оценивается как недопустимый дефект.
+Эхо-сигнал не превышает браковочный, но выше контрольного уровня чувствительности. Такая несплошность подлежит регистрации и дальнейшей оценке по условным размерам.
+Эхо-сигнал ниже контрольного уровня чувствительности и не подлежит регистрации. В такой ситуации качество оценивается баллом 2б.
+* Примечание:
+- балл 2б - отсутствуют несплошности с амплитудой эхо-сигнала равной или большей контрольного уровня чувствительности.</string></property>
+</widget></item>
   <item><layout class="QFormLayout" name="uzk_form2">
    <item row="0" column="0"><widget class="QLabel" name="label_uzk_concl"><property name="text"><string>Вывод</string></property></widget></item>
    <item row="0" column="1"><widget class="QPlainTextEdit" name="uzk_conclusion">
@@ -856,6 +885,8 @@
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
  <property name="placeholderText"><string></string></property>
 </widget></item>
+   <item row="1" column="0"><widget class="QLabel" name="label_uzk_specialist"><property name="text"><string>Измерение провёл</string></property></widget></item>
+   <item row="1" column="1"><widget class="QComboBox" name="uzk_specialist"/></item>
   </layout></item>
  </layout>
 </widget></item>
