@@ -399,6 +399,21 @@ class MainWindow(QMainWindow):
                 self.data["pnevmo_specialist_name_initials"] = pnevmo_specialist["name_initials"]
                 self.data["pnevmo_specialist_cert_number"] = pnevmo_specialist["cert_number"]
 
+                # "Заключение составил" (Приложение 9) -- тот же паттерн.
+                ae_zakl_specialist_idx = self.ae_zakl_specialist.currentData()
+                if (
+                    ae_zakl_specialist_idx is None
+                    or ae_zakl_specialist_idx >= len(self.data["specialists"])
+                ):
+                    raise ValueError(
+                        "Выберите специалиста в поле «Заключение составил» "
+                        "(Приложение 9) -- источник вариантов: Таблица 2 (1.3)"
+                    )
+                ae_zakl_specialist = self.data["specialists"][ae_zakl_specialist_idx]
+                self.data["ae_zakl_specialist_position"] = ae_zakl_specialist["position"]
+                self.data["ae_zakl_specialist_name_initials"] = ae_zakl_specialist["name_initials"]
+                self.data["ae_zakl_specialist_cert_number"] = ae_zakl_specialist["cert_number"]
+
                 # Таблица 1 (Приложение 8, п.11) -- список словарей под
                 # {%tr for %} в шаблоне; колонки: 0 -- ПАЭ №, 1 -- Нагрузка,
                 # 2 -- Класс источника (см. table_pnevmo_ae, AE_CLASS_TYPES).
@@ -908,6 +923,13 @@ class MainWindow(QMainWindow):
         self.pnevmo_steel_grade_display.setPlainText(self._first_pipe_material_value(4))
         self.pnevmo_pipe_size_display.setPlainText(self._first_pipe_material_value(3))
 
+        # Приложение 9 -- те же исходные значения, тот же приём зеркал.
+        self.ae_zakl_date_display.setPlainText(self.pnevmo_date.date().toString("dd.MM.yyyy"))
+        self.ae_zakl_obj_display.setPlainText(self.obj_naznach.toPlainText())
+        self.ae_zakl_reg_number_display.setPlainText(self.reg_number.toPlainText())
+        self.ae_zakl_report_date_display.setPlainText(self.report_date.date().toString("dd.MM.yyyy"))
+        self.ae_zakl_location_display.setPlainText(self.obj_location.toPlainText())
+
     def _first_pipe_material_value(self, col):
         """Значение колонки col первой строки table_pipe_materials (Таблица
         6 -- Сведения о трубах) или "" если таблица пуста. Типоразмер и
@@ -1227,8 +1249,9 @@ class MainWindow(QMainWindow):
         Приложение 2), vik_specialist (поле "Контроль провёл", Приложение 3),
         thick_specialist (поле "Измерение провёл", Приложение 4),
         uzk_specialist (поле "Измерение провёл", Приложение 5),
-        calc_specialist (поле "Расчёт выполнил", Приложение 6) и
-        pnevmo_specialist (поле "Контроль выполнил", Приложение 8) при
+        calc_specialist (поле "Расчёт выполнил", Приложение 6),
+        pnevmo_specialist (поле "Контроль выполнил", Приложение 8) и
+        ae_zakl_specialist (поле "Заключение составил", Приложение 9) при
         переключении на вкладку "Приложения" или "Расчёты" -- источник
         вариантов для всех один и тот же: table_specialists (1.3 Сведения о
         специалистах, Таблица 2). Ни один из комбобоксов не входит ни в один
@@ -1246,6 +1269,7 @@ class MainWindow(QMainWindow):
         self._refresh_specialist_combo(self.uzk_specialist)
         self._refresh_specialist_combo(self.calc_specialist)
         self._refresh_specialist_combo(self.pnevmo_specialist)
+        self._refresh_specialist_combo(self.ae_zakl_specialist)
         self._update_pnevmo_mirrors()
 
     def _refresh_specialist_combo(self, combo):

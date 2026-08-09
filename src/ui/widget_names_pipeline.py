@@ -52,6 +52,13 @@ PLAIN_TEXT_EDIT_NAMES = [
     "pnevmo_device_manufacturer", "pnevmo_sensor_model", "pnevmo_contact_medium",
     "pnevmo_gain", "pnevmo_discrimination", "pnevmo_frequency_band",
     "pnevmo_param_changes", "pnevmo_sensor_placement_note",
+    # Приложение 9 -- Заключение по результатам АЭ-контроля (2 статичных
+    # абзаца шаблона, доведённые до редактируемых полей формы). Дата/объект/
+    # рег.номер и "Вывод" этого раздела шаблона используют уже существующие
+    # ключи pnevmo_date/obj_naznach/reg_number/pnevmo_conclusion -- отдельных
+    # виджетов под них не заводим (см. ae_zakl_*_display в pipeline_window.ui,
+    # это чисто UI-зеркала, в widget_names не входят, как и pnevmo_*_display).
+    "ae_zakl_sources_text", "ae_zakl_evaluation_text",
     # Расчёт на прочность и остаточный ресурс (Приложение 6)
     "calc_temp", "calc_phi", "calc_da", "calc_sn", "calc_c2", "calc_sf",
     "calc_sigma_allow", "calc_sr", "calc_s_reject", "calc_p_allow",
