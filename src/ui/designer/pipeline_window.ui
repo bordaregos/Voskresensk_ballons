@@ -1165,6 +1165,59 @@ n и n0 - измеренное количество несплошностей �
 </layout></item>
 </layout>
 </widget></item>
+<item><widget class="QGroupBox" name="ae_zakl_group">
+ <property name="title"><string>Приложение 9 — Заключение по результатам АЭ-контроля</string></property>
+<layout class="QVBoxLayout" name="ae_zakl_vlayout">
+<item><layout class="QFormLayout" name="ae_zakl_context_form">
+<item row="0" column="0"><widget class="QLabel" name="label_ae_zakl_date"><property name="text"><string>Дата проведения контроля</string></property></widget></item>
+<item row="0" column="1"><widget class="QPlainTextEdit" name="ae_zakl_date_display">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="readOnly"><bool>true</bool></property>
+</widget></item>
+<item row="1" column="0"><widget class="QLabel" name="label_ae_zakl_obj"><property name="text"><string>Объект контроля</string></property></widget></item>
+<item row="1" column="1"><widget class="QPlainTextEdit" name="ae_zakl_obj_display">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="readOnly"><bool>true</bool></property>
+</widget></item>
+<item row="2" column="0"><widget class="QLabel" name="label_ae_zakl_reg_number"><property name="text"><string>Рег. номер</string></property></widget></item>
+<item row="2" column="1"><widget class="QPlainTextEdit" name="ae_zakl_reg_number_display">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="readOnly"><bool>true</bool></property>
+</widget></item>
+<item row="3" column="0"><widget class="QLabel" name="label_ae_zakl_report_date"><property name="text"><string>Дата отчёта (к «УТВЕРЖДАЮ»)</string></property></widget></item>
+<item row="3" column="1"><widget class="QPlainTextEdit" name="ae_zakl_report_date_display">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="readOnly"><bool>true</bool></property>
+</widget></item>
+<item row="4" column="0"><widget class="QLabel" name="label_ae_zakl_location"><property name="text"><string>Место проведения контроля</string></property></widget></item>
+<item row="4" column="1"><widget class="QPlainTextEdit" name="ae_zakl_location_display">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="readOnly"><bool>true</bool></property>
+</widget></item>
+</layout></item>
+<item><widget class="QLabel" name="label_ae_zakl_sources"><property name="text"><string>Результаты контроля (абзац 1)</string></property></widget></item>
+<item><widget class="QPlainTextEdit" name="ae_zakl_sources_text">
+ <property name="minimumSize"><size><width>0</width><height>90</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>140</height></size></property>
+ <property name="plainText"><string>В результате проведения акустико-эмиссионного контроля при проведении пневматического испытания объекта были выявлены «пассивные» источники акустической эмиссии, на основании чего сделано следующее заключение:</string></property>
+</widget></item>
+<item><widget class="QLabel" name="label_ae_zakl_evaluation"><property name="text"><string>Оценка результатов (абзац 2)</string></property></widget></item>
+<item><widget class="QPlainTextEdit" name="ae_zakl_evaluation_text">
+ <property name="minimumSize"><size><width>0</width><height>90</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>140</height></size></property>
+ <property name="plainText"><string>Источников акустической эмиссии, связанных с несплошностями на поверхности или в объеме стенки объекта контроля, свидетельствующих об образовании свищей, сквозных трещин, протечек в уплотнениях, заглушках и фланцевых соединениях не зарегистрировано, применение дополнительных видов неразрушающего контроля не требуется.</string></property>
+</widget></item>
+<item><layout class="QFormLayout" name="ae_zakl_specialist_form">
+<item row="0" column="0"><widget class="QLabel" name="label_ae_zakl_specialist"><property name="text"><string>Заключение составил</string></property></widget></item>
+<item row="0" column="1"><widget class="QComboBox" name="ae_zakl_specialist"/></item>
+</layout></item>
+</layout>
+</widget></item>
 </layout>
     </widget>
    </widget>

@@ -486,13 +486,37 @@ PIPELINE_SCHEMA = ReportSchema(
                 FieldLabel("Удостоверение", "pnevmo_specialist_cert_number"),
             ],
         ),
-        # pnevmo_conclusion -- поле "Вывод" в том же QGroupBox pnevmo_group
-        # (ниже подписи Приложения 8 в UI), но по содержанию -- ЗАКЛЮЧЕНИЕ
-        # Приложения 9 (используется вместе с pnevmo_date/obj_naznach/
-        # reg_number там же), не трогалось в рамках задачи Приложения 8.
+        # Приложение 9 -- своя QGroupBox (ae_zakl_group) в UI, идёт следом за
+        # pnevmo_group. Дата/объект/рег.номер в самом разделе шаблона исполь-
+        # зуют исходные pnevmo_date/obj_naznach/reg_number (те же значения,
+        # что и в Приложении 8); дата в блоке "УТВЕРЖДАЮ" -- report_date
+        # (1. Титульный лист); "Место проведения контроля" -- obj_location
+        # (1.2 Местонахождение). Ни для одного из них отдельных полей нет,
+        # см. ae_zakl_*_display (read-only зеркала, MainWindow._update_pnevmo_mirrors()).
+        # pnevmo_conclusion -- поле "Вывод" физически осталось в pnevmo_group
+        # (см. Приложение 8 -- Контроль выполнил выше), в шаблон попадает
+        # под "Вывод:" этого же раздела.
         FieldsTableSection(
-            heading="Приложение 9 — Заключение",
-            rows=[FieldLabel("Вывод", "pnevmo_conclusion")],
+            heading="Приложение 9 — Заключение по результатам АЭ-контроля",
+            rows=[
+                FieldLabel("Абзац 1 — выявленные источники АЭ", "ae_zakl_sources_text"),
+                FieldLabel("Абзац 2 — оценка результатов", "ae_zakl_evaluation_text"),
+                FieldLabel("Вывод", "pnevmo_conclusion"),
+            ],
+        ),
+        # Таблица под заголовком (тот же приём, что и "Приложение 8 --
+        # Контроль выполнил" выше) -- изначально была пропущена: заголовок
+        # "Заключение составил:" в шаблоне сопровождается таблицей из двух
+        # строк (должность/ФИО, ниже -- "(удостоверение № ...)"), а не
+        # отдельным абзацем с табуляцией -- второй, лишний абзац под таблицей
+        # удалён из шаблона как дублирующий остаток.
+        FieldsTableSection(
+            heading="Приложение 9 — Заключение составил",
+            rows=[
+                FieldLabel("Должность", "ae_zakl_specialist_position"),
+                FieldLabel("ФИО", "ae_zakl_specialist_name_initials"),
+                FieldLabel("Удостоверение", "ae_zakl_specialist_cert_number"),
+            ],
         ),
         FieldsTableSection(
             heading="8. Выводы по результатам технического диагностирования",
