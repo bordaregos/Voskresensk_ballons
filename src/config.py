@@ -18,6 +18,11 @@ DATA_DIR = PROJECT_ROOT / "data"
 EMPLOYEES_FILE = DATA_DIR / "employees.json"
 KLEISHE_DIR = DATA_DIR / "kleishe"
 
+# Схемы НК (Приложение 7, трубопровод) — привязаны к конкретному отчёту
+# (хранятся в report_data проекта как имя файла), но физически лежат в
+# общей папке data/, как и клише — см. store_kleishe_image().
+NK_SCHEME_DIR = DATA_DIR / "nk_schemes"
+
 # Шаблоны
 TEMPLATE_WORD = TEMPLATES_DIR / "Шаблон_финал.docx"
 TEMPLATE_WORD_OLD = TEMPLATES_DIR / "Шаблон_баллоны_2.docx"
@@ -63,7 +68,7 @@ GOST_HARDNESS_ALLOWANCE = 20
 
 def ensure_directories():
     """Создание необходимых директорий, если их нет."""
-    for directory in [TEMPLATES_DIR, OUTPUT_DIR, BACKUP_DIR, DATA_DIR, KLEISHE_DIR]:
+    for directory in [TEMPLATES_DIR, OUTPUT_DIR, BACKUP_DIR, DATA_DIR, KLEISHE_DIR, NK_SCHEME_DIR]:
         directory.mkdir(parents=True, exist_ok=True)
 
 

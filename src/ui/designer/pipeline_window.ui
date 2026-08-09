@@ -890,6 +890,20 @@ n и n0 - измеренное количество несплошностей �
   </layout></item>
  </layout>
 </widget></item>
+<item><widget class="QGroupBox" name="nk_scheme_group">
+ <property name="title"><string>Приложение 7 — Схема НК</string></property>
+ <layout class="QHBoxLayout" name="nk_scheme_hlayout">
+  <item><widget class="QLabel" name="nk_scheme_preview">
+ <property name="minimumSize"><size><width>360</width><height>240</height></size></property>
+ <property name="maximumSize"><size><width>360</width><height>240</height></size></property>
+ <property name="text"><string>нет изображения</string></property>
+</widget></item>
+  <item><layout class="QVBoxLayout" name="nk_scheme_buttons">
+<item><widget class="QPushButton" name="pushButt_chooseNkScheme"><property name="text"><string>Загрузить изображение…</string></property></widget></item>
+<item><widget class="QPushButton" name="pushButt_clearNkScheme"><property name="text"><string>Очистить</string></property></widget></item>
+</layout></item>
+ </layout>
+</widget></item>
 <item><widget class="QGroupBox" name="pnevmo_group">
  <property name="title"><string>Приложения 8-9 — Пневмоиспытание с АЭ-контролем</string></property>
 <layout class="QFormLayout" name="formLayout_36">
