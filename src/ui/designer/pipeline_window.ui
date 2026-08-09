@@ -960,67 +960,104 @@ n и n0 - измеренное количество несплошностей �
     <widget class="QWidget" name="tab_calc_scrollContent">
      <property name="geometry"><rect><x>0</x><y>0</y><width>960</width><height>1700</height></rect></property>
      <layout class="QVBoxLayout" name="vlayout_67">
+<item><widget class="QGroupBox" name="calc_appendix_group">
+ <property name="title"><string>Приложение 6 — Расчёт на прочность и остаточный ресурс</string></property>
+<layout class="QVBoxLayout" name="calc_appendix_vlayout">
+<item><widget class="QLabel" name="label_calc_gost_basis"><property name="text"><string>Основание для расчёта</string></property></widget></item>
+<item><widget class="QPlainTextEdit" name="calc_gost_basis">
+ <property name="minimumSize"><size><width>0</width><height>50</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>70</height></size></property>
+ <property name="plainText"><string>Расчёт на прочность и расчёт остаточного ресурса по скорости коррозии элементов трубопровода выполнен в соответствии с ГОСТ 32388-2013 «Межгосударственный стандарт, трубопроводы технологические. Нормы и методы расчета на прочность, вибрацию и сейсмические воздействия».</string></property>
+</widget></item>
+<item><widget class="QLabel" name="label_calc_results_heading">
+ <property name="styleSheet"><string notr="true">font-weight:bold;</string></property>
+ <property name="text"><string>Результаты расчётов</string></property>
+</widget></item>
 <item><widget class="QGroupBox" name="strength_inputs_group">
  <property name="title"><string>Исходные данные для расчёта</string></property>
 <layout class="QFormLayout" name="formLayout_43">
 <item row="0" column="0">
- <widget class="QLabel" name="label_44"><property name="text"><string>Температура стенки tст, °C</string></property></widget>
+ <widget class="QLabel" name="label_calc_steel_grade"><property name="text"><string>Марка стали</string></property></widget>
 </item>
 <item row="0" column="1">
- <widget class="QPlainTextEdit" name="calc_temp">
+ <widget class="QPlainTextEdit" name="calc_steel_grade">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string>20</string></property>
+ <property name="readOnly"><bool>true</bool></property>
+ <property name="placeholderText"><string>появится после расчёта на прочность (из Таблицы 6)</string></property>
 </widget>
 </item>
 <item row="1" column="0">
- <widget class="QLabel" name="label_45"><property name="text"><string>Коэффициент прочности шва φw</string></property></widget>
+ <widget class="QLabel" name="label_calc_p_rab_display"><property name="text"><string>Давление Pр, МПа</string></property></widget>
 </item>
 <item row="1" column="1">
+ <widget class="QPlainTextEdit" name="calc_p_rab_display">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="readOnly"><bool>true</bool></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="2" column="0">
+ <widget class="QLabel" name="label_44"><property name="text"><string>Температура стенки tст, °C</string></property></widget>
+</item>
+<item row="2" column="1">
+ <widget class="QPlainTextEdit" name="calc_temp">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="readOnly"><bool>true</bool></property>
+ <property name="placeholderText"><string>20</string></property>
+</widget>
+</item>
+<item row="3" column="0">
+ <widget class="QLabel" name="label_45"><property name="text"><string>Коэффициент прочности шва φw</string></property></widget>
+</item>
+<item row="3" column="1">
  <widget class="QPlainTextEdit" name="calc_phi">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
  <property name="placeholderText"><string>1,0</string></property>
 </widget>
 </item>
-<item row="2" column="0">
+<item row="4" column="0">
  <widget class="QLabel" name="label_46"><property name="text"><string>Номинальный диаметр Da, мм</string></property></widget>
 </item>
-<item row="2" column="1">
+<item row="4" column="1">
  <widget class="QPlainTextEdit" name="calc_da">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
  <property name="placeholderText"><string></string></property>
 </widget>
 </item>
-<item row="3" column="0">
+<item row="5" column="0">
  <widget class="QLabel" name="label_47"><property name="text"><string>Номинальная толщина Sн, мм</string></property></widget>
 </item>
-<item row="3" column="1">
+<item row="5" column="1">
  <widget class="QPlainTextEdit" name="calc_sn">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
  <property name="placeholderText"><string></string></property>
 </widget>
 </item>
-<item row="4" column="0">
+<item row="6" column="0">
  <widget class="QLabel" name="label_48"><property name="text"><string>Эксплуатационная прибавка C2, мм</string></property></widget>
 </item>
-<item row="4" column="1">
+<item row="6" column="1">
  <widget class="QPlainTextEdit" name="calc_c2">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
  <property name="placeholderText"><string></string></property>
 </widget>
 </item>
-<item row="5" column="0">
+<item row="7" column="0">
  <widget class="QLabel" name="label_49"><property name="text"><string>Фактическая мин. толщина Sф, мм</string></property></widget>
 </item>
-<item row="5" column="1">
+<item row="7" column="1">
  <widget class="QPlainTextEdit" name="calc_sf">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="readOnly"><bool>true</bool></property>
+ <property name="placeholderText"><string>появится после «Расчитать толщины»</string></property>
 </widget>
 </item>
 </layout>
@@ -1123,6 +1160,7 @@ n и n0 - измеренное количество несплошностей �
  <widget class="QPlainTextEdit" name="calc_corrosion_rate">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="readOnly"><bool>true</bool></property>
  <property name="placeholderText"><string></string></property>
 </widget>
 </item>
@@ -1133,19 +1171,59 @@ n и n0 - измеренное количество несплошностей �
  <widget class="QPlainTextEdit" name="calc_remaining_years">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="readOnly"><bool>true</bool></property>
  <property name="placeholderText"><string></string></property>
 </widget>
 </item>
-<item row="2" column="0">
- <widget class="QLabel" name="label_62"><property name="text"><string>Комментарий</string></property></widget>
-</item>
-<item row="2" column="1">
- <widget class="QPlainTextEdit" name="calc_residual_comment">
- <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
-</widget>
-</item>
+</layout>
+</widget></item>
+<item><widget class="QLabel" name="label_calc_residual_methodology_note"><property name="text"><string>Обоснование методики оценки остаточного ресурса</string></property></widget></item>
+<item><widget class="QPlainTextEdit" name="calc_residual_methodology_note">
+ <property name="minimumSize"><size><width>0</width><height>60</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>80</height></size></property>
+ <property name="plainText"><string>Прогнозирование остаточного ресурса основных элементов технологического трубопровода проводилось в соответствии с требованиями «Методики оценки остаточного ресурса технологических трубопроводов». Согласовано с Госгортехнадзором РФ письмом № 02-35/327 от 24.07.1996 г.</string></property>
+</widget></item>
+<item><widget class="QLabel" name="label_calc_residual_formula_text"><property name="text"><string>Формула остаточного ресурса</string></property></widget></item>
+<item><widget class="QPlainTextEdit" name="calc_residual_formula_text">
+ <property name="minimumSize"><size><width>0</width><height>140</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>180</height></size></property>
+ <property name="plainText"><string>Прогнозирование остаточного ресурса трубопровода базируется на результатах обследования технического состояния, оценки фактической нагруженности основных элементов трубопровода.
+Оценка остаточного ресурса основных несущих элементов трубопровода, повреждающим фактором для которого является общая коррозия, производится по формуле:
+Тост=К(Sф–Sотб)/Аф,
+где Тост - остаточный ресурс элемента, годы;
+Sф - фактическая толщина элемента, мм (Акт по результатам измерения толщины стенки элементов технологического трубопровода представленный в настоящем Заключении ЭПБ);
+Soтб - отбраковочная толщина элемента, мм (минимальная расчётная);
+К - коэффициент, зависящий от категории и срока службы трубопровода без замены;
+Аф - фактическая скорость коррозионного и эрозионного износа, мм/год;</string></property>
+</widget></item>
+<item><widget class="QLabel" name="label_calc_corrosion_formula_text"><property name="text"><string>Формула скорости коррозии</string></property></widget></item>
+<item><widget class="QPlainTextEdit" name="calc_corrosion_formula_text">
+ <property name="minimumSize"><size><width>0</width><height>90</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>110</height></size></property>
+ <property name="plainText"><string>где Sи - исполнительная толщина стенки элемента (паспорт трубопровода), мм;
+С0- плюсовой допуск на толщину стенки, мм; Со=0,4* Sи
+t- время от момента начала эксплуатации до момента обследования (паспорт трубопровода), лет.</string></property>
+</widget></item>
+<item><widget class="QLabel" name="label_calc_worked_example_note"><property name="text"><string>Пояснение к расчётному примеру</string></property></widget></item>
+<item><widget class="QPlainTextEdit" name="calc_worked_example_note">
+ <property name="minimumSize"><size><width>0</width><height>45</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>60</height></size></property>
+ <property name="plainText"><string>Остаточный ресурс прямолинейных элементов трубопровода составляет:</string></property>
+</widget></item>
+<item><layout class="QFormLayout" name="calc_specialist_form">
+ <item row="0" column="0">
+  <widget class="QLabel" name="label_62"><property name="text"><string>Вывод</string></property></widget>
+ </item>
+ <item row="0" column="1">
+  <widget class="QPlainTextEdit" name="calc_residual_comment">
+  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
+  <property name="maximumSize"><size><width>16777215</width><height>70</height></size></property>
+  <property name="plainText"><string>Результаты расчета по прогнозированию остаточного ресурса технологического трубопровода позволяют продолжить его дальнейшую эксплуатацию до следующего технического диагностирования и освидетельствования.</string></property>
+ </widget>
+ </item>
+ <item row="1" column="0"><widget class="QLabel" name="label_calc_specialist"><property name="text"><string>Расчёт выполнил</string></property></widget></item>
+ <item row="1" column="1"><widget class="QComboBox" name="calc_specialist"/></item>
+</layout></item>
 </layout>
 </widget></item>
 <item><widget class="QGroupBox" name="final_group">
