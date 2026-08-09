@@ -13,7 +13,7 @@ from src.services.exporter import (
 )
 from src.models.project import Project
 from src.config import OUTPUT_DIR
-from src.ui.widget_names_pipeline import SEGMENT_TYPES
+from src.ui.widget_names_pipeline import SEGMENT_TYPES, AE_CLASS_TYPES
 
 
 class FileHandler:
@@ -429,6 +429,12 @@ class FileHandler:
                             self.main_window._install_segment_type_combo(
                                 table, row_idx, str(cell_text) or SEGMENT_TYPES[0]
                             )
+                        # table_pnevmo_ae, колонка 2 -- выпадающий список
+                        # класса источника (QComboBox), тот же приём.
+                        elif name == "table_pnevmo_ae" and col_idx == 2:
+                            self.main_window._install_ae_class_combo(
+                                table, row_idx, str(cell_text) or AE_CLASS_TYPES[0]
+                            )
                         else:
                             table.setItem(row_idx, col_idx, QTableWidgetItem(str(cell_text)))
 
@@ -439,3 +445,8 @@ class FileHandler:
                 nk_filename = project.report_data.get("nk_scheme_filename")
                 self.main_window.data["nk_scheme_filename"] = nk_filename
                 self.main_window._set_nk_scheme_preview(nk_filename)
+
+                # График нагружения (Приложение 8) -- тот же приём.
+                pnevmo_graph_filename = project.report_data.get("pnevmo_graph_filename")
+                self.main_window.data["pnevmo_graph_filename"] = pnevmo_graph_filename
+                self.main_window._set_pnevmo_graph_preview(pnevmo_graph_filename)

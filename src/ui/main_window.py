@@ -36,8 +36,8 @@ from ..services.calculations_pipeline import (
     SegmentSpec,
 )
 from ..services.employees_store import store_kleishe_image
-from ..config import NK_SCHEME_DIR
-from .widget_names_pipeline import SEGMENT_TYPES, PROGRAM_DEFAULT_ITEMS
+from ..config import NK_SCHEME_DIR, PNEVMO_GRAPH_DIR
+from .widget_names_pipeline import SEGMENT_TYPES, PROGRAM_DEFAULT_ITEMS, AE_CLASS_TYPES
 
 
 class MainWindow(QMainWindow):
@@ -118,6 +118,13 @@ class MainWindow(QMainWindow):
             self._seed_program_table_defaults()
             self.pushButt_chooseNkScheme.clicked.connect(self._choose_nk_scheme)
             self.pushButt_clearNkScheme.clicked.connect(self._clear_nk_scheme)
+            self.pushButt_fillPnevmoAeTable.clicked.connect(self._fill_pnevmo_ae_table)
+            self.pushButt_addPnevmoAeRow.clicked.connect(self._add_pnevmo_ae_row)
+            self.pushButt_removePnevmoAeRow.clicked.connect(lambda: self._remove_table_row(self.table_pnevmo_ae))
+            self.pushButt_addPnevmoStageRow.clicked.connect(lambda: self._add_table_row(self.table_pnevmo_stages))
+            self.pushButt_removePnevmoStageRow.clicked.connect(lambda: self._remove_table_row(self.table_pnevmo_stages))
+            self.pushButt_choosePnevmoGraph.clicked.connect(self._choose_pnevmo_graph)
+            self.pushButt_clearPnevmoGraph.clicked.connect(self._clear_pnevmo_graph)
 
             from .employees_tab import EmployeesTabController
             self.employees_tab = EmployeesTabController(self)
@@ -377,6 +384,28 @@ class MainWindow(QMainWindow):
                 self.data["calc_specialist_name_initials"] = calc_specialist["name_initials"]
                 self.data["calc_specialist_cert_number"] = calc_specialist["cert_number"]
 
+                # "Контроль выполнил" (Приложение 8) -- тот же паттерн.
+                pnevmo_specialist_idx = self.pnevmo_specialist.currentData()
+                if (
+                    pnevmo_specialist_idx is None
+                    or pnevmo_specialist_idx >= len(self.data["specialists"])
+                ):
+                    raise ValueError(
+                        "Выберите специалиста в поле «Контроль выполнил» "
+                        "(Приложение 8) -- источник вариантов: Таблица 2 (1.3)"
+                    )
+                pnevmo_specialist = self.data["specialists"][pnevmo_specialist_idx]
+                self.data["pnevmo_specialist_position"] = pnevmo_specialist["position"]
+                self.data["pnevmo_specialist_name_initials"] = pnevmo_specialist["name_initials"]
+                self.data["pnevmo_specialist_cert_number"] = pnevmo_specialist["cert_number"]
+
+                # Таблица 1 (Приложение 8, п.11) -- список словарей под
+                # {%tr for %} в шаблоне; колонки: 0 -- ПАЭ №, 1 -- Нагрузка,
+                # 2 -- Класс источника (см. table_pnevmo_ae, AE_CLASS_TYPES).
+                self.data["pnevmo_ae_results"] = self._table_to_dicts(
+                    self.table_pnevmo_ae, ["paje_num", "nagruzka", "klass"]
+                )
+
                 # 8.2 -- "5 (пять) лет": число прописью в скобках рядом с цифрой.
                 years_allowed_text = self.final_years_allowed.toPlainText().strip()
                 try:
@@ -407,6 +436,16 @@ class MainWindow(QMainWindow):
                     )
                 else:
                     form_data["nk_scheme_image"] = ""
+
+                # Приложение 8 -- Рисунок 1 (график нагружения): тот же
+                # приём, картинка не обязательна.
+                pnevmo_graph_filename = self.data.get("pnevmo_graph_filename")
+                if pnevmo_graph_filename:
+                    form_data["pnevmo_graph_image"] = InlineImage(
+                        doc, str(PNEVMO_GRAPH_DIR / pnevmo_graph_filename), width=Mm(150)
+                    )
+                else:
+                    form_data["pnevmo_graph_image"] = ""
 
             doc.render(form_data)
 
@@ -815,6 +854,60 @@ class MainWindow(QMainWindow):
         combo.setCurrentText(current_text)
         table.setCellWidget(row, 1, combo)
 
+    def _install_ae_class_combo(self, table, row, current_text=AE_CLASS_TYPES[0]):
+        """Устанавливает выпадающий список "Класс источника" в ячейку
+        (row, 2) table_pnevmo_ae (Приложение 8, Таблица 1) -- тот же приём,
+        что и _install_segment_type_combo(), фиксированный список
+        AE_CLASS_TYPES."""
+        combo = QComboBox()
+        combo.addItems(AE_CLASS_TYPES)
+        if current_text not in AE_CLASS_TYPES:
+            combo.addItem(current_text)
+        combo.setCurrentText(current_text)
+        table.setCellWidget(row, 2, combo)
+
+    def _add_pnevmo_ae_row(self):
+        """Добавляет одну пустую строку в table_pnevmo_ae (Приложение 8,
+        Таблица 1) с выпадающим списком "Класс источника" в колонке 2 --
+        для точечной правки поверх _fill_pnevmo_ae_table()."""
+        table = self.table_pnevmo_ae
+        row = table.rowCount()
+        table.insertRow(row)
+        self._install_ae_class_combo(table, row)
+
+    def _fill_pnevmo_ae_table(self):
+        """Заполняет table_pnevmo_ae (Приложение 8, Таблица 1) по числу
+        датчиков (pnevmo_sensors_count, п.7): группами по 5 строк на
+        каждый ПАЭ со стандартными ступенями нагрузки. Полностью
+        перезаписывает таблицу -- как fill_segments_table(), кнопка не
+        добавляет, а пересобирает. Дальше строки редактируются вручную
+        (класс источника, нагрузка) или добавляются/удаляются по одной."""
+        stages = ["0,3 Рразр", "0,6 Рразр", "Рразр", "Рисп.", "Рразр"]
+        table = self.table_pnevmo_ae
+        table.setRowCount(0)
+        for paje_num in range(1, self.pnevmo_sensors_count.value() + 1):
+            for stage in stages:
+                row = table.rowCount()
+                table.insertRow(row)
+                table.setItem(row, 0, QTableWidgetItem(str(paje_num)))
+                table.setItem(row, 1, QTableWidgetItem(stage))
+                self._install_ae_class_combo(table, row)
+
+    def _update_pnevmo_mirrors(self):
+        """Зеркалит в read-only поля Приложения 8 (пункт 3) значения,
+        введённые оператором ранее в других местах формы -- обязательное
+        требование задачи "заполняются автоматически в read-only". Сами
+        поля-зеркала (pnevmo_*_display) не входят в widget_names_pipeline.py
+        и в шаблон .docx не попадают -- шаблон использует исходные ключи
+        (obj_naznach, reg_number и т.п.), см. _update_calc_temp_display()."""
+        self.pnevmo_obj_display.setPlainText(self.obj_naznach.toPlainText())
+        self.pnevmo_reg_number_display.setPlainText(self.reg_number.toPlainText())
+        self.pnevmo_year_start_display.setPlainText(self.year_start.toPlainText())
+        self.pnevmo_p_rab_display.setPlainText(self.p_rab_kgs.toPlainText())
+        self.pnevmo_work_medium_display.setPlainText(self.work_medium.currentText())
+        self.pnevmo_steel_grade_display.setPlainText(self._first_pipe_material_value(4))
+        self.pnevmo_pipe_size_display.setPlainText(self._first_pipe_material_value(3))
+
     def _first_pipe_material_value(self, col):
         """Значение колонки col первой строки table_pipe_materials (Таблица
         6 -- Сведения о трубах) или "" если таблица пуста. Типоразмер и
@@ -1133,14 +1226,16 @@ class MainWindow(QMainWindow):
         Приложение 1), act2_specialist (поле "Анализ документации провёл",
         Приложение 2), vik_specialist (поле "Контроль провёл", Приложение 3),
         thick_specialist (поле "Измерение провёл", Приложение 4),
-        uzk_specialist (поле "Измерение провёл", Приложение 5) и
-        calc_specialist (поле "Расчёт выполнил", Приложение 6) при
+        uzk_specialist (поле "Измерение провёл", Приложение 5),
+        calc_specialist (поле "Расчёт выполнил", Приложение 6) и
+        pnevmo_specialist (поле "Контроль выполнил", Приложение 8) при
         переключении на вкладку "Приложения" или "Расчёты" -- источник
         вариантов для всех один и тот же: table_specialists (1.3 Сведения о
         специалистах, Таблица 2). Ни один из комбобоксов не входит ни в один
         список widget_names_pipeline.py (как pnevmo_pressure_hint) -- каждый
         даёт индекс строки специалиста, а не текст для .docx напрямую,
-        итоговые плейсхолдеры собирает calculate()."""
+        итоговые плейсхолдеры собирает calculate(). Заодно обновляет
+        read-only зеркала пункта 3 Приложения 8, см. _update_pnevmo_mirrors()."""
         current_tab = self.tabWidget.widget(self.tabWidget.currentIndex())
         if current_tab not in (self.tab_acts, self.tab_calc):
             return
@@ -1150,6 +1245,8 @@ class MainWindow(QMainWindow):
         self._refresh_specialist_combo(self.thick_specialist)
         self._refresh_specialist_combo(self.uzk_specialist)
         self._refresh_specialist_combo(self.calc_specialist)
+        self._refresh_specialist_combo(self.pnevmo_specialist)
+        self._update_pnevmo_mirrors()
 
     def _refresh_specialist_combo(self, combo):
         """Перезаполняет один комбобокс-выбор специалиста вариантами из
@@ -1253,6 +1350,41 @@ class MainWindow(QMainWindow):
             return
 
         pixmap = QPixmap(str(NK_SCHEME_DIR / filename))
+        if pixmap.isNull():
+            label.setPixmap(QPixmap())
+            label.setText("не удалось загрузить")
+            return
+
+        label.setText("")
+        label.setPixmap(pixmap.scaled(
+            label.width(), label.height(), Qt.AspectRatioMode.KeepAspectRatio,
+        ))
+
+    def _choose_pnevmo_graph(self):
+        """Загрузка изображения графика нагружения (Приложение 8, Рисунок
+        1) -- полная копия _choose_nk_scheme() (Приложение 7) под новую
+        папку PNEVMO_GRAPH_DIR."""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "Выбрать график нагружения", "", "Изображения (*.png *.jpg *.jpeg)"
+        )
+        if not file_path:
+            return
+        filename = store_kleishe_image(Path(file_path), dest_dir=PNEVMO_GRAPH_DIR)
+        self.data["pnevmo_graph_filename"] = filename
+        self._set_pnevmo_graph_preview(filename)
+
+    def _clear_pnevmo_graph(self):
+        self.data["pnevmo_graph_filename"] = None
+        self._set_pnevmo_graph_preview(None)
+
+    def _set_pnevmo_graph_preview(self, filename):
+        label = self.pnevmo_graph_preview
+        if not filename:
+            label.setPixmap(QPixmap())
+            label.setText("нет изображения")
+            return
+
+        pixmap = QPixmap(str(PNEVMO_GRAPH_DIR / filename))
         if pixmap.isNull():
             label.setPixmap(QPixmap())
             label.setText("не удалось загрузить")
