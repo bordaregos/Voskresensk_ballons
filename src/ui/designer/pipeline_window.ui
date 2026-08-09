@@ -1624,6 +1624,86 @@ t- время от момента начала эксплуатации до м�
   </item>
  </layout>
 </widget>
+ <widget class="QWidget" name="tab_instruments">
+ <attribute name="title"><string>Приборы</string></attribute>
+ <layout class="QVBoxLayout" name="tab_instruments_outerLayout">
+  <item>
+   <widget class="QScrollArea" name="tab_instruments_scroll">
+    <property name="widgetResizable"><bool>true</bool></property>
+    <widget class="QWidget" name="tab_instruments_scrollContent">
+     <property name="geometry"><rect><x>0</x><y>0</y><width>960</width><height>700</height></rect></property>
+     <layout class="QVBoxLayout" name="vlayout_instruments">
+<item><widget class="QGroupBox" name="instruments_list_group">
+ <property name="title"><string>Справочник приборов</string></property>
+ <layout class="QVBoxLayout" name="instruments_list_vlayout">
+  <item><widget class="QTableWidget" name="table_instruments">
+ <property name="minimumSize"><size><width>0</width><height>160</height></size></property>
+ <property name="rowCount"><number>0</number></property>
+ <property name="columnCount"><number>4</number></property>
+ <column><property name="text"><string>Наименование прибора</string></property></column>
+ <column><property name="text"><string>Заводской номер</string></property></column>
+ <column><property name="text"><string>Номер свидетельства и дата поверки</string></property></column>
+ <column><property name="text"><string>Документы и сертификаты</string></property></column>
+</widget></item>
+  <item><layout class="QHBoxLayout" name="instruments_list_buttons">
+<item><widget class="QPushButton" name="pushButt_newInstrument"><property name="text"><string>+ Новый прибор</string></property></widget></item>
+<item><widget class="QPushButton" name="pushButt_deleteInstrument"><property name="text"><string>− Удалить прибор</string></property></widget></item>
+</layout></item>
+ </layout>
+</widget></item>
+<item><widget class="QGroupBox" name="instrument_card_group">
+ <property name="title"><string>Карточка прибора</string></property>
+<layout class="QFormLayout" name="instrument_card_form">
+<item row="0" column="0">
+ <widget class="QLabel" name="label_instrument_name"><property name="text"><string>Наименование прибора</string></property></widget>
+</item>
+<item row="0" column="1">
+ <widget class="QPlainTextEdit" name="instrument_name">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+</widget>
+</item>
+<item row="1" column="0">
+ <widget class="QLabel" name="label_instrument_serial_number"><property name="text"><string>Заводской номер</string></property></widget>
+</item>
+<item row="1" column="1">
+ <widget class="QPlainTextEdit" name="instrument_serial_number">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+</widget>
+</item>
+<item row="2" column="0">
+ <widget class="QLabel" name="label_instrument_cert_number"><property name="text"><string>Номер свидетельства и дата поверки</string></property></widget>
+</item>
+<item row="2" column="1">
+ <widget class="QPlainTextEdit" name="instrument_cert_number">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+</widget>
+</item>
+</layout>
+</widget></item>
+<item><widget class="QGroupBox" name="instrument_documents_group">
+ <property name="title"><string>Документы и сертификаты</string></property>
+ <layout class="QVBoxLayout" name="instrument_documents_vlayout">
+  <item><widget class="QListWidget" name="instrument_documents_list"/></item>
+  <item><layout class="QHBoxLayout" name="instrument_document_input_layout">
+<item><widget class="QPlainTextEdit" name="instrument_document_input">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+</widget></item>
+<item><widget class="QPushButton" name="pushButt_addDocument"><property name="text"><string>+ Добавить</string></property></widget></item>
+<item><widget class="QPushButton" name="pushButt_removeDocument"><property name="text"><string>− Удалить</string></property></widget></item>
+</layout></item>
+ </layout>
+</widget></item>
+<item><widget class="QPushButton" name="pushButt_saveInstrument"><property name="text"><string>Сохранить прибор</string></property></widget></item>
+     </layout>
+    </widget>
+   </widget>
+  </item>
+ </layout>
+</widget>
 </widget></item>
 <item><layout class="QHBoxLayout" name="bottom_buttons">
 <item><widget class="QPushButton" name="pushButt_generateWord">
