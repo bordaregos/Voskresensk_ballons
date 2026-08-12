@@ -22,6 +22,11 @@ PLAIN_TEXT_EDIT_NAMES = [
     # Отчёт и объект
     "report_number", "report_year", "reg_number", "obj_naznach", "obj_location",
     "obj_name",
+    # obj_department -- отдельно от obj_location: используется только в фразе
+    # "смонтированный в {{ obj_department }}" (раздел 2), где obj_location
+    # (уличный адрес, "Местонахождение") грамматически не подходит -- эталон
+    # там ожидает "отделе №214 АО «КБхиммаш...»", а не адрес.
+    "obj_department",
     "year_made", "year_start", "years_of_operation", "project_docs",
     "p_rab_mpa", "p_rab_kgs", "work_temp", "length_m", "construction_desc",
     # Заказчик
@@ -90,7 +95,8 @@ BUTTON_NAMES = [
     "pushButton_calcStrength", "pushButton_calcResidualLife",
     "pushButt_addSpecialist", "pushButt_removeSpecialist",
     "pushButt_addReviewedDoc", "pushButt_removeReviewedDoc",
-    "pushButt_addVikRow", "pushButt_removeVikRow",
+    "pushButt_addVikVisualRow", "pushButt_removeVikVisualRow",
+    "pushButt_addVikMeasureRow", "pushButt_removeVikMeasureRow",
     "pushButt_removeThickDevice", "pushButt_removeUzkDevice",
     "pushButt_removePnevmoDevice", "pushButt_removeReportTitle",
     "pushButt_addPipeMaterial", "pushButt_removePipeMaterial",
@@ -104,7 +110,7 @@ SPIN_BOX_NAMES = [
 ]
 
 TABLE_WIDGET = [
-    "table_reviewed_docs", "table_vik", "table_segments",
+    "table_reviewed_docs", "table_vik_visual", "table_vik_measure", "table_segments",
     "table_thick_pipeline", "table_uzk", "table_specialists",
     "table_pipe_materials", "table_program",
     "table_pnevmo_ae", "table_pnevmo_stages",

@@ -9,7 +9,7 @@ from PyQt6.uic import loadUi
 from typing import Dict, Union
 from pathlib import Path
 from docx.shared import Mm
-from docxtpl import DocxTemplate, InlineImage
+from docxtpl import DocxTemplate, InlineImage, RichText
 
 import os
 
@@ -99,8 +99,10 @@ class MainWindow(QMainWindow):
             self.pushButt_removeSpecialist.clicked.connect(lambda: self._remove_table_row(self.table_specialists))
             self.pushButt_addReviewedDoc.clicked.connect(lambda: self._add_table_row(self.table_reviewed_docs))
             self.pushButt_removeReviewedDoc.clicked.connect(lambda: self._remove_table_row(self.table_reviewed_docs))
-            self.pushButt_addVikRow.clicked.connect(lambda: self._add_table_row(self.table_vik))
-            self.pushButt_removeVikRow.clicked.connect(lambda: self._remove_table_row(self.table_vik))
+            self.pushButt_addVikVisualRow.clicked.connect(lambda: self._add_table_row(self.table_vik_visual))
+            self.pushButt_removeVikVisualRow.clicked.connect(lambda: self._remove_table_row(self.table_vik_visual))
+            self.pushButt_addVikMeasureRow.clicked.connect(lambda: self._add_table_row(self.table_vik_measure))
+            self.pushButt_removeVikMeasureRow.clicked.connect(lambda: self._remove_table_row(self.table_vik_measure))
             self.pushButt_removeThickDevice.clicked.connect(lambda: self._remove_combo_current_item(self.thick_device))
             self.pushButt_removeUzkDevice.clicked.connect(lambda: self._remove_combo_current_item(self.uzk_device))
             self.pushButt_removePnevmoDevice.clicked.connect(lambda: self._remove_combo_current_item(self.pnevmo_device))
@@ -271,9 +273,12 @@ class MainWindow(QMainWindow):
                 # table_specialists (список списков "как есть") тоже
                 # попадёт в form_data ниже через get_form_data() -- нужен
                 # для сохранения/восстановления проекта.
-                # Колонки таблицы: 0 -- Должность, 1 -- ФИО, 2 -- Удостоверение.
+                # Колонки таблицы: 0 -- Должность, 1 -- ФИО, 2 -- Удостоверение
+                # (полное, только для Таблицы 2), 3 -- Удостоверение (кратко,
+                # для подписей после каждого из 9 приложений, см. ниже).
                 self.data["specialists"] = self._table_to_dicts(
-                    self.table_specialists, ["position", "name", "cert_number"]
+                    self.table_specialists,
+                    ["position", "name", "cert_number", "cert_number_short"]
                 )
                 # name_initials -- "И. О. Фамилия" для таблицы подписи после
                 # раздела 8 (Таблица 2 продолжает использовать полное "name").
@@ -293,7 +298,7 @@ class MainWindow(QMainWindow):
                 lead_specialist = self.data["specialists"][0]
                 self.data["lead_specialist_position"] = lead_specialist["position"]
                 self.data["lead_specialist_name_initials"] = lead_specialist["name_initials"]
-                self.data["lead_specialist_cert_number"] = lead_specialist["cert_number"]
+                self.data["lead_specialist_cert_number"] = lead_specialist["cert_number_short"]
 
                 # "Программу составил" (Приложение 1) -- специалиста выбирает
                 # оператор через program_specialist (индекс строки Таблицы 2),
@@ -310,7 +315,7 @@ class MainWindow(QMainWindow):
                 programm_specialist = self.data["specialists"][programm_specialist_idx]
                 self.data["programm_specialist_position"] = programm_specialist["position"]
                 self.data["programm_specialist_name_initials"] = programm_specialist["name_initials"]
-                self.data["programm_specialist_cert_number"] = programm_specialist["cert_number"]
+                self.data["programm_specialist_cert_number"] = programm_specialist["cert_number_short"]
 
                 # "Анализ документации провёл" (Приложение 2) -- тот же
                 # паттерн, что и "Программу составил" выше.
@@ -326,7 +331,7 @@ class MainWindow(QMainWindow):
                 act2_specialist = self.data["specialists"][act2_specialist_idx]
                 self.data["act2_specialist_position"] = act2_specialist["position"]
                 self.data["act2_specialist_name_initials"] = act2_specialist["name_initials"]
-                self.data["act2_specialist_cert_number"] = act2_specialist["cert_number"]
+                self.data["act2_specialist_cert_number"] = act2_specialist["cert_number_short"]
 
                 # "Контроль провёл" (Приложение 3) -- тот же паттерн.
                 vik_specialist_idx = self.vik_specialist.currentData()
@@ -341,7 +346,7 @@ class MainWindow(QMainWindow):
                 vik_specialist = self.data["specialists"][vik_specialist_idx]
                 self.data["vik_specialist_position"] = vik_specialist["position"]
                 self.data["vik_specialist_name_initials"] = vik_specialist["name_initials"]
-                self.data["vik_specialist_cert_number"] = vik_specialist["cert_number"]
+                self.data["vik_specialist_cert_number"] = vik_specialist["cert_number_short"]
 
                 # "Измерение провёл" (Приложение 4) -- тот же паттерн.
                 thick_specialist_idx = self.thick_specialist.currentData()
@@ -356,7 +361,7 @@ class MainWindow(QMainWindow):
                 thick_specialist = self.data["specialists"][thick_specialist_idx]
                 self.data["thick_specialist_position"] = thick_specialist["position"]
                 self.data["thick_specialist_name_initials"] = thick_specialist["name_initials"]
-                self.data["thick_specialist_cert_number"] = thick_specialist["cert_number"]
+                self.data["thick_specialist_cert_number"] = thick_specialist["cert_number_short"]
 
                 # "Измерение провёл" (Приложение 5) -- тот же паттерн.
                 uzk_specialist_idx = self.uzk_specialist.currentData()
@@ -371,7 +376,7 @@ class MainWindow(QMainWindow):
                 uzk_specialist = self.data["specialists"][uzk_specialist_idx]
                 self.data["uzk_specialist_position"] = uzk_specialist["position"]
                 self.data["uzk_specialist_name_initials"] = uzk_specialist["name_initials"]
-                self.data["uzk_specialist_cert_number"] = uzk_specialist["cert_number"]
+                self.data["uzk_specialist_cert_number"] = uzk_specialist["cert_number_short"]
 
                 # "Расчёт выполнил" (Приложение 6) -- тот же паттерн.
                 calc_specialist_idx = self.calc_specialist.currentData()
@@ -386,7 +391,7 @@ class MainWindow(QMainWindow):
                 calc_specialist = self.data["specialists"][calc_specialist_idx]
                 self.data["calc_specialist_position"] = calc_specialist["position"]
                 self.data["calc_specialist_name_initials"] = calc_specialist["name_initials"]
-                self.data["calc_specialist_cert_number"] = calc_specialist["cert_number"]
+                self.data["calc_specialist_cert_number"] = calc_specialist["cert_number_short"]
 
                 # "Контроль выполнил" (Приложение 8) -- тот же паттерн.
                 pnevmo_specialist_idx = self.pnevmo_specialist.currentData()
@@ -401,7 +406,7 @@ class MainWindow(QMainWindow):
                 pnevmo_specialist = self.data["specialists"][pnevmo_specialist_idx]
                 self.data["pnevmo_specialist_position"] = pnevmo_specialist["position"]
                 self.data["pnevmo_specialist_name_initials"] = pnevmo_specialist["name_initials"]
-                self.data["pnevmo_specialist_cert_number"] = pnevmo_specialist["cert_number"]
+                self.data["pnevmo_specialist_cert_number"] = pnevmo_specialist["cert_number_short"]
 
                 # "Заключение составил" (Приложение 9) -- тот же паттерн.
                 ae_zakl_specialist_idx = self.ae_zakl_specialist.currentData()
@@ -416,7 +421,7 @@ class MainWindow(QMainWindow):
                 ae_zakl_specialist = self.data["specialists"][ae_zakl_specialist_idx]
                 self.data["ae_zakl_specialist_position"] = ae_zakl_specialist["position"]
                 self.data["ae_zakl_specialist_name_initials"] = ae_zakl_specialist["name_initials"]
-                self.data["ae_zakl_specialist_cert_number"] = ae_zakl_specialist["cert_number"]
+                self.data["ae_zakl_specialist_cert_number"] = ae_zakl_specialist["cert_number_short"]
 
                 # Таблица 1 (Приложение 8, п.11) -- список словарей под
                 # {%tr for %} в шаблоне; колонки: 0 -- ПАЭ №, 1 -- Нагрузка,
@@ -435,7 +440,14 @@ class MainWindow(QMainWindow):
                         f"целым числом лет: {years_allowed_text!r}"
                     )
                 self.data["final_years_allowed_words"] = number_to_words_ru(years_allowed_int)
+
+                # Приложение 8, п.1 -- дата контроля числом (15.08.2024), а не
+                # текстом (pnevmo_date остаётся текстовым везде, где уже
+                # используется, включая Приложение 9 -- см. отчёт о сравнении).
+                self.data["pnevmo_date_numeric"] = self.pnevmo_date.date().toString("dd.MM.yyyy")
             form_data = self.get_form_data()
+            if self.equipment_type.id == "pipeline":
+                self._apply_line_breaks(form_data)
             print("Данные для Word:", form_data)
 
             # 3. Проверяем наличие шаблона (используем config.py)
@@ -1144,12 +1156,14 @@ class MainWindow(QMainWindow):
 
     def _add_specialist_row(self):
         """Добавляет строку в table_specialists и сразу устанавливает в неё
-        3 редактируемых комбобокса (Должность, ФИО, Удостоверение) -- см.
-        _install_growable_combo()."""
+        4 редактируемых комбобокса (Должность, ФИО, Удостоверение,
+        Удостоверение (кратко)) -- см. _install_growable_combo(). Короткая
+        форма ("удостоверение № ... от ...") идёт в подписи после каждого
+        из 9 приложений, полная -- только в Таблицу 2 (1.3), см. calculate()."""
         table = self.table_specialists
         row = table.rowCount()
         table.insertRow(row)
-        for col in range(3):
+        for col in range(4):
             self._install_growable_combo(table, row, col)
 
     def _add_pipe_material_row(self):
@@ -1446,6 +1460,46 @@ class MainWindow(QMainWindow):
                         item_dict[key] = ""
             rows.append(item_dict)
         return rows
+
+    # Поля, чей плейсхолдер в шаблоне трубопровода использует докстпл-синтаксис
+    # {{r field }} (сырой XML, не экранированный текст) -- см. _apply_line_breaks().
+    # Список должен буквально совпадать с тем, что реально помечено {{r %}
+    # в templates/Шаблон_трубопровод.docx -- {{r %} требует RichText-совместимое
+    # значение ВСЕГДА (даже однострочное: RichText("текст") без \n -- валидный
+    # <w:r><w:t>текст</w:t></w:r>), иначе докстпл вставляет голый текст мимо
+    # <w:t>, и Word/python-docx его теряют -- проверено эмпирически на
+    # org_activity_scope (однострочное значение, {{r %} без RichText → пропало).
+    RICH_TEXT_FIELDS = frozenset({
+        "intro_text", "result_71", "result_72", "result_73", "result_74",
+        "result_75", "result_76", "result_77", "act2_intro_text",
+        "vik_guidance_docs", "thick_guidance_docs", "uzk_guidance_docs",
+        "uzk_evaluation_text", "calc_gost_basis", "calc_residual_methodology_note",
+        "calc_residual_formula_text", "calc_corrosion_formula_text",
+        "calc_worked_example_note", "ae_zakl_sources_text",
+        "ae_zakl_evaluation_text", "org_activity_scope",
+        "pnevmo_sensor_placement_note",
+    })
+
+    @classmethod
+    def _apply_line_breaks(cls, form_data: dict) -> None:
+        """Заменяет в form_data (на месте) значения полей из RICH_TEXT_FIELDS
+        на docxtpl.RichText с настоящими переносами строк (<w:br/> между
+        строками, без новых <w:p> -- так же устроены реальные переносы в
+        эталонном документе). Применяется КО ВСЕМ полям из списка, а не
+        только к содержащим '\\n' -- их плейсхолдер в шаблоне уже помечен
+        {{r %} (сырой XML), и без RichText-обёртки даже однострочное
+        значение теряется при рендере (см. RICH_TEXT_FIELDS)."""
+        for key in cls.RICH_TEXT_FIELDS:
+            value = form_data.get(key)
+            if not isinstance(value, str):
+                continue
+            rt = RichText()
+            lines = value.split("\n")
+            for i, line in enumerate(lines):
+                if i > 0:
+                    rt.xml += "<w:r><w:br/></w:r>"
+                rt.add(line)
+            form_data[key] = rt
 
 
 if __name__ == "__main__":

@@ -206,6 +206,7 @@ PIPELINE_SCHEMA = ReportSchema(
                 FieldLabel("Наименование", "obj_name"),
                 FieldLabel("Назначение", "obj_naznach"),
                 FieldLabel("Местонахождение", "obj_location"),
+                FieldLabel("Смонтирован в (раздел 2)", "obj_department"),
                 FieldLabel("Год изготовления", "year_made"),
                 FieldLabel("Год ввода в эксплуатацию", "year_start"),
                 FieldLabel("Срок эксплуатации, лет", "years_of_operation"),
@@ -309,11 +310,17 @@ PIPELINE_SCHEMA = ReportSchema(
             ],
         ),
         RepeatingTableSection(
-            heading="Приложение 3 — Акт по результатам наружного осмотра, "
-                    "визуального и измерительного контроля",
-            list_field="table_vik",
+            heading="Приложение 3 — Наружный осмотр трубопровода",
+            list_field="table_vik_visual",
             loop_var="row",
-            header_cells=["Элемент", "Состояние"],
+            header_cells=["№ п/п", "Элемент", "Состояние"],
+            positional=True,
+        ),
+        RepeatingTableSection(
+            heading="Приложение 3 — Визуальный и измерительный контроль трубопровода",
+            list_field="table_vik_measure",
+            loop_var="row",
+            header_cells=["№ п/п", "Элемент", "Состояние"],
             positional=True,
         ),
         FieldsTableSection(
@@ -429,6 +436,11 @@ PIPELINE_SCHEMA = ReportSchema(
                     "акустико-эмиссионным контролем",
             rows=[
                 FieldLabel("Дата проведения (п.1)", "pnevmo_date"),
+                # pnevmo_date_numeric -- производное поле (не виджет), считается
+                # в calculate() из pnevmo_date.date() в формате "дд.мм.гггг" --
+                # эталон в п.1 Приложения 8 использует числовую дату, а не
+                # текстовую ("15 августа 2024"), как везде в остальном отчёте.
+                FieldLabel("Дата проведения (п.1, числом)", "pnevmo_date_numeric"),
                 FieldLabel("Испытательное давление (п.4)", "pnevmo_pressure"),
                 FieldLabel("Аппаратура АЭ, тип/зав. № (п.6)", "pnevmo_device"),
                 FieldLabel("Число датчиков (п.7)", "pnevmo_sensors_count"),
