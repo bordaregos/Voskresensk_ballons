@@ -214,10 +214,11 @@
 <item><widget class="QTableWidget" name="table_specialists">
  <property name="minimumSize"><size><width>0</width><height>120</height></size></property>
  <property name="rowCount"><number>0</number></property>
- <property name="columnCount"><number>3</number></property>
+ <property name="columnCount"><number>4</number></property>
  <column><property name="text"><string>Должность</string></property></column>
  <column><property name="text"><string>ФИО</string></property></column>
  <column><property name="text"><string>Удостоверение</string></property></column>
+ <column><property name="text"><string>Удостоверение (кратко)</string></property></column>
 </widget></item>
 <item><layout class="QHBoxLayout" name="specialists_buttons">
 <item><widget class="QPushButton" name="pushButt_addSpecialist"><property name="text"><string>+ Добавить специалиста</string></property></widget></item>
@@ -266,6 +267,16 @@
  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
  <property name="plainText"><string>Отдел №214 АО «КБхиммаш им. А.М. Исаева»</string></property>
+</widget>
+</item>
+<item row="4" column="0">
+ <widget class="QLabel" name="label_objdept"><property name="text"><string>Смонтирован в (отдел)</string></property></widget>
+</item>
+<item row="4" column="1">
+ <widget class="QPlainTextEdit" name="obj_department">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string>отделе №214 АО «КБхиммаш им. А.М. Исаева»</string></property>
 </widget>
 </item>
 </layout>
@@ -720,16 +731,29 @@
  <property name="plainText"><string>Комплект для визуального и измерительного контроля ВИК №1312</string></property>
 </widget></item>
   </layout></item>
-  <item><widget class="QTableWidget" name="table_vik">
+  <item><widget class="QLabel" name="label_vik_visual_group"><property name="text"><string>Наружный осмотр трубопровода</string></property></widget></item>
+  <item><widget class="QTableWidget" name="table_vik_visual">
+ <property name="minimumSize"><size><width>0</width><height>90</height></size></property>
+ <property name="rowCount"><number>0</number></property>
+ <property name="columnCount"><number>2</number></property>
+<column><property name="text"><string>Элемент</string></property></column>
+<column><property name="text"><string>Состояние</string></property></column>
+</widget></item>
+  <item><layout class="QHBoxLayout" name="vik_visual_buttons">
+<item><widget class="QPushButton" name="pushButt_addVikVisualRow"><property name="text"><string>+ Добавить элемент</string></property></widget></item>
+<item><widget class="QPushButton" name="pushButt_removeVikVisualRow"><property name="text"><string>− Удалить</string></property></widget></item>
+</layout></item>
+  <item><widget class="QLabel" name="label_vik_measure_group"><property name="text"><string>Визуальный и измерительный контроль трубопровода</string></property></widget></item>
+  <item><widget class="QTableWidget" name="table_vik_measure">
  <property name="minimumSize"><size><width>0</width><height>160</height></size></property>
  <property name="rowCount"><number>0</number></property>
  <property name="columnCount"><number>2</number></property>
 <column><property name="text"><string>Элемент</string></property></column>
 <column><property name="text"><string>Состояние</string></property></column>
 </widget></item>
-  <item><layout class="QHBoxLayout" name="vik_buttons">
-<item><widget class="QPushButton" name="pushButt_addVikRow"><property name="text"><string>+ Добавить элемент</string></property></widget></item>
-<item><widget class="QPushButton" name="pushButt_removeVikRow"><property name="text"><string>− Удалить</string></property></widget></item>
+  <item><layout class="QHBoxLayout" name="vik_measure_buttons">
+<item><widget class="QPushButton" name="pushButt_addVikMeasureRow"><property name="text"><string>+ Добавить элемент</string></property></widget></item>
+<item><widget class="QPushButton" name="pushButt_removeVikMeasureRow"><property name="text"><string>− Удалить</string></property></widget></item>
 </layout></item>
   <item><layout class="QFormLayout" name="vik_form2">
    <item row="0" column="0"><widget class="QLabel" name="label_vik_concl"><property name="text"><string>Вывод</string></property></widget></item>
