@@ -21,14 +21,42 @@ PLAIN_TEXT_EDIT_NAMES = [
     "org_license_number_date", "org_activity_type", "org_activity_scope",
     # Отчёт и объект
     "report_number", "report_year", "reg_number", "obj_naznach", "obj_location",
-    "obj_name",
     # obj_department -- отдельно от obj_location: используется только в фразе
     # "смонтированный в {{ obj_department }}" (раздел 2), где obj_location
     # (уличный адрес, "Местонахождение") грамматически не подходит -- эталон
     # там ожидает "отделе №214 АО «КБхиммаш...»", а не адрес.
     "obj_department",
+    # obj_naznach_intro -- отдельно от obj_naznach: раздел 2 ("Объектом
+    # технического диагностирования является трубопровод {{ obj_naznach_intro
+    # }} рег. № ...") в реальных отчётах использует свою формулировку, не
+    # совпадающую с той, что стоит в Таблице 0 и в 8.1 ({{ obj_naznach }}) --
+    # тот же приём, что и с obj_department выше.
+    "obj_naznach_intro",
+    # obj_street_address -- отдельно от obj_location: "Местонахождение"
+    # (Таблица 0) в реальных отчётах это уличный адрес объекта, а
+    # obj_location ("Место проведения контроля", Приложения 2-5) -- название
+    # подразделения; в шаблоне это два разных текста, не одно и то же поле.
+    "obj_street_address",
+    # obj_purpose -- отдельно от obj_naznach: obj_naznach везде стоит после
+    # существительного ("трубопровод {{ obj_naznach }}", родительный падеж:
+    # "...системы разводки..."), а самостоятельная строка "Назначение:" в
+    # Таблице 5 (раздел 6) требует именительного падежа ("Назначение: Система
+    # разводки...") -- в реальных отчётах это разные формулировки, не только
+    # падеж одного и того же текста. Виджет физически расположен в разделе 6
+    # (поле "Назначение" сразу под "Наименование"), не в разделе 2.
+    "obj_purpose",
+    # obj_name_section6 -- отдельное поле "Наименование" в самом начале
+    # раздела 6 (Таблица 5) -- по требованию заведено независимо от других
+    # полей, значения не дублируются автоматически.
+    "obj_name_section6",
     "year_made", "year_start", "years_of_operation", "project_docs",
-    "p_rab_mpa", "p_rab_kgs", "work_temp", "length_m", "construction_desc",
+    "p_rab_mpa", "p_rab_kgs", "work_temp",
+    # work_temp_range -- отдельно от work_temp: work_temp обязан совпадать с
+    # ключом ALLOWABLE_STRESS_TABLE (точное значение, напр. "20") для расчёта
+    # допускаемого напряжения, а раздел 8.3 ("температура: ...") в реальных
+    # отчётах показывает диапазон ("+15°С -+20°С"), не то же самое число.
+    "work_temp_range",
+    "length_m", "construction_desc",
     # Заказчик
     "customer_name", "customer_short_name", "customer_legal_form",
     "customer_address", "customer_actual_address",
@@ -39,9 +67,19 @@ PLAIN_TEXT_EDIT_NAMES = [
     "result_71", "result_72", "result_73", "result_74", "result_75",
     "result_76", "result_77",
     # Акты и протоколы (Приложения 2-5, 8-9)
+    # *_control_place/*_control_object -- отдельные поля на каждое приложение
+    # (2/3/4/5): раньше "Место"/"Объект контроля" собирались из общих
+    # obj_location/obj_name + литерала "Трубопровод ", из-за чего терялось
+    # само слово "Трубопровод" ("азота высокого давления рег.№720291" вместо
+    # "Трубопровод азота высокого давления рег.№720291") -- теперь текст
+    # вводится оператором целиком и независимо для каждого приложения.
+    "act2_control_place", "act2_control_object",
     "act2_intro_text", "act2_conclusion",
+    "vik_control_place", "vik_control_object",
     "vik_guidance_docs", "vik_equipment", "vik_conclusion",
+    "thick_control_place", "thick_control_object", "thick_control_scheme",
     "thick_seed_min", "thick_guidance_docs", "thick_conclusion",
+    "uzk_control_place", "uzk_control_object", "uzk_control_scheme",
     "uzk_guidance_docs", "uzk_evaluation_text", "uzk_conclusion",
     "pnevmo_pressure", "pnevmo_conclusion",
     # Приложение 8 -- Протокол пневмоиспытания с АЭ-контролем (п.2-13,
@@ -54,15 +92,26 @@ PLAIN_TEXT_EDIT_NAMES = [
     "pnevmo_ndt_temp_range", "pnevmo_surface_condition", "pnevmo_magnetic_properties",
     "pnevmo_test_medium", "pnevmo_object_temp", "pnevmo_ambient_temp",
     "pnevmo_loading_equipment", "pnevmo_loading_rate",
-    "pnevmo_device_manufacturer", "pnevmo_sensor_model", "pnevmo_contact_medium",
+    "pnevmo_device_manufacturer", "pnevmo_device_serial",
+    "pnevmo_sensor_model", "pnevmo_contact_medium",
     "pnevmo_gain", "pnevmo_discrimination", "pnevmo_frequency_band",
     "pnevmo_param_changes", "pnevmo_sensor_placement_note",
+    # pnevmo_obj_naznach -- "Трубопровод (наименование)", п.3 Приложения 8.
+    # Раньше был read-only зеркалом obj_naznach (pnevmo_obj_display), теперь
+    # отдельный редактируемый плейсхолдер: подсказка из obj_naznach
+    # срабатывает, только пока поле ещё пусто (см.
+    # MainWindow._update_pnevmo_obj_naznach_display()).
+    "pnevmo_obj_naznach",
     # Приложение 9 -- Заключение по результатам АЭ-контроля (2 статичных
-    # абзаца шаблона, доведённые до редактируемых полей формы). Дата/объект/
+    # абзаца шаблона, доведённые до редактируемых полей формы). Дата/
     # рег.номер и "Вывод" этого раздела шаблона используют уже существующие
-    # ключи pnevmo_date/obj_naznach/reg_number/pnevmo_conclusion -- отдельных
-    # виджетов под них не заводим (см. ae_zakl_*_display в pipeline_window.ui,
-    # это чисто UI-зеркала, в widget_names не входят, как и pnevmo_*_display).
+    # ключи pnevmo_date/reg_number/pnevmo_conclusion -- отдельных виджетов
+    # под них не заводим (см. ae_zakl_*_display в pipeline_window.ui, это
+    # чисто UI-зеркала, в widget_names не входят, как и pnevmo_*_display).
+    # ae_zakl_obj_control -- исключение: "Объект контроля" этого раздела,
+    # общий по смыслу плейсхолдер с pnevmo_obj_naznach выше (подсказка
+    # берётся оттуда, пока поле пусто), но отдельный виджет/ключ.
+    "ae_zakl_obj_control",
     "ae_zakl_sources_text", "ae_zakl_evaluation_text",
     # Расчёт на прочность и остаточный ресурс (Приложение 6)
     "calc_temp", "calc_phi", "calc_da", "calc_sn", "calc_c2", "calc_sf",
@@ -95,9 +144,11 @@ BUTTON_NAMES = [
     "pushButton_calcStrength", "pushButton_calcResidualLife",
     "pushButt_addSpecialist", "pushButt_removeSpecialist",
     "pushButt_addReviewedDoc", "pushButt_removeReviewedDoc",
+    "pushButt_addDocSection5", "pushButt_removeDocSection5",
     "pushButt_addVikVisualRow", "pushButt_removeVikVisualRow",
     "pushButt_addVikMeasureRow", "pushButt_removeVikMeasureRow",
     "pushButt_removeThickDevice", "pushButt_removeUzkDevice",
+    "pushButt_addUzkRow", "pushButt_removeUzkRow",
     "pushButt_removePnevmoDevice", "pushButt_removeReportTitle",
     "pushButt_addPipeMaterial", "pushButt_removePipeMaterial",
     "pushButt_addProgramItem", "pushButt_addProgramSubitem",
@@ -110,7 +161,8 @@ SPIN_BOX_NAMES = [
 ]
 
 TABLE_WIDGET = [
-    "table_reviewed_docs", "table_vik_visual", "table_vik_measure", "table_segments",
+    "table_reviewed_docs", "table_docs_section5",
+    "table_vik_visual", "table_vik_measure", "table_segments",
     "table_thick_pipeline", "table_uzk", "table_specialists",
     "table_pipe_materials", "table_program",
     "table_pnevmo_ae", "table_pnevmo_stages",

@@ -240,43 +240,53 @@
 </widget>
 </item>
 <item row="1" column="0">
- <widget class="QLabel" name="label_objname"><property name="text"><string>Наименование</string></property></widget>
-</item>
-<item row="1" column="1">
- <widget class="QPlainTextEdit" name="obj_name">
- <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
-</widget>
-</item>
-<item row="2" column="0">
  <widget class="QLabel" name="label_5"><property name="text"><string>Назначение</string></property></widget>
 </item>
-<item row="2" column="1">
+<item row="1" column="1">
  <widget class="QPlainTextEdit" name="obj_naznach">
  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
  <property name="placeholderText"><string>Трубопровод подачи...</string></property>
 </widget>
 </item>
-<item row="3" column="0">
+<item row="2" column="0">
  <widget class="QLabel" name="label_6"><property name="text"><string>Местонахождение</string></property></widget>
 </item>
-<item row="3" column="1">
+<item row="2" column="1">
  <widget class="QPlainTextEdit" name="obj_location">
  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
  <property name="plainText"><string>Отдел №214 АО «КБхиммаш им. А.М. Исаева»</string></property>
 </widget>
 </item>
-<item row="4" column="0">
+<item row="3" column="0">
  <widget class="QLabel" name="label_objdept"><property name="text"><string>Смонтирован в (отдел)</string></property></widget>
 </item>
-<item row="4" column="1">
+<item row="3" column="1">
  <widget class="QPlainTextEdit" name="obj_department">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
  <property name="placeholderText"><string>отделе №214 АО «КБхиммаш им. А.М. Исаева»</string></property>
+</widget>
+</item>
+<item row="4" column="0">
+ <widget class="QLabel" name="label_objnaznach_intro"><property name="text"><string>Назначение (для раздела 2)</string></property></widget>
+</item>
+<item row="4" column="1">
+ <widget class="QPlainTextEdit" name="obj_naznach_intro">
+ <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="5" column="0">
+ <widget class="QLabel" name="label_objstreet"><property name="text"><string>Адрес (Таблица 0 — Местонахождение)</string></property></widget>
+</item>
+<item row="5" column="1">
+ <widget class="QPlainTextEdit" name="obj_street_address">
+ <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
+ <property name="placeholderText"><string></string></property>
 </widget>
 </item>
 </layout>
@@ -379,7 +389,7 @@
 <item><widget class="QGroupBox" name="docs_group">
  <property name="title"><string>5. Сведения о рассмотренных документах</string></property>
  <layout class="QVBoxLayout" name="docs_vlayout">
-<item><widget class="QTableWidget" name="table_reviewed_docs">
+<item><widget class="QTableWidget" name="table_docs_section5">
  <property name="minimumSize"><size><width>0</width><height>160</height></size></property>
  <property name="rowCount"><number>0</number></property>
  <property name="columnCount"><number>2</number></property>
@@ -387,8 +397,8 @@
 <column><property name="text"><string>Примечание</string></property></column>
 </widget></item>
 <item><layout class="QHBoxLayout" name="docs_buttons">
-<item><widget class="QPushButton" name="pushButt_addReviewedDoc"><property name="text"><string>+ Добавить документ</string></property></widget></item>
-<item><widget class="QPushButton" name="pushButt_removeReviewedDoc"><property name="text"><string>− Удалить</string></property></widget></item>
+<item><widget class="QPushButton" name="pushButt_addDocSection5"><property name="text"><string>+ Добавить документ</string></property></widget></item>
+<item><widget class="QPushButton" name="pushButt_removeDocSection5"><property name="text"><string>− Удалить</string></property></widget></item>
 </layout></item>
 </layout>
 </widget></item>
@@ -397,39 +407,59 @@
 <layout class="QVBoxLayout" name="obj_group_vlayout">
 <item><layout class="QFormLayout" name="formLayout_1">
 <item row="0" column="0">
- <widget class="QLabel" name="label_7"><property name="text"><string>Год изготовления</string></property></widget>
+ <widget class="QLabel" name="label_objname_section6"><property name="text"><string>Наименование</string></property></widget>
 </item>
 <item row="0" column="1">
- <widget class="QPlainTextEdit" name="year_made">
+ <widget class="QPlainTextEdit" name="obj_name_section6">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
  <property name="placeholderText"><string></string></property>
 </widget>
 </item>
 <item row="1" column="0">
- <widget class="QLabel" name="label_8"><property name="text"><string>Год ввода в эксплуатацию</string></property></widget>
+ <widget class="QLabel" name="label_objpurpose"><property name="text"><string>Назначение</string></property></widget>
 </item>
 <item row="1" column="1">
- <widget class="QPlainTextEdit" name="year_start">
- <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <widget class="QPlainTextEdit" name="obj_purpose">
+ <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
  <property name="placeholderText"><string></string></property>
 </widget>
 </item>
 <item row="2" column="0">
- <widget class="QLabel" name="label_9"><property name="text"><string>Срок эксплуатации, лет</string></property></widget>
+ <widget class="QLabel" name="label_7"><property name="text"><string>Год изготовления</string></property></widget>
 </item>
 <item row="2" column="1">
- <widget class="QPlainTextEdit" name="years_of_operation">
+ <widget class="QPlainTextEdit" name="year_made">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
  <property name="placeholderText"><string></string></property>
 </widget>
 </item>
 <item row="3" column="0">
- <widget class="QLabel" name="label_10"><property name="text"><string>Рабочая среда</string></property></widget>
+ <widget class="QLabel" name="label_8"><property name="text"><string>Год ввода в эксплуатацию</string></property></widget>
 </item>
 <item row="3" column="1">
+ <widget class="QPlainTextEdit" name="year_start">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="4" column="0">
+ <widget class="QLabel" name="label_9"><property name="text"><string>Срок эксплуатации, лет</string></property></widget>
+</item>
+<item row="4" column="1">
+ <widget class="QPlainTextEdit" name="years_of_operation">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="5" column="0">
+ <widget class="QLabel" name="label_10"><property name="text"><string>Рабочая среда</string></property></widget>
+</item>
+<item row="5" column="1">
  <widget class="QComboBox" name="work_medium">
 <item><property name="text"><string>азот</string></property></item>
 <item><property name="text"><string>воздух</string></property></item>
@@ -438,30 +468,30 @@
 <item><property name="text"><string>аргон</string></property></item>
 </widget>
 </item>
-<item row="4" column="0">
+<item row="6" column="0">
  <widget class="QLabel" name="label_11"><property name="text"><string>№ проекта/чертежи</string></property></widget>
 </item>
-<item row="4" column="1">
+<item row="6" column="1">
  <widget class="QPlainTextEdit" name="project_docs">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
  <property name="placeholderText"><string></string></property>
 </widget>
 </item>
-<item row="5" column="0">
+<item row="7" column="0">
  <widget class="QLabel" name="label_12"><property name="text"><string>Давление, МПа</string></property></widget>
 </item>
-<item row="5" column="1">
+<item row="7" column="1">
  <widget class="QPlainTextEdit" name="p_rab_mpa">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
  <property name="placeholderText"><string></string></property>
 </widget>
 </item>
-<item row="6" column="0">
+<item row="8" column="0">
  <widget class="QLabel" name="label_13"><property name="text"><string>Давление, кгс/см2</string></property></widget>
 </item>
-<item row="6" column="1">
+<item row="8" column="1">
  <widget class="QPlainTextEdit" name="p_rab_kgs">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
@@ -469,33 +499,43 @@
  <property name="placeholderText"><string>рассчитывается автоматически</string></property>
 </widget>
 </item>
-<item row="7" column="0">
+<item row="9" column="0">
  <widget class="QLabel" name="label_14"><property name="text"><string>Рабочая температура</string></property></widget>
 </item>
-<item row="7" column="1">
+<item row="9" column="1">
  <widget class="QPlainTextEdit" name="work_temp">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
  <property name="placeholderText"><string></string></property>
 </widget>
 </item>
-<item row="8" column="0">
+<item row="10" column="0">
  <widget class="QLabel" name="label_15"><property name="text"><string>Протяжённость, м</string></property></widget>
 </item>
-<item row="8" column="1">
+<item row="10" column="1">
  <widget class="QPlainTextEdit" name="length_m">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
  <property name="placeholderText"><string></string></property>
 </widget>
 </item>
-<item row="9" column="0">
+<item row="11" column="0">
  <widget class="QLabel" name="label_16"><property name="text"><string>Конструкция (кратко)</string></property></widget>
 </item>
-<item row="9" column="1">
+<item row="11" column="1">
  <widget class="QPlainTextEdit" name="construction_desc">
  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="12" column="0">
+ <widget class="QLabel" name="label_worktemprange"><property name="text"><string>Диапазон температур (раздел 8.3)</string></property></widget>
+</item>
+<item row="12" column="1">
+ <widget class="QPlainTextEdit" name="work_temp_range">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
  <property name="placeholderText"><string></string></property>
 </widget>
 </item>
@@ -631,6 +671,40 @@
 </item>
 </layout>
 </widget></item>
+<item><widget class="QGroupBox" name="final_group">
+ <property name="title"><string>8. Выводы по результатам технического диагностирования</string></property>
+<layout class="QFormLayout" name="formLayout_63">
+<item row="0" column="0">
+ <widget class="QLabel" name="label_64"><property name="text"><string>8.1 Оценка технического состояния</string></property></widget>
+</item>
+<item row="0" column="1">
+ <widget class="QPlainTextEdit" name="final_condition">
+ <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="1" column="0">
+ <widget class="QLabel" name="label_65"><property name="text"><string>8.2 Разрешённый срок дальнейшей эксплуатации, лет</string></property></widget>
+</item>
+<item row="1" column="1">
+ <widget class="QPlainTextEdit" name="final_years_allowed">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string></string></property>
+</widget>
+</item>
+<item row="2" column="0">
+ <widget class="QLabel" name="label_66"><property name="text"><string>Дата, до которой разрешена эксплуатация (к 8.2)</string></property></widget>
+</item>
+<item row="2" column="1">
+ <widget class="QDateEdit" name="final_deadline_date">
+ <property name="calendarPopup"><bool>true</bool></property>
+ <property name="displayFormat"><string>dd.MM.yyyy</string></property>
+</widget>
+</item>
+</layout>
+</widget></item>
 </layout>
     </widget>
    </widget>
@@ -669,7 +743,8 @@
 </widget></item>
 <item><widget class="QGroupBox" name="act2_group">
  <property name="title"><string>Приложение 2 — Акт анализа технической и эксплуатационной документации</string></property>
-<layout class="QFormLayout" name="formLayout_33">
+<layout class="QVBoxLayout" name="act2_vlayout">
+<item><layout class="QFormLayout" name="formLayout_33">
 <item row="0" column="0">
  <widget class="QLabel" name="label_34"><property name="text"><string>Дата проведения</string></property></widget>
 </item>
@@ -680,9 +755,29 @@
 </widget>
 </item>
 <item row="1" column="0">
- <widget class="QLabel" name="label_act2_intro"><property name="text"><string>Вводная часть акта</string></property></widget>
+ <widget class="QLabel" name="label_act2ctrlplace"><property name="text"><string>Место проведения контроля</string></property></widget>
 </item>
 <item row="1" column="1">
+ <widget class="QPlainTextEdit" name="act2_control_place">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
+<property name="placeholderText"><string>Отдел №214 АО «КБхиммаш им. А.М. Исаева»</string></property>
+</widget>
+</item>
+<item row="2" column="0">
+ <widget class="QLabel" name="label_act2ctrlobj"><property name="text"><string>Объект контроля</string></property></widget>
+</item>
+<item row="2" column="1">
+ <widget class="QPlainTextEdit" name="act2_control_object">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
+<property name="placeholderText"><string>Трубопровод азота высокого давления рег.№720291</string></property>
+</widget>
+</item>
+<item row="3" column="0">
+ <widget class="QLabel" name="label_act2_intro"><property name="text"><string>Вводная часть акта</string></property></widget>
+</item>
+<item row="3" column="1">
  <widget class="QPlainTextEdit" name="act2_intro_text">
  <property name="minimumSize"><size><width>0</width><height>90</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>90</height></size></property>
@@ -691,22 +786,37 @@
 3. Рассмотренный в ходе проведения обследования комплект технической документации на основании требования п. 204 Приказа Ростехнадзора от 21 декабря 2021 года № 444 представлен в таблице 1.</string></property>
 </widget>
 </item>
-<item row="2" column="0">
+</layout></item>
+<item><widget class="QLabel" name="label_act2_docs"><property name="text"><string>Сведения о рассмотренных документах (Таблица 4)</string></property></widget></item>
+<item><widget class="QTableWidget" name="table_reviewed_docs">
+ <property name="minimumSize"><size><width>0</width><height>160</height></size></property>
+ <property name="rowCount"><number>0</number></property>
+ <property name="columnCount"><number>2</number></property>
+<column><property name="text"><string>Документ</string></property></column>
+<column><property name="text"><string>Примечание</string></property></column>
+</widget></item>
+<item><layout class="QHBoxLayout" name="act2_docs_buttons">
+<item><widget class="QPushButton" name="pushButt_addReviewedDoc"><property name="text"><string>+ Добавить документ</string></property></widget></item>
+<item><widget class="QPushButton" name="pushButt_removeReviewedDoc"><property name="text"><string>− Удалить</string></property></widget></item>
+</layout></item>
+<item><layout class="QFormLayout" name="formLayout_33b">
+<item row="0" column="0">
  <widget class="QLabel" name="label_35"><property name="text"><string>Вывод</string></property></widget>
 </item>
-<item row="2" column="1">
+<item row="0" column="1">
  <widget class="QPlainTextEdit" name="act2_conclusion">
  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
  <property name="placeholderText"><string></string></property>
 </widget>
 </item>
-<item row="3" column="0">
+<item row="1" column="0">
  <widget class="QLabel" name="label_act2_specialist"><property name="text"><string>Анализ документации провёл</string></property></widget>
 </item>
-<item row="3" column="1">
+<item row="1" column="1">
  <widget class="QComboBox" name="act2_specialist"/>
 </item>
+</layout></item>
 </layout>
 </widget></item>
 <item><widget class="QGroupBox" name="vik_group">
@@ -730,7 +840,27 @@
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
  <property name="plainText"><string>Комплект для визуального и измерительного контроля ВИК №1312</string></property>
 </widget></item>
-  </layout></item>
+  <item row="3" column="0">
+ <widget class="QLabel" name="label_vikctrlplace"><property name="text"><string>Место проведения контроля</string></property></widget>
+</item>
+<item row="3" column="1">
+ <widget class="QPlainTextEdit" name="vik_control_place">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
+<property name="placeholderText"><string>Отдел №214 АО «КБхиммаш им. А.М. Исаева»</string></property>
+</widget>
+</item>
+<item row="4" column="0">
+ <widget class="QLabel" name="label_vikctrlobj"><property name="text"><string>Объект контроля</string></property></widget>
+</item>
+<item row="4" column="1">
+ <widget class="QPlainTextEdit" name="vik_control_object">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
+<property name="placeholderText"><string>Трубопровод азота высокого давления рег.№720291</string></property>
+</widget>
+</item>
+</layout></item>
   <item><widget class="QLabel" name="label_vik_visual_group"><property name="text"><string>Наружный осмотр трубопровода</string></property></widget></item>
   <item><widget class="QTableWidget" name="table_vik_visual">
  <property name="minimumSize"><size><width>0</width><height>90</height></size></property>
@@ -802,7 +932,38 @@
  <property name="plainText"><string>ГОСТ 55614-2013 «Контроль неразрушающий. Толщиномеры ультразвуковые. Общие технические требования»
 ГОСТ Р ИСО 16809-2015 «Контроль неразрушающий. Контроль ультразвуковой. Измерение толщины»</string></property>
 </widget></item>
-  </layout></item>
+  <item row="5" column="0">
+ <widget class="QLabel" name="label_thickctrlplace"><property name="text"><string>Место проведения контроля</string></property></widget>
+</item>
+<item row="5" column="1">
+ <widget class="QPlainTextEdit" name="thick_control_place">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
+<property name="placeholderText"><string>Отдел №214 АО «КБхиммаш им. А.М. Исаева»</string></property>
+</widget>
+</item>
+<item row="6" column="0">
+ <widget class="QLabel" name="label_thickctrlobj"><property name="text"><string>Объект контроля</string></property></widget>
+</item>
+<item row="6" column="1">
+ <widget class="QPlainTextEdit" name="thick_control_object">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
+<property name="placeholderText"><string>Трубопровод азота высокого давления рег.№720291</string></property>
+</widget>
+</item>
+<item row="7" column="0">
+ <widget class="QLabel" name="label_thickctrlscheme"><property name="text"><string>Схема контроля</string></property></widget>
+</item>
+<item row="7" column="1">
+ <widget class="QPlainTextEdit" name="thick_control_scheme">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
+<property name="plainText"><string>Приложение 7</string></property>
+<property name="placeholderText"><string></string></property>
+</widget>
+</item>
+</layout></item>
   <item><layout class="QHBoxLayout" name="thick_buttons">
 <item><widget class="QPushButton" name="pushButt_segments">
  <property name="text"><string>Участки трассы</string></property>
@@ -867,18 +1028,53 @@
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
  <property name="plainText"><string>ГОСТ Р 55724-2013 «Контроль неразрушающий. Соединения сварные. Методы ультразвуковые»</string></property>
 </widget></item>
-  </layout></item>
+  <item row="3" column="0">
+ <widget class="QLabel" name="label_uzkctrlplace"><property name="text"><string>Место проведения контроля</string></property></widget>
+</item>
+<item row="3" column="1">
+ <widget class="QPlainTextEdit" name="uzk_control_place">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
+<property name="placeholderText"><string>Отдел №214 АО «КБхиммаш им. А.М. Исаева»</string></property>
+</widget>
+</item>
+<item row="4" column="0">
+ <widget class="QLabel" name="label_uzkctrlobj"><property name="text"><string>Объект контроля</string></property></widget>
+</item>
+<item row="4" column="1">
+ <widget class="QPlainTextEdit" name="uzk_control_object">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
+<property name="placeholderText"><string>Трубопровод азота высокого давления рег.№720291</string></property>
+</widget>
+</item>
+<item row="5" column="0">
+ <widget class="QLabel" name="label_uzkctrlscheme"><property name="text"><string>Схема контроля</string></property></widget>
+</item>
+<item row="5" column="1">
+ <widget class="QPlainTextEdit" name="uzk_control_scheme">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
+<property name="plainText"><string>Приложение 7</string></property>
+<property name="placeholderText"><string></string></property>
+</widget>
+</item>
+</layout></item>
   <item><widget class="QTableWidget" name="table_uzk">
  <property name="minimumSize"><size><width>0</width><height>140</height></size></property>
- <property name="rowCount"><number>1</number></property>
- <property name="columnCount"><number>5</number></property>
-<row/>
+ <property name="rowCount"><number>0</number></property>
+ <property name="columnCount"><number>6</number></property>
 <column><property name="text"><string>№</string></property></column>
 <column><property name="text"><string>Участок</string></property></column>
 <column><property name="text"><string>Типоразмер</string></property></column>
 <column><property name="text"><string>Дефекты</string></property></column>
 <column><property name="text"><string>Оценка</string></property></column>
+<column><property name="text"><string>Контроледоступность</string></property></column>
 </widget></item>
+  <item><layout class="QHBoxLayout" name="uzk_row_buttons">
+<item><widget class="QPushButton" name="pushButt_addUzkRow"><property name="text"><string>+ Добавить строку</string></property></widget></item>
+<item><widget class="QPushButton" name="pushButt_removeUzkRow"><property name="text"><string>− Удалить</string></property></widget></item>
+</layout></item>
   <item><widget class="QLabel" name="label_uzk_evaluation_text"><property name="text"><string>Оценка результатов контроля</string></property></widget></item>
   <item><widget class="QPlainTextEdit" name="uzk_evaluation_text">
  <property name="minimumSize"><size><width>0</width><height>160</height></size></property>
@@ -972,14 +1168,23 @@ n и n0 - измеренное количество несплошностей �
  <property name="maximum"><number>50</number></property>
 </widget>
 </item>
+<item row="4" column="0">
+ <widget class="QLabel" name="label_pnevmodeviceserial"><property name="text"><string>Заводской номер аппаратуры АЭ</string></property></widget>
+</item>
+<item row="4" column="1">
+ <widget class="QPlainTextEdit" name="pnevmo_device_serial">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string>124</string></property>
+</widget>
+</item>
 </layout></item>
 <item><widget class="QLabel" name="label_pnevmo_p3_heading"><property name="text"><string>&lt;b&gt;Пункт 3 — Данные о трубопроводе&lt;/b&gt;</string></property></widget></item>
 <item><layout class="QFormLayout" name="pnevmo_p3_form">
 <item row="0" column="0"><widget class="QLabel" name="label_pnevmo_obj"><property name="text"><string>Трубопровод (наименование)</string></property></widget></item>
-<item row="0" column="1"><widget class="QPlainTextEdit" name="pnevmo_obj_display">
+<item row="0" column="1"><widget class="QPlainTextEdit" name="pnevmo_obj_naznach">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="readOnly"><bool>true</bool></property>
 </widget></item>
 <item row="1" column="0"><widget class="QLabel" name="label_pnevmo_reg_number"><property name="text"><string>Внутренний рег. номер</string></property></widget></item>
 <item row="1" column="1"><widget class="QPlainTextEdit" name="pnevmo_reg_number_display">
@@ -1200,10 +1405,9 @@ n и n0 - измеренное количество несплошностей �
  <property name="readOnly"><bool>true</bool></property>
 </widget></item>
 <item row="1" column="0"><widget class="QLabel" name="label_ae_zakl_obj"><property name="text"><string>Объект контроля</string></property></widget></item>
-<item row="1" column="1"><widget class="QPlainTextEdit" name="ae_zakl_obj_display">
+<item row="1" column="1"><widget class="QPlainTextEdit" name="ae_zakl_obj_control">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="readOnly"><bool>true</bool></property>
 </widget></item>
 <item row="2" column="0"><widget class="QLabel" name="label_ae_zakl_reg_number"><property name="text"><string>Рег. номер</string></property></widget></item>
 <item row="2" column="1"><widget class="QPlainTextEdit" name="ae_zakl_reg_number_display">
@@ -1302,7 +1506,6 @@ n и n0 - измеренное количество несплошностей �
  <widget class="QPlainTextEdit" name="calc_temp">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="readOnly"><bool>true</bool></property>
  <property name="placeholderText"><string>20</string></property>
 </widget>
 </item>
@@ -1442,7 +1645,7 @@ n и n0 - измеренное количество несплошностей �
  <widget class="QPlainTextEdit" name="calc_k">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string>1,0</string></property>
+ <property name="plainText"><string>1,0</string></property>
 </widget>
 </item>
 </layout>
@@ -1521,40 +1724,6 @@ t- время от момента начала эксплуатации до м�
  <item row="1" column="0"><widget class="QLabel" name="label_calc_specialist"><property name="text"><string>Расчёт выполнил</string></property></widget></item>
  <item row="1" column="1"><widget class="QComboBox" name="calc_specialist"/></item>
 </layout></item>
-</layout>
-</widget></item>
-<item><widget class="QGroupBox" name="final_group">
- <property name="title"><string>8. Выводы по результатам технического диагностирования</string></property>
-<layout class="QFormLayout" name="formLayout_63">
-<item row="0" column="0">
- <widget class="QLabel" name="label_64"><property name="text"><string>8.1 Оценка технического состояния</string></property></widget>
-</item>
-<item row="0" column="1">
- <widget class="QPlainTextEdit" name="final_condition">
- <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
- <property name="placeholderText"><string></string></property>
-</widget>
-</item>
-<item row="1" column="0">
- <widget class="QLabel" name="label_65"><property name="text"><string>8.2 Разрешённый срок дальнейшей эксплуатации, лет</string></property></widget>
-</item>
-<item row="1" column="1">
- <widget class="QPlainTextEdit" name="final_years_allowed">
- <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
-</widget>
-</item>
-<item row="2" column="0">
- <widget class="QLabel" name="label_66"><property name="text"><string>Дата, до которой разрешена эксплуатация (к 8.2)</string></property></widget>
-</item>
-<item row="2" column="1">
- <widget class="QDateEdit" name="final_deadline_date">
- <property name="calendarPopup"><bool>true</bool></property>
- <property name="displayFormat"><string>dd.MM.yyyy</string></property>
-</widget>
-</item>
 </layout>
 </widget></item>
 </layout>

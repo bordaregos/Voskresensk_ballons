@@ -3,7 +3,7 @@
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QPlainTextEdit, QComboBox,
                              QPushButton, QSpinBox, QDateEdit, QTableWidgetItem, QTableWidget,
                              QMessageBox, QFileDialog)
-from PyQt6.QtCore import QLocale, Qt
+from PyQt6.QtCore import QLocale, Qt, QDate
 from PyQt6.QtGui import QPixmap
 from PyQt6.uic import loadUi
 from typing import Dict, Union
@@ -99,20 +99,33 @@ class MainWindow(QMainWindow):
             self.pushButt_removeSpecialist.clicked.connect(lambda: self._remove_table_row(self.table_specialists))
             self.pushButt_addReviewedDoc.clicked.connect(lambda: self._add_table_row(self.table_reviewed_docs))
             self.pushButt_removeReviewedDoc.clicked.connect(lambda: self._remove_table_row(self.table_reviewed_docs))
+            self.pushButt_addDocSection5.clicked.connect(lambda: self._add_table_row(self.table_docs_section5))
+            self.pushButt_removeDocSection5.clicked.connect(lambda: self._remove_table_row(self.table_docs_section5))
             self.pushButt_addVikVisualRow.clicked.connect(lambda: self._add_table_row(self.table_vik_visual))
             self.pushButt_removeVikVisualRow.clicked.connect(lambda: self._remove_table_row(self.table_vik_visual))
             self.pushButt_addVikMeasureRow.clicked.connect(lambda: self._add_table_row(self.table_vik_measure))
             self.pushButt_removeVikMeasureRow.clicked.connect(lambda: self._remove_table_row(self.table_vik_measure))
             self.pushButt_removeThickDevice.clicked.connect(lambda: self._remove_combo_current_item(self.thick_device))
             self.pushButt_removeUzkDevice.clicked.connect(lambda: self._remove_combo_current_item(self.uzk_device))
+            self.pushButt_addUzkRow.clicked.connect(self._add_uzk_row)
+            self.pushButt_removeUzkRow.clicked.connect(self._remove_uzk_row)
             self.pushButt_removePnevmoDevice.clicked.connect(lambda: self._remove_combo_current_item(self.pnevmo_device))
             self.pushButt_removeReportTitle.clicked.connect(lambda: self._remove_combo_current_item(self.report_title))
             self.pushButt_addPipeMaterial.clicked.connect(self._add_pipe_material_row)
             self.pushButt_removePipeMaterial.clicked.connect(lambda: self._remove_table_row(self.table_pipe_materials))
             self.p_rab_mpa.textChanged.connect(self._update_p_rab_kgs)
             self.p_rab_mpa.textChanged.connect(self._update_calc_p_rab_display)
+            self.p_rab_kgs.textChanged.connect(self._update_pnevmo_pressure)
+            self.p_rab_kgs.textChanged.connect(self._fill_pnevmo_stages_table)
             self.work_temp.textChanged.connect(self._update_calc_temp_display)
+            self.years_of_operation.textChanged.connect(self._update_calc_years_operation_display)
+            self.obj_naznach.textChanged.connect(self._update_pnevmo_obj_naznach_display)
+            self.pnevmo_obj_naznach.textChanged.connect(self._update_ae_zakl_obj_control_display)
+            self.pnevmo_date.dateChanged.connect(self._update_ae_zakl_date_display)
             self.pnevmo_pressure.textChanged.connect(self._update_pnevmo_pressure_hint)
+            self.pnevmo_pressure.textChanged.connect(self._update_result_76_pressure)
+            self.final_years_allowed.textChanged.connect(self._update_final_deadline_date)
+            self.report_year.textChanged.connect(self._update_final_deadline_date)
             self.pushButt_addProgramItem.clicked.connect(self._add_program_item_row)
             self.pushButt_addProgramSubitem.clicked.connect(self._add_program_subitem_row)
             self.pushButt_removeProgramRow.clicked.connect(self._remove_program_row)
@@ -213,14 +226,24 @@ class MainWindow(QMainWindow):
             date = widget.date()
             if date.isValid():
                 locale = QLocale('ru_RU')
+                # Суффикс "г." -- только для трубопровода: в его шаблоне
+                # везде, кроме final_deadline_date, дата стоит "голой"
+                # (Дата проведения контроля {{ ... }}, титул {{ report_date
+                # }}) -- эталонный документ TD_720291 везде добавляет "г.".
+                # final_deadline_date -- исключение: за ним в шаблоне уже
+                # стоит своё литеральное "года" (8.2, 8.4.1), суффикс
+                # задвоил бы "г. года". Баллонный шаблон не проверялся на
+                # такое же дублирование, поэтому его не трогаем.
+                is_pipeline = self.equipment_type.id == "pipeline"
+                suffix = " г." if (is_pipeline and name != "final_deadline_date") else ""
                 if name == "report_date":
                     # Дата отчёта на титульном листе -- день в кавычках-ёлочках
                     # по канцелярской традиции: «15» ноября 2024. Текст в
                     # одинарных кавычках в формате QLocale выводится буквально.
-                    self.data[name] = locale.toString(date, "'«'dd'»' MMMM yyyy")
+                    self.data[name] = locale.toString(date, "'«'dd'»' MMMM yyyy") + suffix
                 else:
                     # Формат: dd MMMM yyyy (пробелы, месяц в родительном падеже на русском)
-                    self.data[name] = locale.toString(date, 'dd MMMM yyyy')
+                    self.data[name] = locale.toString(date, 'dd MMMM yyyy') + suffix
             else:
                 self.data[name] = ""
 
@@ -445,7 +468,15 @@ class MainWindow(QMainWindow):
                 # текстом (pnevmo_date остаётся текстовым везде, где уже
                 # используется, включая Приложение 9 -- см. отчёт о сравнении).
                 self.data["pnevmo_date_numeric"] = self.pnevmo_date.date().toString("dd.MM.yyyy")
-            form_data = self.get_form_data()
+            # Копия, а не self.data напрямую: ниже в form_data пишутся
+            # InlineImage (держат ссылку на DocxTemplate/дерево .docx) и
+            # RichText (_apply_line_breaks) -- одноразовые объекты только
+            # для рендера. self.get_form_data() возвращает self.data по
+            # ссылке; без copy() эти объекты оседали бы в self.data
+            # навсегда и следующее "Сохранить проект" падало бы с
+            # RecursionError на dataclasses.asdict() -> copy.deepcopy()
+            # лежащего в них lxml-дерева документа.
+            form_data = dict(self.get_form_data())
             if self.equipment_type.id == "pipeline":
                 self._apply_line_breaks(form_data)
             print("Данные для Word:", form_data)
@@ -897,6 +928,79 @@ class MainWindow(QMainWindow):
         combo.setCurrentText(current_text)
         table.setCellWidget(row, 2, combo)
 
+    def _install_uzk_segment_combo(self, table, row, current_text=None):
+        """Устанавливает выпадающий список "Участок" (номер участка на
+        схеме) в ячейку (row, 1) table_uzk (Приложение 5) -- вместо
+        свободного ввода текста, только номера от 1 до segments_count
+        (Приложение 4, "Количество участков") включительно, тот же приём,
+        что и _install_segment_type_combo(). При смене выбора синхронизирует
+        колонку "Типоразмер" той же строки (см. _on_uzk_segment_changed)."""
+        options = [str(n) for n in range(1, self.segments_count.value() + 1)]
+        combo = QComboBox()
+        combo.addItems(options)
+        if current_text and current_text not in options:
+            combo.addItem(current_text)
+        if current_text:
+            combo.setCurrentText(current_text)
+        combo.currentTextChanged.connect(lambda _=None, c=combo: self._on_uzk_segment_changed(c))
+        table.setCellWidget(row, 1, combo)
+
+    def _uzk_typorazmer_for_segment(self, segment_number_text):
+        """Значение "Типоразмер" из table_segments (Приложение 4, "Участки
+        трассы (ввод)") для строки с номером участка segment_number_text --
+        поиск по значению колонки "№" (не по индексу строки, строки могли
+        быть пересозданы через fill_segments_table())."""
+        table = self.table_segments
+        for row in range(table.rowCount()):
+            number_item = table.item(row, 0)
+            if number_item is not None and number_item.text().strip() == segment_number_text:
+                size_item = table.item(row, 2)
+                return size_item.text() if size_item else ""
+        return ""
+
+    def _sync_uzk_row_size(self, table, row):
+        """Проставляет в (row, 2) table_uzk "Типоразмер" выбранного в (row,
+        1) участка -- то же значение, что в одноимённой колонке
+        table_segments для этого номера участка."""
+        combo = table.cellWidget(row, 1)
+        segment_number = combo.currentText() if combo else ""
+        table.setItem(row, 2, QTableWidgetItem(self._uzk_typorazmer_for_segment(segment_number)))
+
+    def _on_uzk_segment_changed(self, combo):
+        """Реакция на смену номера участка в table_uzk -- находит строку
+        комбобокса по факту (не по захваченному при подключении сигнала
+        индексу: он "протухает" при удалении строк выше) и пересинхронизирует
+        "Типоразмер" этой строки."""
+        table = self.table_uzk
+        for row in range(table.rowCount()):
+            if table.cellWidget(row, 1) is combo:
+                self._sync_uzk_row_size(table, row)
+                return
+
+    def _renumber_uzk_rows(self):
+        """Колонка "№" table_uzk -- сквозная нумерация по позиции строки,
+        та же логика, что и в fill_segments_table() (Приложение 4)."""
+        table = self.table_uzk
+        for row in range(table.rowCount()):
+            table.setItem(row, 0, QTableWidgetItem(str(row + 1)))
+
+    def _add_uzk_row(self):
+        """Добавляет одну пустую строку в table_uzk (Приложение 5) с
+        выпадающим списком номера участка в колонке 1, авто-номером в
+        колонке 0 и подставленным "Типоразмер" в колонке 2."""
+        table = self.table_uzk
+        row = table.rowCount()
+        table.insertRow(row)
+        self._install_uzk_segment_combo(table, row)
+        self._renumber_uzk_rows()
+        self._sync_uzk_row_size(table, row)
+
+    def _remove_uzk_row(self):
+        """Удаляет выбранную строку table_uzk и перенумеровывает колонку
+        "№" оставшихся строк (см. _renumber_uzk_rows)."""
+        self._remove_table_row(self.table_uzk)
+        self._renumber_uzk_rows()
+
     def _add_pnevmo_ae_row(self):
         """Добавляет одну пустую строку в table_pnevmo_ae (Приложение 8,
         Таблица 1) с выпадающим списком "Класс источника" в колонке 2 --
@@ -930,8 +1034,13 @@ class MainWindow(QMainWindow):
         требование задачи "заполняются автоматически в read-only". Сами
         поля-зеркала (pnevmo_*_display) не входят в widget_names_pipeline.py
         и в шаблон .docx не попадают -- шаблон использует исходные ключи
-        (obj_naznach, reg_number и т.п.), см. _update_calc_temp_display()."""
-        self.pnevmo_obj_display.setPlainText(self.obj_naznach.toPlainText())
+        (obj_naznach, reg_number и т.п.), см. _update_calc_temp_display().
+        pnevmo_obj_naznach/ae_zakl_obj_control сюда не входят -- они теперь
+        самостоятельные редактируемые поля, см.
+        _update_pnevmo_obj_naznach_display()/_update_ae_zakl_obj_control_display().
+        ae_zakl_date_display тоже сюда не входит -- обновляется сразу по
+        pnevmo_date.dateChanged, см. _update_ae_zakl_date_display() (раньше
+        ждало переключения вкладки, из-за чего показывало старую дату)."""
         self.pnevmo_reg_number_display.setPlainText(self.reg_number.toPlainText())
         self.pnevmo_year_start_display.setPlainText(self.year_start.toPlainText())
         self.pnevmo_p_rab_display.setPlainText(self.p_rab_kgs.toPlainText())
@@ -940,11 +1049,37 @@ class MainWindow(QMainWindow):
         self.pnevmo_pipe_size_display.setPlainText(self._first_pipe_material_value(3))
 
         # Приложение 9 -- те же исходные значения, тот же приём зеркал.
-        self.ae_zakl_date_display.setPlainText(self.pnevmo_date.date().toString("dd.MM.yyyy"))
-        self.ae_zakl_obj_display.setPlainText(self.obj_naznach.toPlainText())
         self.ae_zakl_reg_number_display.setPlainText(self.reg_number.toPlainText())
         self.ae_zakl_report_date_display.setPlainText(self.report_date.date().toString("dd.MM.yyyy"))
         self.ae_zakl_location_display.setPlainText(self.obj_location.toPlainText())
+
+    def _update_ae_zakl_date_display(self):
+        """Зеркалит pnevmo_date (Приложение 8, "Дата проведения") в
+        read-only ae_zakl_date_display (Приложение 9, "Дата проведения
+        контроля") сразу при изменении даты -- раньше обновлялось только
+        при переключении вкладки (_update_pnevmo_mirrors()), из-за чего
+        после правки даты в Приложении 8 тут держалась старая дата (по
+        умолчанию 01.01.2000) до следующего переключения вкладки."""
+        self.ae_zakl_date_display.setPlainText(self.pnevmo_date.date().toString("dd.MM.yyyy"))
+
+    def _update_pnevmo_obj_naznach_display(self):
+        """Подсказка pnevmo_obj_naznach (Приложение 8, п.3 "Трубопровод
+        (наименование)") значением obj_naznach (раздел 2) -- поле
+        редактируемое, см. _sync_mirror_field()."""
+        self._sync_mirror_field(
+            self.pnevmo_obj_naznach, self.obj_naznach.toPlainText(),
+            "_pnevmo_obj_naznach_auto_value",
+        )
+
+    def _update_ae_zakl_obj_control_display(self):
+        """Подсказка ae_zakl_obj_control (Приложение 9, "Объект контроля")
+        значением pnevmo_obj_naznach (Приложение 8, "Трубопровод
+        (наименование)") -- общий по смыслу плейсхолдер для обоих полей, см.
+        _sync_mirror_field()."""
+        self._sync_mirror_field(
+            self.ae_zakl_obj_control, self.pnevmo_obj_naznach.toPlainText(),
+            "_ae_zakl_obj_control_auto_value",
+        )
 
     def _first_pipe_material_value(self, col):
         """Значение колонки col первой строки table_pipe_materials (Таблица
@@ -1097,6 +1232,15 @@ class MainWindow(QMainWindow):
             # вручную (как thick_conclusion/uzk_conclusion), кнопка его не
             # перезаписывает -- иначе правки в UI терялись бы при каждом
             # повторном расчёте.
+
+            # final_years_allowed (раздел 8) -- подсказка расчётным остаточным
+            # ресурсом, только если поле ещё пустое: инженер вправе утвердить
+            # меньший регламентный срок, повторный расчёт его правку не сотрёт.
+            # setPlainText ниже сам вызовет _update_final_deadline_date() через
+            # textChanged (см. подключение сигнала в __init__).
+            if not self.final_years_allowed.toPlainText().strip():
+                self.final_years_allowed.setPlainText(str(int(result.remaining_years)))
+
             self._completed_steps.add("residual_life")
 
         except ValueError as e:
@@ -1342,13 +1486,39 @@ class MainWindow(QMainWindow):
             return
         self.p_rab_kgs.setPlainText(format_ru_fixed(mpa / 0.0980665, 1))
 
+    def _sync_mirror_field(self, target, source_text, state_attr):
+        """Копирует source_text в target, пока оператор не ввёл в target
+        своё значение. "Тронуто" определяется не через "непусто" (иначе при
+        обычном посимвольном наборе в source-поле target подхватил бы
+        только самый первый введённый символ и на этом застрял бы -- после
+        него target уже "непусто", хотя это ещё чисто автоподстановка) -- а
+        через сравнение текущего текста target с последним значением,
+        которое сюда же поставила именно эта автоподстановка (state_attr,
+        хранится на self). Если оператор изменил target -- текст разойдётся
+        с state_attr, и подстановка остановится."""
+        current = target.toPlainText()
+        if current and current != getattr(self, state_attr, None):
+            return
+        target.setPlainText(source_text)
+        setattr(self, state_attr, source_text)
+
     def _update_calc_temp_display(self):
-        """Зеркалит work_temp (1. Общие данные) в read-only calc_temp
-        (Приложение 6) -- для расчёта на прочность температура стенки
-        принимается равной рабочей температуре среды, повторный ввод не
-        нужен (тот же принцип, что и у типоразмера/марки стали в
-        table_pipe_materials, см. _first_pipe_material_value)."""
-        self.calc_temp.setPlainText(self.work_temp.toPlainText())
+        """Подсказка calc_temp (Приложение 6) значением work_temp (1. Общие
+        данные) -- по умолчанию температура стенки принимается равной
+        рабочей температуре среды, но поле редактируемое: дальше значение
+        полностью в руках оператора, см. _sync_mirror_field()."""
+        self._sync_mirror_field(self.calc_temp, self.work_temp.toPlainText(), "_calc_temp_auto_value")
+
+    def _update_calc_years_operation_display(self):
+        """Подсказка calc_years_operation (Приложение 6, "Остаточный
+        ресурс -- исходные данные") значением years_of_operation (раздел 6)
+        -- по умолчанию срок эксплуатации для расчёта остаточного ресурса
+        равен сроку эксплуатации объекта, но поле редактируемое, см.
+        _sync_mirror_field()."""
+        self._sync_mirror_field(
+            self.calc_years_operation, self.years_of_operation.toPlainText(),
+            "_calc_years_operation_auto_value",
+        )
 
     def _update_calc_p_rab_display(self):
         """Зеркалит p_rab_mpa (1. Общие данные) в read-only
@@ -1356,6 +1526,47 @@ class MainWindow(QMainWindow):
         через widget_names_pipeline.py и в шаблон .docx не попадает, это
         чисто UI-подсказка (тот же приём, что и pnevmo_pressure_hint)."""
         self.calc_p_rab_display.setPlainText(self.p_rab_mpa.toPlainText())
+
+    def _update_pnevmo_pressure(self):
+        """Автоматически пересчитывает "Испытательное давление"
+        (pnevmo_pressure, Приложения 8-9) из "Давление, кгс/см2"
+        (p_rab_kgs, 1. Общие данные) по формуле p_rab_kgs * 1,25 --
+        срабатывает при каждом изменении p_rab_kgs, перезаписывая
+        прежнее значение поля (тот же принцип, что и у
+        _update_final_deadline_date)."""
+        try:
+            p_rab_kgs = parse_ru(self.p_rab_kgs.toPlainText())
+        except ValueError:
+            self.pnevmo_pressure.setPlainText("")
+            return
+        self.pnevmo_pressure.setPlainText(format_ru_fixed(p_rab_kgs * 1.25, 1))
+
+    def _fill_pnevmo_stages_table(self):
+        """Автозаполнение table_pnevmo_stages (Приложение 8, "Этапы
+        пневматического испытания трубопровода") -- 5 строк, ступени
+        давления от p_rab_kgs (0,3 / 0,6 / 1,0 / 1,25 и само значение),
+        время выдержки по методике (10 мин на первых трёх ступенях, 15 на
+        четвёртой, для пятой -- прочерк). Срабатывает при каждом изменении
+        p_rab_kgs, полностью перезаписывая таблицу (тот же принцип, что и у
+        _update_pnevmo_pressure())."""
+        table = self.table_pnevmo_stages
+        try:
+            p_rab_kgs = parse_ru(self.p_rab_kgs.toPlainText())
+        except ValueError:
+            table.setRowCount(0)
+            return
+        stages = [
+            (format_ru_fixed(p_rab_kgs * 0.3, 1), "10"),
+            (format_ru_fixed(p_rab_kgs * 0.6, 1), "10"),
+            (format_ru_fixed(p_rab_kgs * 1.0, 1), "10"),
+            (format_ru_fixed(p_rab_kgs * 1.25, 1), "15"),
+            (self.p_rab_kgs.toPlainText(), "-"),
+        ]
+        table.setRowCount(len(stages))
+        for row, (pressure, hold_time) in enumerate(stages):
+            table.setItem(row, 0, QTableWidgetItem(str(row + 1)))
+            table.setItem(row, 1, QTableWidgetItem(pressure))
+            table.setItem(row, 2, QTableWidgetItem(hold_time))
 
     def _update_pnevmo_pressure_hint(self):
         """Зеркалит "Испытательное давление" (pnevmo_pressure, Приложения
@@ -1365,6 +1576,37 @@ class MainWindow(QMainWindow):
         это поле только подсказывает уже введённое оператором значение,
         само оно в шаблон .docx не попадает."""
         self.pnevmo_pressure_hint.setPlainText(self.pnevmo_pressure.toPlainText())
+
+    def _update_result_76_pressure(self):
+        """Подставляет введённое испытательное давление вместо заглушки
+        "P=__________" в свободном тексте result_76 (раздел 7.6) -- работает,
+        только пока заглушка ещё не тронута оператором, иначе правку текста
+        не перезаписывает (тот же принцип, что и у final_years_allowed/
+        final_deadline_date)."""
+        text = self.result_76.toPlainText()
+        if "P=__________" in text:
+            self.result_76.setPlainText(
+                text.replace("P=__________", f"P={self.pnevmo_pressure.toPlainText()}")
+            )
+
+    def _update_final_deadline_date(self):
+        """Дата из report_year + final_years_allowed (раздел 8.4.1) -- год
+        отчёта плюс разрешённый срок эксплуатации в годах, день/месяц
+        берутся из report_date (при его отсутствии -- текущая дата).
+        Пересчитывается при каждом изменении final_years_allowed или
+        report_year, перезаписывая прежнее значение поля."""
+        try:
+            years = int(parse_ru(self.final_years_allowed.toPlainText()))
+            report_year = int(parse_ru(self.report_year.toPlainText()))
+        except ValueError:
+            return
+        day_month_source = self.report_date.date()
+        if day_month_source == QDate(2000, 1, 1):
+            day_month_source = QDate.currentDate()
+        base = QDate(report_year, day_month_source.month(), day_month_source.day())
+        if not base.isValid():
+            base = QDate(report_year, day_month_source.month(), 28)
+        self.final_deadline_date.setDate(base.addYears(years))
 
     def _choose_nk_scheme(self):
         """Загрузка изображения схемы НК (Приложение 7). Тот же приём, что
@@ -1477,8 +1719,14 @@ class MainWindow(QMainWindow):
         "calc_residual_formula_text", "calc_corrosion_formula_text",
         "calc_worked_example_note", "ae_zakl_sources_text",
         "ae_zakl_evaluation_text", "org_activity_scope",
-        "pnevmo_sensor_placement_note",
+        "pnevmo_sensor_placement_note", "org_license_issuer",
     })
+
+    # Поля из RICH_TEXT_FIELDS, чей плейсхолдер-run в шаблоне помечен italic
+    # -- RichText не наследует форматирование run'а, который заменяет (см.
+    # _apply_line_breaks), поэтому курсив нужно проставлять явно, иначе он
+    # тихо теряется при рендере (эмпирически найдено на org_activity_scope).
+    RICH_TEXT_ITALIC_FIELDS = frozenset({"org_activity_scope"})
 
     @classmethod
     def _apply_line_breaks(cls, form_data: dict) -> None:
@@ -1493,12 +1741,13 @@ class MainWindow(QMainWindow):
             value = form_data.get(key)
             if not isinstance(value, str):
                 continue
+            italic = key in cls.RICH_TEXT_ITALIC_FIELDS
             rt = RichText()
             lines = value.split("\n")
             for i, line in enumerate(lines):
                 if i > 0:
                     rt.xml += "<w:r><w:br/></w:r>"
-                rt.add(line)
+                rt.add(line, italic=italic)
             form_data[key] = rt
 
 

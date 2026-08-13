@@ -83,10 +83,17 @@ class Project:
             Путь к сохранённому файлу
         """
         filepath.parent.mkdir(parents=True, exist_ok=True)
-        
+
+        # Сериализация до открытия файла на запись: 'w' усекает файл сразу
+        # при открытии, независимо от того, дойдёт ли дело до записи -- если
+        # сериализация упадёт (напр. RecursionError) уже после открытия,
+        # существующее содержимое файла терялось бы, хотя сохранение
+        # фактически не удалось.
+        content = self.to_json()
+
         with open(filepath, 'w', encoding='utf-8') as file:
-            file.write(self.to_json())
-        
+            file.write(content)
+
         self.last_modified = date.today().strftime('%d.%m.%Y')
         
         return str(filepath)
