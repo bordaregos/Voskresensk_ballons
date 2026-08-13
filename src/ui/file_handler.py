@@ -373,9 +373,16 @@ class FileHandler:
             widget = getattr(self.main_window, key, None)
             if widget is not None:
                 if hasattr(widget, 'setPlainText'):
-                    widget.setPlainText(str(value))
+                    # Пустое сохранённое значение неотличимо от "поля ещё не
+                    # было, когда сохраняли проект" (старые project.json без
+                    # добавленных позже полей вроде calc_k/calc_years_operation)
+                    # -- не затираем им уже выставленный текст виджета (в т.ч.
+                    # предзаполненные умолчания calc_k="1,0" и т.п.).
+                    if str(value):
+                        widget.setPlainText(str(value))
                 elif hasattr(widget, 'setCurrentText'):
-                    widget.setCurrentText(str(value))
+                    if str(value):
+                        widget.setCurrentText(str(value))
                 elif hasattr(widget, 'setValue'):
                     try:
                         # Заменяем запятую на точку перед преобразованием

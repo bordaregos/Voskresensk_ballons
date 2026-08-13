@@ -185,15 +185,16 @@ PIPELINE_SCHEMA = ReportSchema(
             rows=[FieldLabel("Цель", "goal_text")],
         ),
         # 5. Сведения о рассмотренных документах -- универсальный растущий
-        # список (та же table_reviewed_docs, что и в Приложении 2 ниже:
-        # один и тот же список данных печатается в шаблоне дважды, в двух
-        # разных местах документа -- это не баг, docxtpl поддерживает
-        # несколько {% for %} по одному и тому же списку).
+        # список. Раньше делил один виджет с Приложением 2 (table_reviewed_docs,
+        # один и тот же список печатался в шаблоне дважды) -- по требованию
+        # разделены на независимые поля формы: тут table_docs_section5,
+        # в Приложении 2 (см. ниже) остался table_reviewed_docs. Оператор
+        # заполняет их отдельно, значения не связаны.
         RepeatingTableSection(
             heading="5. Сведения о рассмотренных в процессе технического "
                     "диагностирования документах",
             caption="Таблица 4",
-            list_field="table_reviewed_docs",
+            list_field="table_docs_section5",
             loop_var="doc",
             header_cells=["Документ", "Примечание"],
             positional=True,
@@ -203,9 +204,15 @@ PIPELINE_SCHEMA = ReportSchema(
                     "технического диагностирования",
             caption="Таблица 5",
             rows=[
-                FieldLabel("Наименование", "obj_name"),
-                FieldLabel("Назначение", "obj_naznach"),
+                # obj_name_section6 -- отдельное поле формы в самом начале
+                # раздела 6 (см. pipeline_window.ui), значение не дублируется
+                # автоматически из других полей.
+                FieldLabel("Наименование (раздел 6)", "obj_name_section6"),
+                FieldLabel("Назначение (Таблица 5, им. падеж)", "obj_purpose"),
+                FieldLabel("Назначение (Таблица 0 и 8.1, род. падеж)", "obj_naznach"),
+                FieldLabel("Назначение (для раздела 2)", "obj_naznach_intro"),
                 FieldLabel("Местонахождение", "obj_location"),
+                FieldLabel("Адрес (Таблица 0 — Местонахождение)", "obj_street_address"),
                 FieldLabel("Смонтирован в (раздел 2)", "obj_department"),
                 FieldLabel("Год изготовления", "year_made"),
                 FieldLabel("Год ввода в эксплуатацию", "year_start"),
@@ -214,7 +221,7 @@ PIPELINE_SCHEMA = ReportSchema(
                 FieldLabel("№ проекта (конструкторской документации)", "project_docs"),
                 FieldLabel("Давление, МПа", "p_rab_mpa"),
                 FieldLabel("Давление, кгс/см2", "p_rab_kgs"),
-                FieldLabel("Рабочая температура", "work_temp"),
+                FieldLabel("Рабочая температура (раздел 6, диапазон)", "work_temp_range"),
                 FieldLabel("Протяжённость, м", "length_m"),
                 FieldLabel("Краткая характеристика конструкции", "construction_desc"),
             ],
@@ -297,6 +304,8 @@ PIPELINE_SCHEMA = ReportSchema(
                     "эксплуатационной документации",
             rows=[
                 FieldLabel("Дата проведения", "act2_date"),
+                FieldLabel("Место проведения контроля", "act2_control_place"),
+                FieldLabel("Объект контроля", "act2_control_object"),
                 FieldLabel("Вводная часть акта", "act2_intro_text"),
                 FieldLabel("Вывод", "act2_conclusion"),
             ],
@@ -327,6 +336,8 @@ PIPELINE_SCHEMA = ReportSchema(
             heading="Приложение 3 — Вывод",
             rows=[
                 FieldLabel("Дата проведения", "vik_date"),
+                FieldLabel("Место проведения контроля", "vik_control_place"),
+                FieldLabel("Объект контроля", "vik_control_object"),
                 FieldLabel("Руководящие документы", "vik_guidance_docs"),
                 FieldLabel("Оборудование и инструменты", "vik_equipment"),
                 FieldLabel("Вывод по результатам ВИК", "vik_conclusion"),
@@ -353,6 +364,9 @@ PIPELINE_SCHEMA = ReportSchema(
             rows=[
                 FieldLabel("Толщиномер (тип, зав. №)", "thick_device"),
                 FieldLabel("Дата проведения", "thick_date"),
+                FieldLabel("Место проведения контроля", "thick_control_place"),
+                FieldLabel("Объект контроля", "thick_control_object"),
+                FieldLabel("Схема контроля", "thick_control_scheme"),
                 FieldLabel("Руководящие документы", "thick_guidance_docs"),
                 FieldLabel("Вывод", "thick_conclusion"),
             ],
@@ -370,7 +384,7 @@ PIPELINE_SCHEMA = ReportSchema(
                     "сварных соединений методом ультразвукового контроля",
             list_field="table_uzk",
             loop_var="row",
-            header_cells=["№", "Участок", "Типоразмер", "Дефекты", "Оценка"],
+            header_cells=["№", "Участок", "Типоразмер", "Дефекты", "Оценка", "Контроледоступность"],
             positional=True,
         ),
         FieldsTableSection(
@@ -378,6 +392,9 @@ PIPELINE_SCHEMA = ReportSchema(
             rows=[
                 FieldLabel("Дефектоскоп (тип, зав. №)", "uzk_device"),
                 FieldLabel("Дата проведения", "uzk_date"),
+                FieldLabel("Место проведения контроля", "uzk_control_place"),
+                FieldLabel("Объект контроля", "uzk_control_object"),
+                FieldLabel("Схема контроля", "uzk_control_scheme"),
                 FieldLabel("Руководящие документы", "uzk_guidance_docs"),
                 FieldLabel("Оценка результатов контроля", "uzk_evaluation_text"),
                 FieldLabel("Вывод", "uzk_conclusion"),
@@ -436,6 +453,13 @@ PIPELINE_SCHEMA = ReportSchema(
                     "акустико-эмиссионным контролем",
             rows=[
                 FieldLabel("Дата проведения (п.1)", "pnevmo_date"),
+                # pnevmo_obj_naznach -- отдельный (не obj_naznach) редактируемый
+                # плейсхолдер, общий с ae_zakl_obj_control (Приложение 9,
+                # "Объект контроля" ниже): при вводе тут подсказка сама
+                # заполняет то поле, но правки не связаны жёстко -- см.
+                # MainWindow._update_pnevmo_obj_naznach_display()/
+                # _update_ae_zakl_obj_control_display().
+                FieldLabel("Трубопровод, наименование (п.3)", "pnevmo_obj_naznach"),
                 # pnevmo_date_numeric -- производное поле (не виджет), считается
                 # в calculate() из pnevmo_date.date() в формате "дд.мм.гггг" --
                 # эталон в п.1 Приложения 8 использует числовую дату, а не
@@ -443,6 +467,7 @@ PIPELINE_SCHEMA = ReportSchema(
                 FieldLabel("Дата проведения (п.1, числом)", "pnevmo_date_numeric"),
                 FieldLabel("Испытательное давление (п.4)", "pnevmo_pressure"),
                 FieldLabel("Аппаратура АЭ, тип/зав. № (п.6)", "pnevmo_device"),
+                FieldLabel("Заводской номер аппаратуры АЭ (п.6)", "pnevmo_device_serial"),
                 FieldLabel("Число датчиков (п.7)", "pnevmo_sensors_count"),
                 FieldLabel("Заводской номер (п.3)", "pnevmo_pipe_serial"),
                 FieldLabel("Метод изготовления (п.3)", "pnevmo_manufacture_method"),
@@ -469,6 +494,9 @@ PIPELINE_SCHEMA = ReportSchema(
         # введённых где-то в форме значений -- см. MainWindow._update_pnevmo_mirrors())
         # НЕ входят сюда: это чисто UI-подсказки, самих ключей нет в
         # self.data, шаблон использует исходные obj_naznach/reg_number/...
+        # Исключение -- pnevmo_obj_naznach выше и ae_zakl_obj_control ниже:
+        # эти два поля из "зеркал" переведены в обычные редактируемые
+        # плейсхолдеры (см. комментарий у pnevmo_obj_naznach).
         RepeatingTableSection(
             heading="Приложение 8 — Таблица 1, результаты контроля (п.11)",
             list_field="pnevmo_ae_results",
@@ -499,18 +527,21 @@ PIPELINE_SCHEMA = ReportSchema(
             ],
         ),
         # Приложение 9 -- своя QGroupBox (ae_zakl_group) в UI, идёт следом за
-        # pnevmo_group. Дата/объект/рег.номер в самом разделе шаблона исполь-
-        # зуют исходные pnevmo_date/obj_naznach/reg_number (те же значения,
-        # что и в Приложении 8); дата в блоке "УТВЕРЖДАЮ" -- report_date
-        # (1. Титульный лист); "Место проведения контроля" -- obj_location
-        # (1.2 Местонахождение). Ни для одного из них отдельных полей нет,
-        # см. ae_zakl_*_display (read-only зеркала, MainWindow._update_pnevmo_mirrors()).
+        # pnevmo_group. Дата/рег.номер в самом разделе шаблона используют
+        # исходные pnevmo_date/reg_number (те же значения, что и в
+        # Приложении 8); дата в блоке "УТВЕРЖДАЮ" -- report_date (1.
+        # Титульный лист); "Место проведения контроля" -- obj_location (1.2
+        # Местонахождение). Отдельных полей под них нет, см. ae_zakl_*_display
+        # (read-only зеркала, MainWindow._update_pnevmo_mirrors()) -- кроме
+        # ae_zakl_obj_control ("Объект контроля" ниже), он теперь отдельный
+        # редактируемый плейсхолдер, см. pnevmo_obj_naznach выше.
         # pnevmo_conclusion -- поле "Вывод" физически осталось в pnevmo_group
         # (см. Приложение 8 -- Контроль выполнил выше), в шаблон попадает
         # под "Вывод:" этого же раздела.
         FieldsTableSection(
             heading="Приложение 9 — Заключение по результатам АЭ-контроля",
             rows=[
+                FieldLabel("Объект контроля", "ae_zakl_obj_control"),
                 FieldLabel("Абзац 1 — выявленные источники АЭ", "ae_zakl_sources_text"),
                 FieldLabel("Абзац 2 — оценка результатов", "ae_zakl_evaluation_text"),
                 FieldLabel("Вывод", "pnevmo_conclusion"),
