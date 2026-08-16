@@ -61,7 +61,7 @@
  </layout>
 </widget>
 <widget class="QStackedWidget" name="viewStack">
-<widget class="QWidget" name="tab_document"><layout class="QVBoxLayout" name="tab_document_outerLayout"><item><widget class="QScrollArea" name="tab_document_scroll"><property name="widgetResizable"><bool>true</bool></property><widget class="QWidget" name="tab_document_scrollContent"><layout class="QVBoxLayout" name="vlayout_document"><item><widget class="QGroupBox" name="title_group">
+<widget class="QWidget" name="tab_document"><layout class="QVBoxLayout" name="tab_document_outerLayout"><item><widget class="QLabel" name="breadcrumbLabel"><property name="styleSheet"><string>color: palette(mid);</string></property></widget></item><item><widget class="QScrollArea" name="tab_document_scroll"><property name="widgetResizable"><bool>true</bool></property><widget class="QWidget" name="tab_document_scrollContent"><layout class="QVBoxLayout" name="vlayout_document"><item><widget class="QGroupBox" name="title_group">
  <property name="title"><string>Титульный лист</string></property>
 <layout class="QFormLayout" name="formLayout_0">
 <item row="0" column="0">

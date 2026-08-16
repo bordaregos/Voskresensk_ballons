@@ -193,6 +193,7 @@ class MainWindow(QMainWindow):
             # при запуске ни один документ ещё не открыт (_current_document_path
             # is None), оглавление показывать нечего, см. _switch_view().
             self._switch_view("document")
+            self._update_breadcrumb()
 
     def init_file_handler(self):
         """Инициализация FileHandler для импорта/экспорта."""
@@ -1564,6 +1565,7 @@ class MainWindow(QMainWindow):
         if self.equipment_type.id == "pipeline":
             self._seed_program_table_defaults()
             self._update_toc_progress()
+            self._update_breadcrumb()
 
     def _refresh_objects_tree(self):
         """Перестраивает objectsTree с нуля из файловой системы (см.
@@ -1671,6 +1673,38 @@ class MainWindow(QMainWindow):
         self._refresh_program_specialist_combo()
         self._switch_view("document")
         self._update_toc_progress()
+        self._update_breadcrumb()
+
+    def _find_document_tree_item(self, path):
+        """Ищет строку objectsTree, чей UserRole -- искомый путь к
+        файлу. Дерево небольшое (десятки строк), полный обход на каждый
+        вызов дешевле, чем держать отдельный кэш path->item в
+        синхронизации с _refresh_objects_tree()."""
+        for i in range(self.objectsTree.topLevelItemCount()):
+            object_item = self.objectsTree.topLevelItem(i)
+            for j in range(object_item.childCount()):
+                doc_item = object_item.child(j)
+                if doc_item.data(0, Qt.ItemDataRole.UserRole) == path:
+                    return doc_item
+        return None
+
+    def _update_breadcrumb(self):
+        """Обновляет breadcrumbLabel над лентой документа: объект /
+        документ / текущий раздел оглавления. Ярлык документа берётся
+        готовым из строки дерева (там уже "рег.XXXX" из
+        workspace._document_label()), а не пересчитывается заново."""
+        if self._current_document_path is None:
+            self.breadcrumbLabel.setText("")
+            self.breadcrumbLabel.setVisible(False)
+            return
+        object_name = Path(self._current_document_path).parent.name
+        doc_item = self._find_document_tree_item(self._current_document_path)
+        doc_label = doc_item.text(0) if doc_item is not None else ""
+        toc_item = self.tocList.currentItem()
+        section = toc_item.text().removeprefix("✓ ") if toc_item is not None else ""
+        parts = [p for p in (object_name, doc_label, section) if p]
+        self.breadcrumbLabel.setText(" / ".join(parts))
+        self.breadcrumbLabel.setVisible(True)
 
     def _create_object_dialog(self):
         """«Создать объект»: спрашивает название, создаёт папку, сразу
@@ -1730,6 +1764,7 @@ class MainWindow(QMainWindow):
         self.tab_document_scroll.verticalScrollBar().setValue(groupbox.y())
         self.tocList.setCurrentItem(item)
         self._suppress_toc_spy = False
+        self._update_breadcrumb()
 
     def _on_document_scrolled(self, value):
         """Скролл-спай: при ручной прокрутке ленты подсвечивает в tocList
@@ -1745,6 +1780,7 @@ class MainWindow(QMainWindow):
         self.tocList.blockSignals(True)
         self.tocList.setCurrentRow(current)
         self.tocList.blockSignals(False)
+        self._update_breadcrumb()
 
     # Пункты оглавления, у которых есть осмысленное понятие "выполнено" --
     # только эти два groupbox'а физически содержат кнопки шагов из
