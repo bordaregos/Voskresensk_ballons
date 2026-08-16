@@ -119,32 +119,40 @@ class FileHandler:
     def save_project_json(self):
         """
         Сохранение проекта в JSON файл.
-        
-        Сохраняет все данные проекта в JSON файл.
+
+        Если документ уже открыт из дерева объектов (или уже сохранялся
+        в этом сеансе) -- main_window._current_document_path указывает
+        куда, пишем туда напрямую без диалога. Иначе -- как раньше,
+        обычный "Сохранить как", а выбранный путь запоминается как
+        текущий документ.
         """
-        file_path, _ = QFileDialog.getSaveFileName(
-            self.main_window,
-            "Выберите место для сохранения проекта",
-            str(OUTPUT_DIR / "проект.json"),
-            "JSON файлы (*.json);;All files (*.*)"
-        )
-        
-        if not file_path:
-            return
-        
+        existing_path = getattr(self.main_window, "_current_document_path", None)
+        if existing_path is not None:
+            file_path = str(existing_path)
+        else:
+            file_path, _ = QFileDialog.getSaveFileName(
+                self.main_window,
+                "Выберите место для сохранения проекта",
+                str(OUTPUT_DIR / "проект.json"),
+                "JSON файлы (*.json);;All files (*.*)"
+            )
+            if not file_path:
+                return
+
         try:
             # Создание проекта
             project = self._create_project()
-            
+
             # Сохранение
             project.save_to_file(Path(file_path))
-            
+            self.main_window._current_document_path = Path(file_path)
+
             self.main_window.show_message(
                 "Успех",
                 f"Проект сохранён в {file_path}",
                 QMessageBox.Icon.Information
             )
-            
+
         except Exception as e:
             self.main_window.show_message(
                 "Ошибка",
@@ -171,9 +179,17 @@ class FileHandler:
         try:
             # Загрузка проекта
             project = Project.load_from_file(Path(file_path))
-            
+
+            # Форма сбрасывается перед наполнением -- иначе поля/строки
+            # таблиц, которых нет в загружаемом JSON (старый формат, ручное
+            # редактирование файла и т.п.), остались бы от предыдущего
+            # документа, а не были бы честно пустыми. См. _reset_form().
+            if self.main_window.equipment_type.id == "pipeline":
+                self.main_window._reset_form()
+
             # Заполнение UI данными
             self._fill_ui_from_project(project)
+            self.main_window._current_document_path = Path(file_path)
 
             # table_specialists заполняется выше generic-веткой TABLE_WIDGET
             # (_fill_ui_from_project), но комбобоксы выбора специалиста

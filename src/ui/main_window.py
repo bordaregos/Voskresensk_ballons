@@ -56,6 +56,7 @@ class MainWindow(QMainWindow):
         self.s_min_lst = []
         self.file_handler = None
         self._completed_steps = set()
+        self._current_document_path = None
 
         self.equipment_type = equipment_type
         self.PLAIN_TEXT_EDIT_NAMES = equipment_type.widget_names.PLAIN_TEXT_EDIT_NAMES
@@ -1501,6 +1502,40 @@ class MainWindow(QMainWindow):
         self._current_view = view
         self.tocList.setVisible(view == "document")
         self._update_report_buttons_visibility()
+
+    def _reset_form(self):
+        """Очищает форму под новый/другой документ -- обратная операция к
+        get_form_data()/_fill_ui_from_project(), проходит по тем же
+        спискам виджетов (widget_names_pipeline.py и т.п.), только очищая
+        вместо чтения. Раньше такой возможности не было вообще -- "начать
+        заново" означало перезапустить приложение; нужна для переключения
+        между документами дерева объектов без перезапуска.
+
+        Комбобоксы намеренно НЕ .clear() -- это стёрло бы предзаполненные
+        варианты (у work_medium это единственный источник выбора: азот/
+        воздух/кислород/гелий/аргон, не растится вводом). setCurrentIndex(0)
+        воспроизводит тот же вид, что при самом первом запуске окна (ни у
+        одного из комбобоксов currentIndex в .ui не выставлен явно, Qt по
+        умолчанию показывает первый пункт)."""
+        for name in self.PLAIN_TEXT_EDIT_NAMES:
+            getattr(self, name).setPlainText("")
+        for name in self.COMBO_BOX_NAMES:
+            getattr(self, name).setCurrentIndex(0)
+        for name in self.DATE_EDIT_NAMES:
+            getattr(self, name).setDate(QDate.currentDate())
+        for name in self.SPIN_BOX_NAMES:
+            widget = getattr(self, name)
+            widget.setValue(widget.minimum())
+        for name in self.TABLE_WIDGET:
+            getattr(self, name).setRowCount(0)
+
+        self.data = {}
+        self._completed_steps = set()
+        self._current_document_path = None
+
+        if self.equipment_type.id == "pipeline":
+            self._seed_program_table_defaults()
+            self._update_toc_progress()
 
     def _populate_toc(self):
         """Заполняет tocList оглавлением документа -- по одной строке на
