@@ -7,19 +7,15 @@
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout_main">
 <item><layout class="QHBoxLayout" name="mainAreaLayout">
-<item><widget class="QWidget" name="sidebarStub">
+<item><widget class="QWidget" name="sidebar">
  <property name="maximumSize"><size><width>170</width><height>16777215</height></size></property>
- <layout class="QVBoxLayout" name="sidebarStubLayout">
+ <layout class="QVBoxLayout" name="sidebarLayout">
   <item><widget class="QPushButton" name="sidebarBtn_createObject"><property name="text"><string>Создать объект</string></property></widget></item>
   <item><widget class="QPushButton" name="sidebarBtn_createDocument"><property name="text"><string>Создать документ</string></property></widget></item>
   <item><widget class="QTreeWidget" name="objectsTree"><column><property name="text"><string>Документы</string></property></column></widget></item>
   <item><widget class="QListWidget" name="tocList"></widget></item>
   <item><widget class="QPushButton" name="sidebarBtn_employees"><property name="text"><string>Сотрудники</string></property></widget></item>
   <item><widget class="QPushButton" name="sidebarBtn_instruments"><property name="text"><string>Приборы</string></property></widget></item>
-  <item><spacer name="sidebarStubSpacer">
-   <property name="orientation"><enum>Qt::Vertical</enum></property>
-   <property name="sizeHint" stdset="0"><size><width>20</width><height>40</height></size></property>
-  </spacer></item>
  </layout>
 </widget></item>
 <item><widget class="QStackedWidget" name="viewStack">
