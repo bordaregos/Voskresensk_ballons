@@ -2,7 +2,7 @@
 
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QPlainTextEdit, QComboBox,
                              QPushButton, QSpinBox, QDateEdit, QTableWidgetItem, QTableWidget,
-                             QMessageBox, QFileDialog)
+                             QMessageBox, QFileDialog, QListWidgetItem, QGroupBox)
 from PyQt6.QtCore import QLocale, Qt, QDate
 from PyQt6.QtGui import QPixmap
 from PyQt6.uic import loadUi
@@ -157,6 +157,14 @@ class MainWindow(QMainWindow):
             self.sidebarBtn_instruments.clicked.connect(lambda: self._switch_view("instruments"))
             self._current_view = "document"
             self._update_report_buttons_visibility()
+
+            # Оглавление документа (Фаза 3): пункты берутся из самих
+            # groupbox'ов ленты tab_document, а не хардкодятся -- если
+            # разделы переставят в Designer'е, список подстроится сам.
+            self._suppress_toc_spy = False
+            self._populate_toc()
+            self.tocList.itemClicked.connect(self._scroll_to_toc_item)
+            self.tab_document_scroll.verticalScrollBar().valueChanged.connect(self._on_document_scrolled)
 
     def init_file_handler(self):
         """Инициализация FileHandler для импорта/экспорта."""
@@ -1487,7 +1495,50 @@ class MainWindow(QMainWindow):
         }[view]
         self.viewStack.setCurrentWidget(page)
         self._current_view = view
+        self.tocList.setVisible(view == "document")
         self._update_report_buttons_visibility()
+
+    def _populate_toc(self):
+        """Заполняет tocList оглавлением документа -- по одной строке на
+        каждый top-level QGroupBox ленты tab_document, в том порядке, в
+        котором они реально стоят в .ui. Ссылка на сам groupbox кладётся в
+        Qt.ItemDataRole.UserRole -- по ней потом скроллим и подсвечиваем
+        (см. _scroll_to_toc_item()/_on_document_scrolled())."""
+        layout = self.tab_document_scrollContent.layout()
+        self._toc_groupboxes = []
+        for i in range(layout.count()):
+            widget = layout.itemAt(i).widget()
+            if isinstance(widget, QGroupBox):
+                item = QListWidgetItem(widget.title())
+                item.setData(Qt.ItemDataRole.UserRole, widget)
+                self.tocList.addItem(item)
+                self._toc_groupboxes.append(widget)
+
+    def _scroll_to_toc_item(self, item):
+        """Клик по пункту оглавления -- скроллит tab_document_scroll так,
+        чтобы верх выбранного раздела оказался у верха видимой области
+        (не ensureWidgetVisible(): для разделов выше высоты вьюпорта он
+        подтянул бы минимальным движением, а не встык к началу раздела)."""
+        groupbox = item.data(Qt.ItemDataRole.UserRole)
+        self._suppress_toc_spy = True
+        self.tab_document_scroll.verticalScrollBar().setValue(groupbox.y())
+        self.tocList.setCurrentItem(item)
+        self._suppress_toc_spy = False
+
+    def _on_document_scrolled(self, value):
+        """Скролл-спай: при ручной прокрутке ленты подсвечивает в tocList
+        пункт последнего раздела, чей верх уже проскроллен (groupbox.y()
+        <= value). Отключается на время программного скролла по клику
+        (_suppress_toc_spy), иначе клик спорил бы сам с собой."""
+        if self._suppress_toc_spy or not self._toc_groupboxes:
+            return
+        current = 0
+        for i, groupbox in enumerate(self._toc_groupboxes):
+            if groupbox.y() <= value:
+                current = i
+        self.tocList.blockSignals(True)
+        self.tocList.setCurrentRow(current)
+        self.tocList.blockSignals(False)
 
     def _update_report_buttons_visibility(self):
         """Скрывает кнопки "Выгрузить в Word"/"Сохранить проект"/"Открыть
