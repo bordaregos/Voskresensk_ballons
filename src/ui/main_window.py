@@ -177,6 +177,14 @@ class MainWindow(QMainWindow):
             self.tocList.itemClicked.connect(self._scroll_to_toc_item)
             self.tab_document_scroll.verticalScrollBar().valueChanged.connect(self._on_document_scrolled)
 
+            # Ширина сайдбара задаётся кодом: .ui-формат не умеет
+            # сериализовать QSplitter.sizes (нет XML-типа под QList<int>).
+            # Диапазон перетаскивания ограничен minimumSize/maximumSize
+            # самого sidebar (180..400 px в .ui).
+            self.mainSplitter.setSizes([240, 760])
+            self.mainSplitter.setStretchFactor(0, 0)
+            self.mainSplitter.setStretchFactor(1, 1)
+
             # Устанавливает начальный вид и корректно прячет tocList --
             # при запуске ни один документ ещё не открыт (_current_document_path
             # is None), оглавление показывать нечего, см. _switch_view().
