@@ -185,7 +185,7 @@ class MainWindow(QMainWindow):
             self.mainSplitter.setStretchFactor(0, 0)
             self.mainSplitter.setStretchFactor(1, 1)
 
-            # Устанавливает начальный вид и корректно прячет tocList --
+            # Устанавливает начальный вид и корректно прячет tocSection --
             # при запуске ни один документ ещё не открыт (_current_document_path
             # is None), оглавление показывать нечего, см. _switch_view().
             self._switch_view("document")
@@ -1524,7 +1524,7 @@ class MainWindow(QMainWindow):
         # Оглавление относится к конкретному открытому документу -- пока
         # ни один не открыт (только что запустили приложение, ничего не
         # выбрано в дереве), показывать нечего.
-        self.tocList.setVisible(view == "document" and self._current_document_path is not None)
+        self.tocSection.setVisible(view == "document" and self._current_document_path is not None)
         self._update_report_buttons_visibility()
 
     def _reset_form(self):

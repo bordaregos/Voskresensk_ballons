@@ -13,10 +13,34 @@
  <property name="minimumSize"><size><width>180</width><height>0</height></size></property>
  <property name="maximumSize"><size><width>400</width><height>16777215</height></size></property>
  <layout class="QVBoxLayout" name="sidebarLayout">
+  <item><widget class="QLabel" name="sidebarHeader_objects">
+   <property name="font"><font><bold>true</bold></font></property>
+   <property name="text"><string>Объекты</string></property>
+  </widget></item>
   <item><widget class="QPushButton" name="sidebarBtn_createObject"><property name="text"><string>Создать объект</string></property></widget></item>
   <item><widget class="QPushButton" name="sidebarBtn_createDocument"><property name="text"><string>Создать документ</string></property></widget></item>
   <item><widget class="QTreeWidget" name="objectsTree"><column><property name="text"><string>Документы</string></property></column></widget></item>
-  <item><widget class="QListWidget" name="tocList"></widget></item>
+  <item><widget class="QWidget" name="tocSection">
+   <layout class="QVBoxLayout" name="tocSectionLayout">
+    <property name="leftMargin"><number>0</number></property>
+    <property name="topMargin"><number>0</number></property>
+    <property name="rightMargin"><number>0</number></property>
+    <property name="bottomMargin"><number>0</number></property>
+    <item><widget class="QFrame" name="tocDivider">
+     <property name="frameShape"><enum>QFrame::HLine</enum></property>
+     <property name="frameShadow"><enum>QFrame::Sunken</enum></property>
+    </widget></item>
+    <item><widget class="QLabel" name="sidebarHeader_toc">
+     <property name="font"><font><bold>true</bold></font></property>
+     <property name="text"><string>Оглавление</string></property>
+    </widget></item>
+    <item><widget class="QListWidget" name="tocList"/></item>
+   </layout>
+  </widget></item>
+  <item><widget class="QFrame" name="navDivider">
+   <property name="frameShape"><enum>QFrame::HLine</enum></property>
+   <property name="frameShadow"><enum>QFrame::Sunken</enum></property>
+  </widget></item>
   <item><widget class="QPushButton" name="sidebarBtn_employees"><property name="text"><string>Сотрудники</string></property></widget></item>
   <item><widget class="QPushButton" name="sidebarBtn_instruments"><property name="text"><string>Приборы</string></property></widget></item>
  </layout>
