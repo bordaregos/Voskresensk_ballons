@@ -20,16 +20,7 @@
  </layout>
 </widget></item>
 <item><widget class="QStackedWidget" name="viewStack">
- <widget class="QWidget" name="tab_general">
- <attribute name="title"><string>Общие данные</string></attribute>
- <layout class="QVBoxLayout" name="tab_general_outerLayout">
-  <item>
-   <widget class="QScrollArea" name="tab_general_scroll">
-    <property name="widgetResizable"><bool>true</bool></property>
-    <widget class="QWidget" name="tab_general_scrollContent">
-     <property name="geometry"><rect><x>0</x><y>0</y><width>960</width><height>1700</height></rect></property>
-     <layout class="QVBoxLayout" name="vlayout_32">
-<item><widget class="QGroupBox" name="title_group">
+<widget class="QWidget" name="tab_document"><layout class="QVBoxLayout" name="tab_document_outerLayout"><item><widget class="QScrollArea" name="tab_document_scroll"><property name="widgetResizable"><bool>true</bool></property><widget class="QWidget" name="tab_document_scrollContent"><property name="geometry"><rect><x>0</x><y>0</y><width>960</width><height>6800</height></rect></property><layout class="QVBoxLayout" name="vlayout_document"><item><widget class="QGroupBox" name="title_group">
  <property name="title"><string>Титульный лист</string></property>
 <layout class="QFormLayout" name="formLayout_0">
 <item row="0" column="0">
@@ -288,7 +279,7 @@
  <widget class="QPlainTextEdit" name="obj_naznach_intro">
  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="5" column="0">
@@ -298,7 +289,7 @@
  <widget class="QPlainTextEdit" name="obj_street_address">
  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 </layout>
@@ -313,7 +304,7 @@
  <widget class="QPlainTextEdit" name="customer_name">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="1" column="0">
@@ -323,7 +314,7 @@
  <widget class="QPlainTextEdit" name="customer_short_name">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="2" column="0">
@@ -333,7 +324,7 @@
  <widget class="QPlainTextEdit" name="customer_legal_form">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="3" column="0">
@@ -343,7 +334,7 @@
  <widget class="QPlainTextEdit" name="customer_address">
  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="4" column="0">
@@ -353,7 +344,7 @@
  <widget class="QPlainTextEdit" name="customer_actual_address">
  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="5" column="0">
@@ -363,7 +354,7 @@
  <widget class="QPlainTextEdit" name="customer_head">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="6" column="0">
@@ -373,7 +364,7 @@
  <widget class="QPlainTextEdit" name="customer_phone">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="7" column="0">
@@ -383,7 +374,7 @@
  <widget class="QPlainTextEdit" name="customer_inn">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 </layout>
@@ -425,7 +416,7 @@
  <widget class="QPlainTextEdit" name="obj_name_section6">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="1" column="0">
@@ -435,7 +426,7 @@
  <widget class="QPlainTextEdit" name="obj_purpose">
  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="2" column="0">
@@ -445,7 +436,7 @@
  <widget class="QPlainTextEdit" name="year_made">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="3" column="0">
@@ -455,7 +446,7 @@
  <widget class="QPlainTextEdit" name="year_start">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="4" column="0">
@@ -465,7 +456,7 @@
  <widget class="QPlainTextEdit" name="years_of_operation">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="5" column="0">
@@ -487,7 +478,7 @@
  <widget class="QPlainTextEdit" name="project_docs">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="7" column="0">
@@ -497,7 +488,7 @@
  <widget class="QPlainTextEdit" name="p_rab_mpa">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="8" column="0">
@@ -518,7 +509,7 @@
  <widget class="QPlainTextEdit" name="work_temp">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="10" column="0">
@@ -528,7 +519,7 @@
  <widget class="QPlainTextEdit" name="length_m">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="11" column="0">
@@ -538,7 +529,7 @@
  <widget class="QPlainTextEdit" name="construction_desc">
  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="12" column="0">
@@ -548,7 +539,7 @@
  <widget class="QPlainTextEdit" name="work_temp_range">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 </layout></item>
@@ -693,7 +684,7 @@
  <widget class="QPlainTextEdit" name="final_condition">
  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="1" column="0">
@@ -703,7 +694,7 @@
  <widget class="QPlainTextEdit" name="final_years_allowed">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="2" column="0">
@@ -717,21 +708,6 @@
 </item>
 </layout>
 </widget></item>
-</layout>
-    </widget>
-   </widget>
-  </item>
- </layout>
-</widget>
- <widget class="QWidget" name="tab_acts">
- <attribute name="title"><string>Приложения</string></attribute>
- <layout class="QVBoxLayout" name="tab_acts_outerLayout">
-  <item>
-   <widget class="QScrollArea" name="tab_acts_scroll">
-    <property name="widgetResizable"><bool>true</bool></property>
-    <widget class="QWidget" name="tab_acts_scrollContent">
-     <property name="geometry"><rect><x>0</x><y>0</y><width>960</width><height>1700</height></rect></property>
-     <layout class="QVBoxLayout" name="vlayout_42">
 <item><widget class="QGroupBox" name="program_group">
  <property name="title"><string>Приложение 1 — Программа технического диагностирования</string></property>
  <layout class="QVBoxLayout" name="program_vlayout">
@@ -749,7 +725,7 @@
 </layout></item>
   <item><layout class="QFormLayout" name="program_signer_form">
    <item row="0" column="0"><widget class="QLabel" name="label_program_specialist"><property name="text"><string>Программу составил</string></property></widget></item>
-   <item row="0" column="1"><widget class="QComboBox" name="program_specialist"/></item>
+   <item row="0" column="1"><widget class="QComboBox" name="program_specialist" /></item>
   </layout></item>
  </layout>
 </widget></item>
@@ -819,14 +795,14 @@
  <widget class="QPlainTextEdit" name="act2_conclusion">
  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="1" column="0">
  <widget class="QLabel" name="label_act2_specialist"><property name="text"><string>Анализ документации провёл</string></property></widget>
 </item>
 <item row="1" column="1">
- <widget class="QComboBox" name="act2_specialist"/>
+ <widget class="QComboBox" name="act2_specialist" />
 </item>
 </layout></item>
 </layout>
@@ -902,10 +878,10 @@
    <item row="0" column="1"><widget class="QPlainTextEdit" name="vik_conclusion">
  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget></item>
    <item row="1" column="0"><widget class="QLabel" name="label_vik_specialist"><property name="text"><string>Контроль провёл</string></property></widget></item>
-   <item row="1" column="1"><widget class="QComboBox" name="vik_specialist"/></item>
+   <item row="1" column="1"><widget class="QComboBox" name="vik_specialist" /></item>
   </layout></item>
  </layout>
 </widget></item>
@@ -972,7 +948,7 @@
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
 <property name="plainText"><string>Приложение 7</string></property>
-<property name="placeholderText"><string></string></property>
+<property name="placeholderText"><string /></property>
 </widget>
 </item>
 </layout></item>
@@ -989,7 +965,7 @@
  <property name="minimumSize"><size><width>0</width><height>140</height></size></property>
  <property name="rowCount"><number>1</number></property>
  <property name="columnCount"><number>3</number></property>
-<row/>
+<row />
 <column><property name="text"><string>№</string></property></column>
 <column><property name="text"><string>Тип элемента</string></property></column>
 <column><property name="text"><string>Типоразмер</string></property></column>
@@ -999,7 +975,7 @@
  <property name="minimumSize"><size><width>0</width><height>140</height></size></property>
  <property name="rowCount"><number>1</number></property>
  <property name="columnCount"><number>4</number></property>
-<row/>
+<row />
 <column><property name="text"><string>№</string></property></column>
 <column><property name="text"><string>Тип элемента</string></property></column>
 <column><property name="text"><string>Типоразмер</string></property></column>
@@ -1010,10 +986,10 @@
    <item row="0" column="1"><widget class="QPlainTextEdit" name="thick_conclusion">
  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget></item>
    <item row="1" column="0"><widget class="QLabel" name="label_thick_specialist"><property name="text"><string>Измерение провёл</string></property></widget></item>
-   <item row="1" column="1"><widget class="QComboBox" name="thick_specialist"/></item>
+   <item row="1" column="1"><widget class="QComboBox" name="thick_specialist" /></item>
   </layout></item>
  </layout>
 </widget></item>
@@ -1068,7 +1044,7 @@
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
 <property name="plainText"><string>Приложение 7</string></property>
-<property name="placeholderText"><string></string></property>
+<property name="placeholderText"><string /></property>
 </widget>
 </item>
 </layout></item>
@@ -1115,10 +1091,10 @@ n и n0 - измеренное количество несплошностей �
    <item row="0" column="1"><widget class="QPlainTextEdit" name="uzk_conclusion">
  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget></item>
    <item row="1" column="0"><widget class="QLabel" name="label_uzk_specialist"><property name="text"><string>Измерение провёл</string></property></widget></item>
-   <item row="1" column="1"><widget class="QComboBox" name="uzk_specialist"/></item>
+   <item row="1" column="1"><widget class="QComboBox" name="uzk_specialist" /></item>
   </layout></item>
  </layout>
 </widget></item>
@@ -1156,7 +1132,7 @@ n и n0 - измеренное количество несплошностей �
  <widget class="QPlainTextEdit" name="pnevmo_pressure">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="2" column="0">
@@ -1396,12 +1372,12 @@ n и n0 - измеренное количество несплошностей �
  <property name="plainText"><string>Размещение ПАЭ и их количество определено конфигурацией трубопровода и оптимальностью расстановки на контролируемых участках. Расстановки ПАЭ соответствует схеме технологии контроля</string></property>
 </widget></item>
 <item row="1" column="0"><widget class="QLabel" name="label_pnevmo_specialist"><property name="text"><string>Контроль выполнил</string></property></widget></item>
-<item row="1" column="1"><widget class="QComboBox" name="pnevmo_specialist"/></item>
+<item row="1" column="1"><widget class="QComboBox" name="pnevmo_specialist" /></item>
 <item row="2" column="0"><widget class="QLabel" name="label_41"><property name="text"><string>Вывод</string></property></widget></item>
 <item row="2" column="1"><widget class="QPlainTextEdit" name="pnevmo_conclusion">
  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget></item>
 </layout></item>
 </layout>
@@ -1454,25 +1430,10 @@ n и n0 - измеренное количество несплошностей �
 </widget></item>
 <item><layout class="QFormLayout" name="ae_zakl_specialist_form">
 <item row="0" column="0"><widget class="QLabel" name="label_ae_zakl_specialist"><property name="text"><string>Заключение составил</string></property></widget></item>
-<item row="0" column="1"><widget class="QComboBox" name="ae_zakl_specialist"/></item>
+<item row="0" column="1"><widget class="QComboBox" name="ae_zakl_specialist" /></item>
 </layout></item>
 </layout>
 </widget></item>
-</layout>
-    </widget>
-   </widget>
-  </item>
- </layout>
-</widget>
- <widget class="QWidget" name="tab_calc">
- <attribute name="title"><string>Расчёты</string></attribute>
- <layout class="QVBoxLayout" name="tab_calc_outerLayout">
-  <item>
-   <widget class="QScrollArea" name="tab_calc_scroll">
-    <property name="widgetResizable"><bool>true</bool></property>
-    <widget class="QWidget" name="tab_calc_scrollContent">
-     <property name="geometry"><rect><x>0</x><y>0</y><width>960</width><height>1700</height></rect></property>
-     <layout class="QVBoxLayout" name="vlayout_67">
 <item><widget class="QGroupBox" name="calc_appendix_group">
  <property name="title"><string>Приложение 6 — Расчёт на прочность и остаточный ресурс</string></property>
 <layout class="QVBoxLayout" name="calc_appendix_vlayout">
@@ -1508,7 +1469,7 @@ n и n0 - измеренное количество несплошностей �
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
  <property name="readOnly"><bool>true</bool></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="2" column="0">
@@ -1538,7 +1499,7 @@ n и n0 - измеренное количество несплошностей �
  <widget class="QPlainTextEdit" name="calc_da">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="5" column="0">
@@ -1548,7 +1509,7 @@ n и n0 - измеренное количество несплошностей �
  <widget class="QPlainTextEdit" name="calc_sn">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="6" column="0">
@@ -1558,7 +1519,7 @@ n и n0 - измеренное количество несплошностей �
  <widget class="QPlainTextEdit" name="calc_c2">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="7" column="0">
@@ -1592,7 +1553,7 @@ n и n0 - измеренное количество несплошностей �
  <widget class="QPlainTextEdit" name="calc_sigma_allow">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="1" column="0">
@@ -1602,7 +1563,7 @@ n и n0 - измеренное количество несплошностей �
  <widget class="QPlainTextEdit" name="calc_sr">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="2" column="0">
@@ -1612,7 +1573,7 @@ n и n0 - измеренное количество несплошностей �
  <widget class="QPlainTextEdit" name="calc_s_reject">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="3" column="0">
@@ -1622,7 +1583,7 @@ n и n0 - измеренное количество несплошностей �
  <widget class="QPlainTextEdit" name="calc_p_allow">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="4" column="0">
@@ -1632,7 +1593,7 @@ n и n0 - измеренное количество несплошностей �
  <widget class="QPlainTextEdit" name="calc_strength_conclusion">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 </layout>
@@ -1647,7 +1608,7 @@ n и n0 - измеренное количество несплошностей �
  <widget class="QPlainTextEdit" name="calc_years_operation">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="1" column="0">
@@ -1672,7 +1633,7 @@ n и n0 - измеренное количество несплошностей �
  <widget class="QPlainTextEdit" name="calc_corrosion_rate">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="1" column="0">
@@ -1683,7 +1644,7 @@ n и n0 - измеренное количество несплошностей �
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
  <property name="readOnly"><bool>true</bool></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 </layout>
@@ -1733,16 +1694,11 @@ t- время от момента начала эксплуатации до м�
  </widget>
  </item>
  <item row="1" column="0"><widget class="QLabel" name="label_calc_specialist"><property name="text"><string>Расчёт выполнил</string></property></widget></item>
- <item row="1" column="1"><widget class="QComboBox" name="calc_specialist"/></item>
+ <item row="1" column="1"><widget class="QComboBox" name="calc_specialist" /></item>
 </layout></item>
 </layout>
 </widget></item>
-</layout>
-    </widget>
-   </widget>
-  </item>
- </layout>
-</widget>
+</layout></widget></widget></item></layout></widget>
  <widget class="QWidget" name="tab_employees">
  <attribute name="title"><string>Сотрудники</string></attribute>
  <layout class="QVBoxLayout" name="tab_employees_outerLayout">
