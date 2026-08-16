@@ -1126,6 +1126,7 @@ class MainWindow(QMainWindow):
             self._install_segment_type_combo(table, row)
             table.setItem(row, 2, QTableWidgetItem(size))
         self._completed_steps.add("segments")
+        self._update_toc_progress()
 
     def _read_segments(self):
         """Читает участки трассы из table_segments в список SegmentSpec."""
@@ -1180,6 +1181,7 @@ class MainWindow(QMainWindow):
             self.calc_sf.setPlainText(format_ru_fixed(s_fact_min, 2))
 
             self._completed_steps.add("thickness")
+            self._update_toc_progress()
 
         except ValueError as e:
             print(f"Ошибка ввода данных: {e}")
@@ -1218,6 +1220,7 @@ class MainWindow(QMainWindow):
                 else "Условие прочности не выполняется"
             )
             self._completed_steps.add("strength")
+            self._update_toc_progress()
 
         except (ValueError, KeyError) as e:
             print(f"Ошибка ввода данных: {e}")
@@ -1262,6 +1265,7 @@ class MainWindow(QMainWindow):
                 self.final_years_allowed.setPlainText(str(int(result.remaining_years)))
 
             self._completed_steps.add("residual_life")
+            self._update_toc_progress()
 
         except ValueError as e:
             print(f"Ошибка ввода данных: {e}")
@@ -1539,6 +1543,36 @@ class MainWindow(QMainWindow):
         self.tocList.blockSignals(True)
         self.tocList.setCurrentRow(current)
         self.tocList.blockSignals(False)
+
+    # Пункты оглавления, у которых есть осмысленное понятие "выполнено" --
+    # только эти два groupbox'а физически содержат кнопки шагов из
+    # equipment_types.py STEP_ORDER (segments/thickness -> thick_group,
+    # strength/residual_life -> calc_appendix_group). Остальные 18 разделов
+    # -- просто поля ввода без состояния "выполнено/не выполнено", галочку
+    # им придумывать не из чего.
+    TOC_PROGRESS_GROUPS = {
+        "thick_group": {"segments", "thickness"},
+        "calc_appendix_group": {"strength", "residual_life"},
+    }
+
+    def _update_toc_progress(self):
+        """Ставит префикс "✓ " на пункты tocList, чьи groupbox'ы входят в
+        TOC_PROGRESS_GROUPS, когда все их шаги выполнены (_completed_steps).
+        Текстовый префикс, не иконка -- в проекте нет инфраструктуры
+        иконок/ресурсов, заводить её ради двух галочек избыточно."""
+        for i in range(self.tocList.count()):
+            item = self.tocList.item(i)
+            groupbox = item.data(Qt.ItemDataRole.UserRole)
+            steps = self.TOC_PROGRESS_GROUPS.get(groupbox.objectName())
+            if steps is None:
+                continue
+            done = steps <= self._completed_steps
+            text = item.text()
+            has_mark = text.startswith("✓ ")
+            if done and not has_mark:
+                item.setText("✓ " + text)
+            elif not done and has_mark:
+                item.setText(text[2:])
 
     def _update_report_buttons_visibility(self):
         """Скрывает кнопки "Выгрузить в Word"/"Сохранить проект"/"Открыть
