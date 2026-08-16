@@ -169,6 +169,9 @@ class MainWindow(QMainWindow):
             self.objectsTree.itemClicked.connect(self._on_objects_tree_item_clicked)
             self._refresh_objects_tree()
             self.sidebarSearchBox.textChanged.connect(self._filter_objects_tree)
+            self._sidebar_collapsed = False
+            self._sidebar_expanded_sizes = [240, 760]
+            self.sidebarBtn_collapse.clicked.connect(self._toggle_sidebar)
 
             # Оглавление документа (Фаза 3): пункты берутся из самих
             # groupbox'ов ленты tab_document, а не хардкодятся -- если
@@ -1597,6 +1600,43 @@ class MainWindow(QMainWindow):
                 doc_item.setHidden(bool(text) and not object_match and not doc_match)
                 any_child_match = any_child_match or doc_match
             object_item.setHidden(bool(text) and not object_match and not any_child_match)
+
+    # Виджеты сайдбара, которые прячутся при сворачивании -- всё, кроме
+    # самой строки заголовка с кнопкой sidebarBtn_collapse (она должна
+    # остаться, иначе развернуть сайдбар обратно будет нечем).
+    # tocSection сюда не входит -- её видимость и так завязана на
+    # текущий вид/документ, решает _switch_view().
+    _SIDEBAR_COLLAPSIBLE_WIDGETS = (
+        "sidebarHeader_objects", "sidebarSearchBox",
+        "sidebarBtn_createObject", "sidebarBtn_createDocument",
+        "objectsTree", "navDivider",
+        "sidebarBtn_employees", "sidebarBtn_instruments",
+    )
+
+    def _toggle_sidebar(self):
+        """Сворачивает сайдбар до узкой полосы 40px с одной кнопкой
+        разворота (см. мокап Фазы 5) -- childrenCollapsible=false на
+        mainSplitter (Фаза 4.3) намеренно не даёт схлопнуть перетаскиванием
+        случайно, это осознанное действие через кнопку."""
+        self._sidebar_collapsed = not self._sidebar_collapsed
+        for name in self._SIDEBAR_COLLAPSIBLE_WIDGETS:
+            getattr(self, name).setVisible(not self._sidebar_collapsed)
+        if self._sidebar_collapsed:
+            self._sidebar_expanded_sizes = self.mainSplitter.sizes()
+            self.sidebar.setMinimumWidth(40)
+            self.sidebar.setMaximumWidth(40)
+            self.mainSplitter.setSizes([40, sum(self._sidebar_expanded_sizes) - 40])
+            self.sidebarBtn_collapse.setText("▶")
+        else:
+            self.sidebar.setMinimumWidth(180)
+            self.sidebar.setMaximumWidth(400)
+            self.mainSplitter.setSizes(self._sidebar_expanded_sizes)
+            self.sidebarBtn_collapse.setText("◀")
+            # tocSection могла быть скрыта до сворачивания по причине,
+            # не связанной со сворачиванием (документ не открыт / вид
+            # не "document") -- пересчитываем её видимость заново, а не
+            # просто показываем.
+            self._switch_view(self._current_view)
 
     def _on_objects_tree_item_clicked(self, item, column):
         """Клик по строке objectsTree. У объектов (папок) данных в
