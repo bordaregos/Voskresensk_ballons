@@ -1221,9 +1221,16 @@ class MainWindow(QMainWindow):
             years = parse_ru(self.calc_years_operation.toPlainText())
             k = parse_ru(self.calc_k.toPlainText()) if self.calc_k.toPlainText().strip() else 1.0
 
+            # calc_corrosion_rate редактируется вручную: если поле уже
+            # заполнено (расчётом или инженером), его текущее значение
+            # берётся как есть, а не перезаписывается формулой -- иначе
+            # правка терялась бы при каждом повторном нажатии кнопки.
+            corrosion_text = self.calc_corrosion_rate.toPlainText().strip()
+            corrosion_override = parse_ru(corrosion_text) if corrosion_text else None
+
             result = calculate_pipeline_residual_life(
                 s_nominal=s_nominal, s_actual=s_actual, s_reject=s_reject,
-                years_of_operation=years, k=k,
+                years_of_operation=years, k=k, corrosion_rate_override=corrosion_override,
             )
 
             self.calc_corrosion_rate.setPlainText(format_ru(result.corrosion_rate))

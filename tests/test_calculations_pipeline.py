@@ -80,6 +80,17 @@ def test_pipeline_residual_life_zero_corrosion_rate_gives_int_zero():
     assert result.remaining_years == 0
 
 
+def test_pipeline_residual_life_corrosion_rate_override_used_as_is():
+    # Инженер вручную скорректировал Аф -- значение берётся как есть,
+    # Тост пересчитывается от него, а не от формулы Sи/Sф/t.
+    result = calculate_pipeline_residual_life(
+        s_nominal=2.0, s_actual=1.99, s_reject=1.71, years_of_operation=52,
+        corrosion_rate_override=0.05,
+    )
+    assert result.corrosion_rate == 0.05
+    assert result.remaining_years == round((1.99 - 1.71) / 0.05, 0)
+
+
 def test_pipeline_residual_life_k_scales_remaining_years():
     baseline = calculate_pipeline_residual_life(
         s_nominal=2.0, s_actual=1.99, s_reject=1.71, years_of_operation=52, k=1.0,

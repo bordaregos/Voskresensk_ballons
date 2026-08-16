@@ -121,6 +121,7 @@ def calculate_pipeline_residual_life(
     years_of_operation: float,
     k: float = 1.0,
     c0_fraction: float = 0.4,
+    corrosion_rate_override: Optional[float] = None,
 ) -> PipelineResidualLifeResult:
     """Скорость коррозии и остаточный ресурс трубопровода.
 
@@ -143,14 +144,23 @@ def calculate_pipeline_residual_life(
     согласующийся с выводом примера. Скорректировать при появлении
     официальной методики.
 
+    corrosion_rate_override — если задано, скорость коррозии берётся из
+    этого значения (инженер скорректировал поле Аф вручную) вместо расчёта
+    по формуле; остаточный ресурс всё равно пересчитывается от него, чтобы
+    Тост оставался согласован с тем, что показано в Аф.
+
     Raises:
         ValueError: если years_of_operation == 0 (деление на ноль).
     """
     if years_of_operation == 0:
         raise ValueError("Срок эксплуатации не может быть нулевым")
 
-    c0 = c0_fraction * s_nominal
-    corrosion_rate = round((s_nominal + c0 - s_actual) / years_of_operation, 4)
+    if corrosion_rate_override is not None:
+        corrosion_rate = corrosion_rate_override
+    else:
+        c0 = c0_fraction * s_nominal
+        corrosion_rate = round((s_nominal + c0 - s_actual) / years_of_operation, 4)
+
     remaining_years = (
         round(k * (s_actual - s_reject) / corrosion_rate, 0) if corrosion_rate != 0 else 0
     )
