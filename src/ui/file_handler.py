@@ -116,6 +116,16 @@ class FileHandler:
                 QMessageBox.Icon.Critical
             )
     
+    def _save_current_project(self):
+        """Сохраняет текущий документ в main_window._current_document_path
+        напрямую, без диалога и без сообщения об успехе -- общая часть
+        save_project_json() (когда путь уже есть) и тихого автосохранения
+        при переключении документа в дереве объектов, см.
+        MainWindow._open_document(). Вызывающая сторона отвечает за то,
+        что _current_document_path не None."""
+        project = self._create_project()
+        project.save_to_file(self.main_window._current_document_path)
+
     def save_project_json(self):
         """
         Сохранение проекта в JSON файл.
@@ -127,25 +137,24 @@ class FileHandler:
         текущий документ.
         """
         existing_path = getattr(self.main_window, "_current_document_path", None)
-        if existing_path is not None:
-            file_path = str(existing_path)
-        else:
-            file_path, _ = QFileDialog.getSaveFileName(
-                self.main_window,
-                "Выберите место для сохранения проекта",
-                str(OUTPUT_DIR / "проект.json"),
-                "JSON файлы (*.json);;All files (*.*)"
-            )
-            if not file_path:
-                return
 
         try:
-            # Создание проекта
-            project = self._create_project()
+            if existing_path is not None:
+                self._save_current_project()
+                file_path = str(existing_path)
+            else:
+                file_path, _ = QFileDialog.getSaveFileName(
+                    self.main_window,
+                    "Выберите место для сохранения проекта",
+                    str(OUTPUT_DIR / "проект.json"),
+                    "JSON файлы (*.json);;All files (*.*)"
+                )
+                if not file_path:
+                    return
 
-            # Сохранение
-            project.save_to_file(Path(file_path))
-            self.main_window._current_document_path = Path(file_path)
+                project = self._create_project()
+                project.save_to_file(Path(file_path))
+                self.main_window._current_document_path = Path(file_path)
 
             self.main_window.show_message(
                 "Успех",

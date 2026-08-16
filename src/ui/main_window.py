@@ -2,7 +2,8 @@
 
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QPlainTextEdit, QComboBox,
                              QPushButton, QSpinBox, QDateEdit, QTableWidgetItem, QTableWidget,
-                             QMessageBox, QFileDialog, QListWidgetItem, QGroupBox)
+                             QMessageBox, QFileDialog, QListWidgetItem, QGroupBox,
+                             QTreeWidgetItem, QInputDialog)
 from PyQt6.QtCore import QLocale, Qt, QDate
 from PyQt6.QtGui import QPixmap
 from PyQt6.uic import loadUi
@@ -36,6 +37,8 @@ from ..services.calculations_pipeline import (
     SegmentSpec,
 )
 from ..services.employees_store import store_kleishe_image
+from ..services import workspace
+from ..models.project import Project
 from ..config import NK_SCHEME_DIR, PNEVMO_GRAPH_DIR
 from .widget_names_pipeline import SEGMENT_TYPES, PROGRAM_DEFAULT_ITEMS, AE_CLASS_TYPES
 
@@ -147,17 +150,24 @@ class MainWindow(QMainWindow):
             from .instruments_tab import InstrumentsTabController
             self.instruments_tab = InstrumentsTabController(self)
 
-            # Сайдбар-заглушка (3 кнопки вместо бывших вкладок) -- временная
-            # навигация фазы 1 редизайна, полноценное дерево объектов/
-            # документов появится позже. «Сотрудники» и «Приборы» — общие
+            # Сайдбар: переключатели «Сотрудники»/«Приборы» — общие
             # справочники компании, не часть текущего отчёта: кнопки
             # генерации Word и работы с проектом там неуместны, см.
-            # _update_report_buttons_visibility().
-            self.sidebarBtn_document.clicked.connect(lambda: self._switch_view("document"))
+            # _update_report_buttons_visibility(). Дерево объектов/
+            # документов (objectsTree) — навигация внутри "document".
             self.sidebarBtn_employees.clicked.connect(lambda: self._switch_view("employees"))
             self.sidebarBtn_instruments.clicked.connect(lambda: self._switch_view("instruments"))
             self._current_view = "document"
-            self._update_report_buttons_visibility()
+
+            # Дерево "объект (папка) -> документ (.json внутри неё)" --
+            # см. src/services/workspace.py. Клик по документу открывает
+            # его (см. _open_document()); клик по объекту — стандартное
+            # разворачивание/сворачивание QTreeWidget, ничего сверху не
+            # навешено.
+            self.sidebarBtn_createObject.clicked.connect(self._create_object_dialog)
+            self.sidebarBtn_createDocument.clicked.connect(self._create_document_dialog)
+            self.objectsTree.itemClicked.connect(self._on_objects_tree_item_clicked)
+            self._refresh_objects_tree()
 
             # Оглавление документа (Фаза 3): пункты берутся из самих
             # groupbox'ов ленты tab_document, а не хардкодятся -- если
@@ -166,6 +176,11 @@ class MainWindow(QMainWindow):
             self._populate_toc()
             self.tocList.itemClicked.connect(self._scroll_to_toc_item)
             self.tab_document_scroll.verticalScrollBar().valueChanged.connect(self._on_document_scrolled)
+
+            # Устанавливает начальный вид и корректно прячет tocList --
+            # при запуске ни один документ ещё не открыт (_current_document_path
+            # is None), оглавление показывать нечего, см. _switch_view().
+            self._switch_view("document")
 
     def init_file_handler(self):
         """Инициализация FileHandler для импорта/экспорта."""
@@ -1490,9 +1505,7 @@ class MainWindow(QMainWindow):
 
     def _switch_view(self, view):
         """Переключает viewStack между документом и общими справочниками
-        (Сотрудники/Приборы) по клику кнопки сайдбара-заглушки -- временная
-        замена бывших вкладок на время фазы 1 редизайна, полноценное дерево
-        объектов/документов -- отдельная задача позже."""
+        (Сотрудники/Приборы)."""
         page = {
             "document": self.tab_document,
             "employees": self.tab_employees,
@@ -1500,7 +1513,10 @@ class MainWindow(QMainWindow):
         }[view]
         self.viewStack.setCurrentWidget(page)
         self._current_view = view
-        self.tocList.setVisible(view == "document")
+        # Оглавление относится к конкретному открытому документу -- пока
+        # ни один не открыт (только что запустили приложение, ничего не
+        # выбрано в дереве), показывать нечего.
+        self.tocList.setVisible(view == "document" and self._current_document_path is not None)
         self._update_report_buttons_visibility()
 
     def _reset_form(self):
@@ -1536,6 +1552,91 @@ class MainWindow(QMainWindow):
         if self.equipment_type.id == "pipeline":
             self._seed_program_table_defaults()
             self._update_toc_progress()
+
+    def _refresh_objects_tree(self):
+        """Перестраивает objectsTree с нуля из файловой системы (см.
+        src/services/workspace.py) -- объекты как раскрывающиеся строки
+        верхнего уровня, документы внутри как дочерние, путь к файлу
+        документа лежит в Qt.ItemDataRole.UserRole. Вызывается при
+        старте и сразу после создания объекта/документа -- построение
+        дешёвое (десятки папок/файлов, не тысячи), отдельный кэш не
+        заводится."""
+        self.objectsTree.clear()
+        for object_name in workspace.list_objects():
+            object_item = QTreeWidgetItem([object_name])
+            self.objectsTree.addTopLevelItem(object_item)
+            object_dir = workspace.OUTPUT_DIR / object_name
+            for path, label in workspace.list_documents(object_dir, self.equipment_type.id):
+                doc_item = QTreeWidgetItem([label])
+                doc_item.setData(0, Qt.ItemDataRole.UserRole, path)
+                object_item.addChild(doc_item)
+            object_item.setExpanded(True)
+
+    def _on_objects_tree_item_clicked(self, item, column):
+        """Клик по строке objectsTree. У объектов (папок) данных в
+        UserRole нет -- для них ничего не делаем, QTreeWidget сам
+        разворачивает/сворачивает. У документов там путь к файлу --
+        открываем его, см. _open_document()."""
+        path = item.data(0, Qt.ItemDataRole.UserRole)
+        if path is not None:
+            self._open_document(path)
+
+    def _open_document(self, path):
+        """Открывает документ дерева. Если это уже открытый документ --
+        просто переключает вид, не трогая форму (иначе несохранённые
+        правки терялись бы). Иначе: тихо сохраняет текущий документ (если
+        он был), сбрасывает форму и наполняет данными выбранного —
+        порядок как в _reset_form()/_fill_ui_from_project(), см. план
+        Фазы 2."""
+        if path == self._current_document_path:
+            self._switch_view("document")
+            return
+
+        if self._current_document_path is not None:
+            try:
+                self.file_handler._save_current_project()
+            except Exception as e:
+                print(f"Не удалось автосохранить текущий документ: {e}")
+
+        self._reset_form()
+        project = Project.load_from_file(path)
+        self.file_handler._fill_ui_from_project(project)
+        self._current_document_path = path
+        self._refresh_program_specialist_combo()
+        self._switch_view("document")
+        self._update_toc_progress()
+
+    def _create_object_dialog(self):
+        """«Создать объект»: спрашивает название, создаёт папку, сразу
+        обновляет дерево, чтобы новый объект стало видно."""
+        name, ok = QInputDialog.getText(self, "Новый объект", "Название объекта:")
+        if not ok or not name.strip():
+            return
+        workspace.create_object(name)
+        self._refresh_objects_tree()
+
+    def _create_document_dialog(self):
+        """«Создать документ»: выбор объекта (готовый список, редактируемый
+        комбобокс -- можно ввести и новое название прямо тут, не уходя в
+        отдельный диалог «Создать объект») либо, если объектов ещё нет,
+        сразу текстовое поле под название нового. Документ создаётся на
+        дефолтном шаблоне -- выбор между несколькими шаблонами не
+        реализован (см. план Фазы 2, «Мои шаблоны» — отдельная задача
+        позже)."""
+        objects = workspace.list_objects()
+        if objects:
+            name, ok = QInputDialog.getItem(
+                self, "Документ — объект", "Объект (выберите или введите новый):",
+                objects, 0, True,
+            )
+        else:
+            name, ok = QInputDialog.getText(self, "Документ — объект", "Название объекта:")
+        if not ok or not name.strip():
+            return
+        object_dir = workspace.create_object(name)
+        doc_path = workspace.create_document(object_dir, self.equipment_type.id)
+        self._refresh_objects_tree()
+        self._open_document(doc_path)
 
     def _populate_toc(self):
         """Заполняет tocList оглавлением документа -- по одной строке на
