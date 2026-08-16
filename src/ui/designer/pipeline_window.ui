@@ -11,6 +11,7 @@
  <property name="maximumSize"><size><width>170</width><height>16777215</height></size></property>
  <layout class="QVBoxLayout" name="sidebarStubLayout">
   <item><widget class="QPushButton" name="sidebarBtn_document"><property name="text"><string>Документ</string></property></widget></item>
+  <item><widget class="QListWidget" name="tocList"></widget></item>
   <item><widget class="QPushButton" name="sidebarBtn_employees"><property name="text"><string>Сотрудники</string></property></widget></item>
   <item><widget class="QPushButton" name="sidebarBtn_instruments"><property name="text"><string>Приборы</string></property></widget></item>
   <item><spacer name="sidebarStubSpacer">
