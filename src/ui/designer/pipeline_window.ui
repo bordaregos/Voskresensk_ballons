@@ -1699,7 +1699,6 @@ t- время от момента начала эксплуатации до м�
 </widget></item>
 </layout></widget></widget></item></layout></widget>
  <widget class="QWidget" name="tab_employees">
- <attribute name="title"><string>Сотрудники</string></attribute>
  <layout class="QVBoxLayout" name="tab_employees_outerLayout">
   <item>
    <widget class="QScrollArea" name="tab_employees_scroll">
@@ -1784,7 +1783,6 @@ t- время от момента начала эксплуатации до м�
  </layout>
 </widget>
  <widget class="QWidget" name="tab_instruments">
- <attribute name="title"><string>Приборы</string></attribute>
  <layout class="QVBoxLayout" name="tab_instruments_outerLayout">
   <item>
    <widget class="QScrollArea" name="tab_instruments_scroll">
