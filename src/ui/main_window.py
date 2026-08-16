@@ -168,6 +168,7 @@ class MainWindow(QMainWindow):
             self.sidebarBtn_createDocument.clicked.connect(self._create_document_dialog)
             self.objectsTree.itemClicked.connect(self._on_objects_tree_item_clicked)
             self._refresh_objects_tree()
+            self.sidebarSearchBox.textChanged.connect(self._filter_objects_tree)
 
             # Оглавление документа (Фаза 3): пункты берутся из самих
             # groupbox'ов ленты tab_document, а не хардкодятся -- если
@@ -1579,6 +1580,23 @@ class MainWindow(QMainWindow):
                 doc_item.setData(0, Qt.ItemDataRole.UserRole, path)
                 object_item.addChild(doc_item)
             object_item.setExpanded(True)
+
+    def _filter_objects_tree(self, text):
+        """Фильтр по вводу в sidebarSearchBox. Документ виден, если текст
+        совпал с ним самим ИЛИ с именем его объекта-папки (иначе поиск по
+        имени объекта прятал бы все документы внутри). Пустая строка --
+        показывает всё."""
+        text = text.strip().lower()
+        for i in range(self.objectsTree.topLevelItemCount()):
+            object_item = self.objectsTree.topLevelItem(i)
+            object_match = text in object_item.text(0).lower()
+            any_child_match = False
+            for j in range(object_item.childCount()):
+                doc_item = object_item.child(j)
+                doc_match = text in doc_item.text(0).lower()
+                doc_item.setHidden(bool(text) and not object_match and not doc_match)
+                any_child_match = any_child_match or doc_match
+            object_item.setHidden(bool(text) and not object_match and not any_child_match)
 
     def _on_objects_tree_item_clicked(self, item, column):
         """Клик по строке objectsTree. У объектов (папок) данных в

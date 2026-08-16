@@ -17,6 +17,9 @@
    <property name="font"><font><bold>true</bold></font></property>
    <property name="text"><string>Объекты</string></property>
   </widget></item>
+  <item><widget class="QLineEdit" name="sidebarSearchBox">
+   <property name="placeholderText"><string>Поиск по объектам и документам</string></property>
+  </widget></item>
   <item><widget class="QPushButton" name="sidebarBtn_createObject"><property name="text"><string>Создать объект</string></property></widget></item>
   <item><widget class="QPushButton" name="sidebarBtn_createDocument"><property name="text"><string>Создать документ</string></property></widget></item>
   <item><widget class="QTreeWidget" name="objectsTree"><column><property name="text"><string>Документы</string></property></column></widget></item>
