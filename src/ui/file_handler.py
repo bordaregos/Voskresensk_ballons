@@ -125,6 +125,11 @@ class FileHandler:
         что _current_document_path не None."""
         project = self._create_project()
         project.save_to_file(self.main_window._current_document_path)
+        # Индикатор несохранённых изменений (Фаза 5.4) -- есть только у
+        # трубопровода; hasattr-проверка, чтобы не задевать баллоны.
+        if hasattr(self.main_window, "_document_dirty"):
+            self.main_window._document_dirty = False
+            self.main_window._update_dirty_indicator()
 
     def save_project_json(self):
         """
@@ -155,6 +160,9 @@ class FileHandler:
                 project = self._create_project()
                 project.save_to_file(Path(file_path))
                 self.main_window._current_document_path = Path(file_path)
+                if hasattr(self.main_window, "_document_dirty"):
+                    self.main_window._document_dirty = False
+                    self.main_window._update_dirty_indicator()
 
             self.main_window.show_message(
                 "Успех",

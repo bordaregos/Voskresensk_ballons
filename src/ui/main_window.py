@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QPlainTextEdit, QComboBo
                              QMessageBox, QFileDialog, QListWidgetItem, QGroupBox,
                              QTreeWidgetItem, QInputDialog)
 from PyQt6.QtCore import QLocale, Qt, QDate
-from PyQt6.QtGui import QPixmap
+from PyQt6.QtGui import QPixmap, QIcon, QPainter, QColor
 from PyQt6.uic import loadUi
 from typing import Dict, Union
 from pathlib import Path
@@ -180,6 +180,12 @@ class MainWindow(QMainWindow):
             self._populate_toc()
             self.tocList.itemClicked.connect(self._scroll_to_toc_item)
             self.tab_document_scroll.verticalScrollBar().valueChanged.connect(self._on_document_scrolled)
+
+            # Индикатор несохранённых изменений (Фаза 5.4) -- точка на
+            # строке текущего документа в objectsTree.
+            self._document_dirty = False
+            self._dirty_icon = self._make_dot_icon("#e0983c")
+            self._connect_dirty_tracking()
 
             # Ширина сайдбара задаётся кодом: .ui-формат не умеет
             # сериализовать QSplitter.sizes (нет XML-типа под QList<int>).
@@ -1545,7 +1551,14 @@ class MainWindow(QMainWindow):
         воздух/кислород/гелий/аргон, не растится вводом). setCurrentIndex(0)
         воспроизводит тот же вид, что при самом первом запуске окна (ни у
         одного из комбобоксов currentIndex в .ui не выставлен явно, Qt по
-        умолчанию показывает первый пункт)."""
+        умолчанию показывает первый пункт).
+
+        _current_document_path обнуляется ДО очистки виджетов, а не после
+        -- сама очистка (setPlainText(""), setCurrentIndex(0) и т.п.)
+        дёргает те же сигналы, что и правки оператора, и без этого
+        _mark_dirty() успел бы ложно пометить грязным только что
+        сохранённый документ, который мы покидаем (см. Фаза 5.4)."""
+        self._current_document_path = None
         for name in self.PLAIN_TEXT_EDIT_NAMES:
             getattr(self, name).setPlainText("")
         for name in self.COMBO_BOX_NAMES:
@@ -1560,7 +1573,6 @@ class MainWindow(QMainWindow):
 
         self.data = {}
         self._completed_steps = set()
-        self._current_document_path = None
 
         if self.equipment_type.id == "pipeline":
             self._seed_program_table_defaults()
@@ -1670,6 +1682,8 @@ class MainWindow(QMainWindow):
         project = Project.load_from_file(path)
         self.file_handler._fill_ui_from_project(project)
         self._current_document_path = path
+        self._document_dirty = False
+        self._update_dirty_indicator()
         self._refresh_program_specialist_combo()
         self._switch_view("document")
         self._update_toc_progress()
@@ -1705,6 +1719,58 @@ class MainWindow(QMainWindow):
         parts = [p for p in (object_name, doc_label, section) if p]
         self.breadcrumbLabel.setText(" / ".join(parts))
         self.breadcrumbLabel.setVisible(True)
+
+    def _make_dot_icon(self, color):
+        """Рисует маленький закрашенный кружок как QIcon -- в проекте нет
+        инфраструктуры иконок-ресурсов (см. TOC_PROGRESS_GROUPS выше,
+        там по той же причине текстовый префикс вместо иконки), но для
+        одной точки проще нарисовать пиксмап на лету, чем заводить .qrc
+        ради одного файла."""
+        pixmap = QPixmap(10, 10)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setBrush(QColor(color))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawEllipse(1, 1, 8, 8)
+        painter.end()
+        return QIcon(pixmap)
+
+    def _connect_dirty_tracking(self):
+        """Подключает _mark_dirty к сигналу изменения на каждом виджете
+        формы -- по тем же спискам, что _reset_form()/get_form_data(),
+        так что набор отслеживаемых полей не может разойтись с реальным
+        составом документа."""
+        for name in self.PLAIN_TEXT_EDIT_NAMES:
+            getattr(self, name).textChanged.connect(self._mark_dirty)
+        for name in self.COMBO_BOX_NAMES:
+            getattr(self, name).currentIndexChanged.connect(self._mark_dirty)
+        for name in self.DATE_EDIT_NAMES:
+            getattr(self, name).dateChanged.connect(self._mark_dirty)
+        for name in self.SPIN_BOX_NAMES:
+            getattr(self, name).valueChanged.connect(self._mark_dirty)
+        for name in self.TABLE_WIDGET:
+            getattr(self, name).itemChanged.connect(self._mark_dirty)
+
+    def _mark_dirty(self, *args):
+        """Слот на любое изменение поля формы. Срабатывает и во время
+        программного заполнения формы при открытии документа
+        (_fill_ui_from_project() дёргает те же сигналы) -- это ложное
+        срабатывание гасится сбросом _document_dirty=False сразу после
+        заполнения в _open_document() и после сохранения в
+        FileHandler._save_current_project()."""
+        if self._current_document_path is None or self._document_dirty:
+            return
+        self._document_dirty = True
+        self._update_dirty_indicator()
+
+    def _update_dirty_indicator(self):
+        """Ставит/снимает точку-иконку у строки текущего документа в
+        objectsTree."""
+        item = self._find_document_tree_item(self._current_document_path)
+        if item is None:
+            return
+        item.setIcon(0, self._dirty_icon if self._document_dirty else QIcon())
 
     def _create_object_dialog(self):
         """«Создать объект»: спрашивает название, создаёт папку, сразу
