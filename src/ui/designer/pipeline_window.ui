@@ -6,8 +6,20 @@
   <property name="windowTitle"><string>MainWindow</string></property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout_main">
-<item><widget class="QTabWidget" name="tabWidget">
- <property name="currentIndex"><number>0</number></property>
+<item><layout class="QHBoxLayout" name="mainAreaLayout">
+<item><widget class="QWidget" name="sidebarStub">
+ <property name="maximumSize"><size><width>170</width><height>16777215</height></size></property>
+ <layout class="QVBoxLayout" name="sidebarStubLayout">
+  <item><widget class="QPushButton" name="sidebarBtn_document"><property name="text"><string>Документ</string></property></widget></item>
+  <item><widget class="QPushButton" name="sidebarBtn_employees"><property name="text"><string>Сотрудники</string></property></widget></item>
+  <item><widget class="QPushButton" name="sidebarBtn_instruments"><property name="text"><string>Приборы</string></property></widget></item>
+  <item><spacer name="sidebarStubSpacer">
+   <property name="orientation"><enum>Qt::Vertical</enum></property>
+   <property name="sizeHint" stdset="0"><size><width>20</width><height>40</height></size></property>
+  </spacer></item>
+ </layout>
+</widget></item>
+<item><widget class="QStackedWidget" name="viewStack">
  <widget class="QWidget" name="tab_general">
  <attribute name="title"><string>Общие данные</string></attribute>
  <layout class="QVBoxLayout" name="tab_general_outerLayout">
@@ -1896,7 +1908,7 @@ t- время от момента начала эксплуатации до м�
   </item>
  </layout>
 </widget>
-</widget></item>
+</widget></item></layout></item>
 <item><layout class="QHBoxLayout" name="bottom_buttons">
 <item><widget class="QPushButton" name="pushButt_generateWord">
  <property name="text"><string>Выгрузить в Word</string></property>
