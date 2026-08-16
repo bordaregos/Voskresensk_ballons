@@ -174,7 +174,15 @@ class FileHandler:
             
             # Заполнение UI данными
             self._fill_ui_from_project(project)
-            
+
+            # table_specialists заполняется выше generic-веткой TABLE_WIDGET
+            # (_fill_ui_from_project), но комбобоксы выбора специалиста
+            # (program_specialist и т.п.) сами по себе не обновляются --
+            # раньше это происходило при переключении вкладки, вкладок
+            # больше нет, см. MainWindow._refresh_program_specialist_combo().
+            if self.main_window.equipment_type.id == "pipeline":
+                self.main_window._refresh_program_specialist_combo()
+
             self.main_window.show_message(
                 "Успех",
                 f"Проект загружен из {file_path}",

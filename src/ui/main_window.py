@@ -96,7 +96,7 @@ class MainWindow(QMainWindow):
             self.pushButton_calcStrength.clicked.connect(self.calc_pipeline_strength_ui)
             self.pushButton_calcResidualLife.clicked.connect(self.calc_pipeline_residual_life_ui)
             self.pushButt_addSpecialist.clicked.connect(self._add_specialist_row)
-            self.pushButt_removeSpecialist.clicked.connect(lambda: self._remove_table_row(self.table_specialists))
+            self.pushButt_removeSpecialist.clicked.connect(self._remove_specialist_row)
             self.pushButt_addReviewedDoc.clicked.connect(lambda: self._add_table_row(self.table_reviewed_docs))
             self.pushButt_removeReviewedDoc.clicked.connect(lambda: self._remove_table_row(self.table_reviewed_docs))
             self.pushButt_addDocSection5.clicked.connect(lambda: self._add_table_row(self.table_docs_section5))
@@ -129,7 +129,6 @@ class MainWindow(QMainWindow):
             self.pushButt_addProgramItem.clicked.connect(self._add_program_item_row)
             self.pushButt_addProgramSubitem.clicked.connect(self._add_program_subitem_row)
             self.pushButt_removeProgramRow.clicked.connect(self._remove_program_row)
-            self.tabWidget.currentChanged.connect(self._refresh_program_specialist_combo)
             self._seed_program_table_defaults()
             self.pushButt_chooseNkScheme.clicked.connect(self._choose_nk_scheme)
             self.pushButt_clearNkScheme.clicked.connect(self._clear_nk_scheme)
@@ -147,10 +146,16 @@ class MainWindow(QMainWindow):
             from .instruments_tab import InstrumentsTabController
             self.instruments_tab = InstrumentsTabController(self)
 
-            # «Сотрудники» и «Приборы» — общие справочники компании, не
-            # часть текущего отчёта: кнопки генерации Word и работы с
-            # проектом там неуместны.
-            self.tabWidget.currentChanged.connect(self._update_report_buttons_visibility)
+            # Сайдбар-заглушка (3 кнопки вместо бывших вкладок) -- временная
+            # навигация фазы 1 редизайна, полноценное дерево объектов/
+            # документов появится позже. «Сотрудники» и «Приборы» — общие
+            # справочники компании, не часть текущего отчёта: кнопки
+            # генерации Word и работы с проектом там неуместны, см.
+            # _update_report_buttons_visibility().
+            self.sidebarBtn_document.clicked.connect(lambda: self._switch_view("document"))
+            self.sidebarBtn_employees.clicked.connect(lambda: self._switch_view("employees"))
+            self.sidebarBtn_instruments.clicked.connect(lambda: self._switch_view("instruments"))
+            self._current_view = "document"
             self._update_report_buttons_visibility()
 
     def init_file_handler(self):
@@ -1316,6 +1321,16 @@ class MainWindow(QMainWindow):
         table.insertRow(row)
         for col in range(4):
             self._install_growable_combo(table, row, col)
+        self._refresh_program_specialist_combo()
+
+    def _remove_specialist_row(self):
+        """Удаляет выбранную строку table_specialists и обновляет комбобоксы
+        выбора специалиста (program_specialist и т.п.) -- раньше эти
+        комбобоксы обновлялись только при переключении вкладки, теперь
+        вкладок нет, обновление дергается прямо из точек, где меняется
+        table_specialists, см. _refresh_program_specialist_combo()."""
+        self._remove_table_row(self.table_specialists)
+        self._refresh_program_specialist_combo()
 
     def _add_pipe_material_row(self):
         """Добавляет строку в table_pipe_materials (Таблица 6 -- Сведения о
@@ -1420,17 +1435,17 @@ class MainWindow(QMainWindow):
         uzk_specialist (поле "Измерение провёл", Приложение 5),
         calc_specialist (поле "Расчёт выполнил", Приложение 6),
         pnevmo_specialist (поле "Контроль выполнил", Приложение 8) и
-        ae_zakl_specialist (поле "Заключение составил", Приложение 9) при
-        переключении на вкладку "Приложения" или "Расчёты" -- источник
-        вариантов для всех один и тот же: table_specialists (1.3 Сведения о
-        специалистах, Таблица 2). Ни один из комбобоксов не входит ни в один
+        ae_zakl_specialist (поле "Заключение составил", Приложение 9).
+        Источник вариантов для всех один и тот же: table_specialists (1.3
+        Сведения о специалистах, Таблица 2) -- вызывается прямо из точек,
+        где меняется эта таблица (_add_specialist_row/_remove_specialist_row),
+        плюс после загрузки проекта (см. file_handler.py) -- раньше
+        обновление держалось на переключении вкладки "Приложения"/"Расчёты",
+        вкладок больше нет. Ни один из комбобоксов не входит ни в один
         список widget_names_pipeline.py (как pnevmo_pressure_hint) -- каждый
         даёт индекс строки специалиста, а не текст для .docx напрямую,
         итоговые плейсхолдеры собирает calculate(). Заодно обновляет
         read-only зеркала пункта 3 Приложения 8, см. _update_pnevmo_mirrors()."""
-        current_tab = self.tabWidget.widget(self.tabWidget.currentIndex())
-        if current_tab not in (self.tab_acts, self.tab_calc):
-            return
         self._refresh_specialist_combo(self.program_specialist)
         self._refresh_specialist_combo(self.act2_specialist)
         self._refresh_specialist_combo(self.vik_specialist)
@@ -1460,15 +1475,30 @@ class MainWindow(QMainWindow):
                 combo.setCurrentIndex(index)
         combo.blockSignals(False)
 
+    def _switch_view(self, view):
+        """Переключает viewStack между документом и общими справочниками
+        (Сотрудники/Приборы) по клику кнопки сайдбара-заглушки -- временная
+        замена бывших вкладок на время фазы 1 редизайна, полноценное дерево
+        объектов/документов -- отдельная задача позже."""
+        page = {
+            "document": self.tab_document,
+            "employees": self.tab_employees,
+            "instruments": self.tab_instruments,
+        }[view]
+        self.viewStack.setCurrentWidget(page)
+        self._current_view = view
+        self._update_report_buttons_visibility()
+
     def _update_report_buttons_visibility(self):
         """Скрывает кнопки "Выгрузить в Word"/"Сохранить проект"/"Открыть
-        проект" на вкладках "Сотрудники" и "Приборы" -- это общие справочники
-        компании, не часть текущего отчёта (см. EmployeesTabController,
-        InstrumentsTabController), эти действия к ним не относятся."""
-        is_directory_tab = self.tabWidget.currentWidget() in (self.tab_employees, self.tab_instruments)
-        self.pushButt_generateWord.setVisible(not is_directory_tab)
-        self.pushButton_saveProject.setVisible(not is_directory_tab)
-        self.pushButton_openProject.setVisible(not is_directory_tab)
+        проект", пока открыты "Сотрудники" или "Приборы" -- это общие
+        справочники компании, не часть текущего отчёта (см.
+        EmployeesTabController, InstrumentsTabController), эти действия к
+        ним не относятся."""
+        is_directory_view = self._current_view in ("employees", "instruments")
+        self.pushButt_generateWord.setVisible(not is_directory_view)
+        self.pushButton_saveProject.setVisible(not is_directory_view)
+        self.pushButton_openProject.setVisible(not is_directory_view)
 
     def _cell_text(self, table, row, col):
         """Текст ячейки (row, col) независимо от того, обычный это
