@@ -9,6 +9,25 @@
 <item><widget class="QSplitter" name="mainSplitter">
  <property name="orientation"><enum>Qt::Horizontal</enum></property>
  <property name="childrenCollapsible"><bool>false</bool></property>
+<widget class="QWidget" name="revealStrip">
+ <property name="visible"><bool>false</bool></property>
+ <property name="minimumSize"><size><width>22</width><height>0</height></size></property>
+ <property name="maximumSize"><size><width>22</width><height>16777215</height></size></property>
+ <layout class="QVBoxLayout" name="revealStripLayout">
+  <property name="leftMargin"><number>0</number></property>
+  <property name="topMargin"><number>4</number></property>
+  <property name="rightMargin"><number>0</number></property>
+  <property name="bottomMargin"><number>0</number></property>
+  <item><widget class="QPushButton" name="sidebarBtn_expand">
+   <property name="maximumSize"><size><width>22</width><height>16777215</height></size></property>
+   <property name="text"><string>▶</string></property>
+  </widget></item>
+  <item><spacer name="revealStripSpacer">
+   <property name="orientation"><enum>Qt::Vertical</enum></property>
+   <property name="sizeHint" stdset="0"><size><width>20</width><height>40</height></size></property>
+  </spacer></item>
+ </layout>
+</widget>
 <widget class="QWidget" name="sidebar">
  <property name="minimumSize"><size><width>180</width><height>0</height></size></property>
  <property name="maximumSize"><size><width>400</width><height>16777215</height></size></property>
@@ -20,12 +39,20 @@
     <property name="rightMargin"><number>0</number></property>
     <property name="bottomMargin"><number>0</number></property>
     <item><widget class="QLabel" name="sidebarHeader_objects">
-     <property name="font"><font><bold>true</bold></font></property>
-     <property name="text"><string>Объекты</string></property>
+     <property name="styleSheet"><string>font-weight: bold; font-size: 11px; color: palette(mid);</string></property>
+     <property name="text"><string>ДОКУМЕНТЫ</string></property>
+    </widget></item>
+    <item><widget class="QPushButton" name="sidebarBtn_pin">
+     <property name="maximumSize"><size><width>22</width><height>16777215</height></size></property>
+     <property name="checkable"><bool>true</bool></property>
+     <property name="styleSheet"><string>QPushButton:checked { color: #0a84ff; font-weight: bold; }</string></property>
+     <property name="text"><string>📌</string></property>
+     <property name="toolTip"><string>Закрепить панель</string></property>
     </widget></item>
     <item><widget class="QPushButton" name="sidebarBtn_collapse">
      <property name="maximumSize"><size><width>28</width><height>16777215</height></size></property>
      <property name="text"><string>◀</string></property>
+     <property name="toolTip"><string>Скрыть панель</string></property>
     </widget></item>
    </layout>
   </widget></item>

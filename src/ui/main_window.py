@@ -172,6 +172,12 @@ class MainWindow(QMainWindow):
             self._sidebar_collapsed = False
             self._sidebar_expanded_sizes = [240, 760]
             self.sidebarBtn_collapse.clicked.connect(self._toggle_sidebar)
+            self.sidebarBtn_expand.clicked.connect(self._toggle_sidebar)
+            # sidebarBtn_pin -- чисто визуальный тумблер, как и в
+            # референсе (togglePin() там тоже только перекрашивает
+            # иконку, без функционального эффекта): checkable=true +
+            # QPushButton:checked в styleSheet (.ui) уже даёт нужный вид
+            # сам, без единой строки кода здесь.
 
             # Оглавление документа (Фаза 6): вложено в objectsTree как
             # дочерние строки открытого документа -- список groupbox'ов
@@ -1621,37 +1627,23 @@ class MainWindow(QMainWindow):
                 any_child_match = any_child_match or doc_match
             object_item.setHidden(bool(text) and not object_match and not any_child_match)
 
-    # Виджеты сайдбара, которые прячутся при сворачивании -- всё, кроме
-    # самой строки заголовка с кнопкой sidebarBtn_collapse (она должна
-    # остаться, иначе развернуть сайдбар обратно будет нечем). Оглавление
-    # (Фаза 6) отдельного виджета не требует -- оно вложено в objectsTree
-    # и прячется вместе с деревом.
-    _SIDEBAR_COLLAPSIBLE_WIDGETS = (
-        "sidebarHeader_objects", "sidebarSearchBox",
-        "sidebarBtn_createObject", "sidebarBtn_createDocument",
-        "objectsTree", "navDivider",
-        "sidebarBtn_employees", "sidebarBtn_instruments",
-    )
-
     def _toggle_sidebar(self):
-        """Сворачивает сайдбар до узкой полосы 40px с одной кнопкой
-        разворота (см. мокап Фазы 5) -- childrenCollapsible=false на
-        mainSplitter (Фаза 4.3) намеренно не даёт схлопнуть перетаскиванием
-        случайно, это осознанное действие через кнопку."""
+        """Сворачивает/разворачивает сайдбар (Фаза 7, как в референсе) --
+        весь sidebar прячется целиком, вместо него показывается узкая
+        полоса revealStrip (22px) с одной кнопкой разворота. Оба виджета
+        -- постоянные дети mainSplitter (Фаза 4.3), переключается только
+        видимость -- QSplitter сам схлопывает скрытого ребёнка до 0 при
+        пересчёте раскладки, отдельно двигать min/maxWidth не нужно.
+        childrenCollapsible=false защищает только от случайного
+        схлопывания перетаскиванием мышью, программному setVisible() не
+        мешает."""
         self._sidebar_collapsed = not self._sidebar_collapsed
-        for name in self._SIDEBAR_COLLAPSIBLE_WIDGETS:
-            getattr(self, name).setVisible(not self._sidebar_collapsed)
+        self.sidebar.setVisible(not self._sidebar_collapsed)
+        self.revealStrip.setVisible(self._sidebar_collapsed)
         if self._sidebar_collapsed:
             self._sidebar_expanded_sizes = self.mainSplitter.sizes()
-            self.sidebar.setMinimumWidth(40)
-            self.sidebar.setMaximumWidth(40)
-            self.mainSplitter.setSizes([40, sum(self._sidebar_expanded_sizes) - 40])
-            self.sidebarBtn_collapse.setText("▶")
         else:
-            self.sidebar.setMinimumWidth(180)
-            self.sidebar.setMaximumWidth(400)
             self.mainSplitter.setSizes(self._sidebar_expanded_sizes)
-            self.sidebarBtn_collapse.setText("◀")
             self._switch_view(self._current_view)
 
     def _on_objects_tree_item_clicked(self, item, column):
