@@ -151,13 +151,17 @@ class MainWindow(QMainWindow):
             from .instruments_tab import InstrumentsTabController
             self.instruments_tab = InstrumentsTabController(self)
 
-            # Сайдбар: переключатели «Сотрудники»/«Приборы» — общие
-            # справочники компании, не часть текущего отчёта: кнопки
+            from .orgdocs_tab import OrgDocsTabController
+            self.orgdocs_tab = OrgDocsTabController(self)
+
+            # Сайдбар: переключатели «Сотрудники»/«Приборы»/«Документы» —
+            # общие справочники компании, не часть текущего отчёта: кнопки
             # генерации Word и работы с проектом там неуместны, см.
             # _update_report_buttons_visibility(). Дерево объектов/
             # документов (objectsTree) — навигация внутри "document".
             self.sidebarBtn_employees.clicked.connect(lambda: self._switch_view("employees"))
             self.sidebarBtn_instruments.clicked.connect(lambda: self._switch_view("instruments"))
+            self.sidebarBtn_orgdocs.clicked.connect(lambda: self._switch_view("orgdocs"))
             self._current_view = "document"
 
             # Дерево "объект (папка) -> документ (.json внутри неё)" --
@@ -1543,11 +1547,12 @@ class MainWindow(QMainWindow):
 
     def _switch_view(self, view):
         """Переключает viewStack между документом и общими справочниками
-        (Сотрудники/Приборы)."""
+        (Сотрудники/Приборы/Документы)."""
         page = {
             "document": self.tab_document,
             "employees": self.tab_employees,
             "instruments": self.tab_instruments,
+            "orgdocs": self.tab_orgdocs,
         }[view]
         self.viewStack.setCurrentWidget(page)
         self._current_view = view
@@ -2194,11 +2199,11 @@ class MainWindow(QMainWindow):
 
     def _update_report_buttons_visibility(self):
         """Скрывает кнопки "Выгрузить в Word"/"Сохранить проект"/"Открыть
-        проект", пока открыты "Сотрудники" или "Приборы" -- это общие
-        справочники компании, не часть текущего отчёта (см.
-        EmployeesTabController, InstrumentsTabController), эти действия к
-        ним не относятся."""
-        is_directory_view = self._current_view in ("employees", "instruments")
+        проект", пока открыты "Сотрудники"/"Приборы"/"Документы" -- это
+        общие справочники компании, не часть текущего отчёта (см.
+        EmployeesTabController, InstrumentsTabController,
+        OrgDocsTabController), эти действия к ним не относятся."""
+        is_directory_view = self._current_view in ("employees", "instruments", "orgdocs")
         self.pushButt_generateWord.setVisible(not is_directory_view)
         self.pushButton_saveProject.setVisible(not is_directory_view)
         self.pushButton_openProject.setVisible(not is_directory_view)

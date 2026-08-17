@@ -68,6 +68,7 @@
   <item><widget class="QPushButton" name="sidebarBtn_templates"><property name="text"><string>Мои шаблоны</string></property></widget></item>
   <item><widget class="QPushButton" name="sidebarBtn_employees"><property name="text"><string>Сотрудники</string></property></widget></item>
   <item><widget class="QPushButton" name="sidebarBtn_instruments"><property name="text"><string>Приборы</string></property></widget></item>
+  <item><widget class="QPushButton" name="sidebarBtn_orgdocs"><property name="text"><string>Документы</string></property></widget></item>
   <item><widget class="QTreeWidget" name="objectsTree"><column><property name="text"><string>Документы</string></property></column></widget></item>
  </layout>
 </widget>
@@ -1912,6 +1913,27 @@ t- время от момента начала эксплуатации до м�
     </widget>
    </widget>
   </item>
+ </layout>
+</widget>
+ <widget class="QWidget" name="tab_orgdocs">
+ <layout class="QVBoxLayout" name="tab_orgdocs_outerLayout">
+  <item><widget class="QGroupBox" name="org_docs_group">
+   <property name="title"><string>Документы организации</string></property>
+   <layout class="QVBoxLayout" name="org_docs_vlayout">
+    <item><widget class="QTableWidget" name="table_org_docs">
+     <property name="minimumSize"><size><width>0</width><height>200</height></size></property>
+     <property name="rowCount"><number>0</number></property>
+     <property name="columnCount"><number>3</number></property>
+     <column><property name="text"><string>Название</string></property></column>
+     <column><property name="text"><string>Тип</string></property></column>
+     <column><property name="text"><string>Дата</string></property></column>
+    </widget></item>
+    <item><layout class="QHBoxLayout" name="org_docs_buttons">
+     <item><widget class="QPushButton" name="pushButt_addOrgDoc"><property name="text"><string>+ Загрузить документ</string></property></widget></item>
+     <item><widget class="QPushButton" name="pushButt_removeOrgDoc"><property name="text"><string>− Удалить</string></property></widget></item>
+    </layout></item>
+   </layout>
+  </widget></item>
  </layout>
 </widget>
 </widget></widget></item>
