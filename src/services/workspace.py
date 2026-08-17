@@ -10,6 +10,7 @@ pipeline-формы, Фаза 2.
 """
 
 import re
+import shutil
 from pathlib import Path
 from typing import List, Tuple
 
@@ -91,3 +92,39 @@ def create_document(object_dir: Path, equipment_type_id: str) -> Path:
     project = Project(equipment_type=equipment_type_id, output_dir=str(object_dir))
     project.save_to_file(path)
     return path
+
+
+def duplicate_document(path: Path) -> Path:
+    """Копирует документ в ту же папку-объект под новым свободным
+    именем (Фаза 8, «Дублировать» в контекстном меню). Копируется сам
+    JSON-файл как есть, включая report_data — reg_number у копии
+    останется прежним, и ярлык в дереве совпадёт с оригиналом, пока
+    оператор не поправит номер вручную вслед за реальным рабочим
+    процессом (два документа с одним reg_number до правки — ожидаемо,
+    не ошибка)."""
+    i = 1
+    while True:
+        suffix = "_копия" if i == 1 else f"_копия_{i}"
+        candidate = path.parent / f"{path.stem}{suffix}.json"
+        if not candidate.exists():
+            break
+        i += 1
+    shutil.copy2(path, candidate)
+    return candidate
+
+
+def rename_object(object_dir: Path, new_name: str) -> Path:
+    """Переименовывает папку-объект (Фаза 8, «Переименовать объект»).
+    new_name прогоняется через тот же sanitize_object_name(), что и при
+    создании — согласованность имён папок."""
+    new_dir = object_dir.parent / sanitize_object_name(new_name)
+    if new_dir != object_dir:
+        object_dir.rename(new_dir)
+    return new_dir
+
+
+def delete_object(object_dir: Path) -> None:
+    """Удаляет папку-объект целиком со всем содержимым (Фаза 8,
+    «Удалить объект»). Подтверждение — забота вызывающей стороны
+    (main_window.py), здесь — только само действие."""
+    shutil.rmtree(object_dir)

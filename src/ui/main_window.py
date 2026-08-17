@@ -3,7 +3,7 @@
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QPlainTextEdit, QComboBox,
                              QPushButton, QSpinBox, QDateEdit, QTableWidgetItem, QTableWidget,
                              QMessageBox, QFileDialog, QGroupBox,
-                             QTreeWidgetItem, QInputDialog)
+                             QTreeWidgetItem, QInputDialog, QMenu)
 from PyQt6.QtCore import QLocale, Qt, QDate, QPointF
 from PyQt6.QtGui import QPixmap, QIcon, QPainter, QColor, QPen
 from PyQt6.uic import loadUi
@@ -13,6 +13,7 @@ from docx.shared import Mm
 from docxtpl import DocxTemplate, InlineImage, RichText
 
 import os
+import subprocess
 
 from ..equipment_types import EquipmentType, REGISTRY
 from ..services.calculations import (
@@ -167,6 +168,8 @@ class MainWindow(QMainWindow):
             self.sidebarBtn_createObject.clicked.connect(self._create_object_dialog)
             self.sidebarBtn_createDocument.clicked.connect(self._create_document_dialog)
             self.objectsTree.itemClicked.connect(self._on_objects_tree_item_clicked)
+            self.objectsTree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+            self.objectsTree.customContextMenuRequested.connect(self._show_objects_tree_context_menu)
             self._refresh_objects_tree()
             self.sidebarSearchBox.textChanged.connect(self._filter_objects_tree)
             self._sidebar_collapsed = False
@@ -1663,6 +1666,124 @@ class MainWindow(QMainWindow):
             self._open_document(path)
         else:
             self._scroll_to_toc_item(item)
+
+    def _show_objects_tree_context_menu(self, pos):
+        """ПКМ по objectsTree (Фаза 8) -- вид меню зависит от глубины
+        строки под курсором, как и в _on_objects_tree_item_clicked():
+        объект -> _show_folder_context_menu(), документ ->
+        _show_document_context_menu(), раздел TOC -- меню нет, там
+        нечем управлять."""
+        item = self.objectsTree.itemAt(pos)
+        if item is None:
+            return
+        parent = item.parent()
+        if parent is None:
+            self._show_folder_context_menu(item, pos)
+        elif parent.parent() is None:
+            self._show_document_context_menu(item, pos)
+
+    def _show_document_context_menu(self, item, pos):
+        """ПКМ по строке документа. «Переименовать» из референсного
+        мокапа (docs/design/pipeline_sidebar_mockup.html) сознательно
+        не реализовано -- у документа нет отдельного имени: ярлык
+        всегда пересчитывается из reg_number (workspace._document_label()),
+        переименование файла на диске никак не отразилось бы на том,
+        что видит оператор, была бы обманчивая кнопка."""
+        path = item.data(0, Qt.ItemDataRole.UserRole)
+        menu = QMenu(self)
+        menu.addAction("Дублировать", lambda: self._duplicate_document(path))
+        menu.addAction("Показать в Finder", lambda: self._reveal_in_finder(path))
+        menu.addSeparator()
+        menu.addAction("Удалить", lambda: self._delete_document(path))
+        menu.exec(self.objectsTree.mapToGlobal(pos))
+
+    def _show_folder_context_menu(self, item, pos):
+        """ПКМ по строке объекта (папки)."""
+        object_dir = workspace.OUTPUT_DIR / item.text(0)
+        menu = QMenu(self)
+        menu.addAction("Создать документ здесь", lambda: self._create_document_in_object(object_dir.name))
+        menu.addSeparator()
+        menu.addAction("Переименовать объект", lambda: self._rename_object_dialog(object_dir))
+        menu.addAction("Показать в Finder", lambda: self._reveal_in_finder(object_dir))
+        menu.addSeparator()
+        menu.addAction("Удалить объект", lambda: self._delete_object_dialog(object_dir))
+        menu.exec(self.objectsTree.mapToGlobal(pos))
+
+    def _reveal_in_finder(self, path):
+        """Открывает Finder с выделенным файлом/папкой -- macOS-
+        специфично (`open -R`), как и сам пункт меню в референсе
+        ("Показать в Finder"): приложение не претендует на
+        кроссплатформенность."""
+        subprocess.run(["open", "-R", str(path)])
+
+    def _duplicate_document(self, path):
+        """«Дублировать» -- копирует .json документа в той же папке
+        под новым именем (см. workspace.duplicate_document())."""
+        workspace.duplicate_document(path)
+        self._refresh_objects_tree()
+
+    def _delete_document(self, path):
+        """«Удалить» документ -- необратимо, с подтверждением. Если
+        удаляется текущий открытый документ, форма сбрасывается
+        (как при старте, документов больше нет для показа)."""
+        reply = QMessageBox.question(
+            self, "Удалить документ",
+            f"Удалить документ «{path.stem}»? Это необратимо.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        if path == self._current_document_path:
+            self._reset_form()
+            self._switch_view("document")
+        path.unlink(missing_ok=True)
+        self._refresh_objects_tree()
+        self._update_breadcrumb()
+
+    def _create_document_in_object(self, object_name):
+        """«Создать документ здесь» из меню папки -- то же самое, что
+        обычное «Создать документ», но без диалога выбора объекта: он
+        уже известен из того, по какой строке кликнули ПКМ."""
+        object_dir = workspace.create_object(object_name)
+        doc_path = workspace.create_document(object_dir, self.equipment_type.id)
+        self._refresh_objects_tree()
+        self._open_document(doc_path)
+
+    def _rename_object_dialog(self, object_dir):
+        """«Переименовать объект» -- в отличие от документа, у объекта
+        реальное имя ровно совпадает с именем папки на диске, так что
+        переименование осмысленно и видно в дереве сразу."""
+        new_name, ok = QInputDialog.getText(
+            self, "Переименовать объект", "Новое название:", text=object_dir.name,
+        )
+        if not ok or not new_name.strip():
+            return
+        new_dir = workspace.rename_object(object_dir, new_name)
+        if self._current_document_path is not None and self._current_document_path.parent == object_dir:
+            self._current_document_path = new_dir / self._current_document_path.name
+        self._refresh_objects_tree()
+        self._update_breadcrumb()
+
+    def _delete_object_dialog(self, object_dir):
+        """«Удалить объект» -- необратимо, удаляет папку целиком со
+        всеми документами внутри, число которых показывается в
+        подтверждении, чтобы не удалить что-то по ошибке."""
+        doc_count = len(list(object_dir.glob("*.json")))
+        reply = QMessageBox.question(
+            self, "Удалить объект",
+            f"Удалить объект «{object_dir.name}» и все документы внутри ({doc_count})? Это необратимо.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        if self._current_document_path is not None and self._current_document_path.parent == object_dir:
+            self._reset_form()
+            self._switch_view("document")
+        workspace.delete_object(object_dir)
+        self._refresh_objects_tree()
+        self._update_breadcrumb()
 
     def _open_document(self, path):
         """Открывает документ дерева. Если это уже открытый документ --
