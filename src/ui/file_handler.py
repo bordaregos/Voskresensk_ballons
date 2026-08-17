@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import List, Dict, Any
 
-from PyQt6.QtWidgets import QFileDialog, QMessageBox, QTableWidgetItem
+from PyQt6.QtWidgets import QFileDialog, QMessageBox, QTableWidgetItem, QInputDialog
 
 from src.services.importer import (
     import_balloon_list_from_csv,
@@ -131,22 +131,97 @@ class FileHandler:
             self.main_window._document_dirty = False
             self.main_window._update_dirty_indicator()
 
+    def _ensure_document_has_object(self) -> bool:
+        """Перед сохранением уже существующего документа проверяет, что
+        он лежит внутри папки-объекта (см. src/services/workspace.py) --
+        если открыт через «Открыть проект» откуда угодно на диске, или
+        это старый плоский файл прямо в output/ (без подпапки), это не
+        так. В этом случае обязательно спрашивает: объект (выбрать
+        существующий или создать новый) и имя файла -- и переносит
+        main_window._current_document_path туда, до того как что-либо
+        запишется на диск.
+
+        Пипелайн-специфично: у баллонов концепции объектов/дерева нет,
+        _document_dirty как маркер типа окна -- тот же приём, что и
+        везде в этом файле (Фаза 5.4/6).
+
+        Возвращает False, если пользователь отменил диалог -- вызывающая
+        сторона обязана прервать сохранение целиком, не писать файл ни
+        в старое, ни в частично выбранное новое место."""
+        mw = self.main_window
+        if not hasattr(mw, "_document_dirty"):
+            return True
+        path = mw._current_document_path
+        if path is None:
+            return True
+
+        from src.services import workspace
+        if path.parent.parent == workspace.OUTPUT_DIR:
+            return True
+
+        objects = workspace.list_objects()
+        if objects:
+            object_name, ok = QInputDialog.getItem(
+                mw, "Сохранение — папка объекта",
+                "Этот проект пока не привязан ни к одному объекту.\n"
+                "Выберите объект (или введите новый):",
+                objects, 0, True,
+            )
+        else:
+            object_name, ok = QInputDialog.getText(
+                mw, "Сохранение — папка объекта",
+                "Этот проект пока не привязан ни к одному объекту.\nНазвание объекта:",
+            )
+        if not ok or not object_name.strip():
+            return False
+
+        default_name = path.stem
+        while True:
+            filename, ok = QInputDialog.getText(
+                mw, "Сохранение — имя файла", "Имя файла:", text=default_name,
+            )
+            if not ok or not filename.strip():
+                return False
+            object_dir = workspace.create_object(object_name)
+            # sanitize_object_name() назван под объекты, но сама очистка
+            # (замена FS-небезопасных символов) ровно так же годится и
+            # для имени файла -- заводить дублирующую функцию под
+            # единственное отличие (запасной текст на случай пустой
+            # строки, сюда практически недостижимый: filename.strip()
+            # уже проверен выше) избыточно.
+            new_path = object_dir / f"{workspace.sanitize_object_name(filename)}.json"
+            if not new_path.exists():
+                break
+            QMessageBox.warning(
+                mw, "Имя занято",
+                f"В объекте «{object_dir.name}» уже есть файл «{new_path.name}» — выберите другое имя.",
+            )
+            default_name = filename
+
+        mw._current_document_path = new_path
+        mw._refresh_objects_tree()
+        mw._update_breadcrumb()
+        return True
+
     def save_project_json(self):
         """
         Сохранение проекта в JSON файл.
 
         Если документ уже открыт из дерева объектов (или уже сохранялся
         в этом сеансе) -- main_window._current_document_path указывает
-        куда, пишем туда напрямую без диалога. Иначе -- как раньше,
-        обычный "Сохранить как", а выбранный путь запоминается как
-        текущий документ.
+        куда, пишем туда напрямую без диалога (но сперва проверяем
+        привязку к объекту, см. _ensure_document_has_object()). Иначе --
+        как раньше, обычный "Сохранить как", а выбранный путь
+        запоминается как текущий документ.
         """
         existing_path = getattr(self.main_window, "_current_document_path", None)
 
         try:
             if existing_path is not None:
+                if not self._ensure_document_has_object():
+                    return
                 self._save_current_project()
-                file_path = str(existing_path)
+                file_path = str(self.main_window._current_document_path)
             else:
                 file_path, _ = QFileDialog.getSaveFileName(
                     self.main_window,
