@@ -219,6 +219,14 @@ class MainWindow(QMainWindow):
             self.mainSplitter.setStretchFactor(0, 0)
             self.mainSplitter.setStretchFactor(1, 1)
 
+            # Нижняя панель -- три равные колонки, как в референсе.
+            # <property name="stretch"> в .ui не сработал бы: uic.loadUi()
+            # (в отличие от кодогенератора pyuic6) не умеет разбирать
+            # строку "1,1,1" для QHBoxLayout.setStretch(), падает на
+            # старте (проверено headless-тестом) -- выставляется кодом.
+            for i in range(self.bottom_buttons.count()):
+                self.bottom_buttons.setStretch(i, 1)
+
             # Устанавливает начальный вид -- при запуске ни один документ
             # ещё не открыт (_current_document_path is None), TOC-строк
             # в дереве нет (появляются в _open_document()).
