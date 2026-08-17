@@ -2,10 +2,10 @@
 
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QPlainTextEdit, QComboBox,
                              QPushButton, QSpinBox, QDateEdit, QTableWidgetItem, QTableWidget,
-                             QMessageBox, QFileDialog, QListWidgetItem, QGroupBox,
+                             QMessageBox, QFileDialog, QGroupBox,
                              QTreeWidgetItem, QInputDialog)
-from PyQt6.QtCore import QLocale, Qt, QDate
-from PyQt6.QtGui import QPixmap, QIcon, QPainter, QColor
+from PyQt6.QtCore import QLocale, Qt, QDate, QPointF
+from PyQt6.QtGui import QPixmap, QIcon, QPainter, QColor, QPen
 from PyQt6.uic import loadUi
 from typing import Dict, Union
 from pathlib import Path
@@ -173,12 +173,21 @@ class MainWindow(QMainWindow):
             self._sidebar_expanded_sizes = [240, 760]
             self.sidebarBtn_collapse.clicked.connect(self._toggle_sidebar)
 
-            # Оглавление документа (Фаза 3): пункты берутся из самих
-            # groupbox'ов ленты tab_document, а не хардкодятся -- если
-            # разделы переставят в Designer'е, список подстроится сам.
+            # Оглавление документа (Фаза 6): вложено в objectsTree как
+            # дочерние строки открытого документа -- список groupbox'ов
+            # статичен (не зависит от того, какой документ открыт,
+            # форма всегда одна и та же), берётся из самой ленты
+            # tab_document, а не хардкодится -- если разделы переставят
+            # в Designer'е, список подстроится сам. Клики по строкам TOC
+            # идут через тот же objectsTree.itemClicked, что и по
+            # объектам/документам -- см. _on_objects_tree_item_clicked().
             self._suppress_toc_spy = False
-            self._populate_toc()
-            self.tocList.itemClicked.connect(self._scroll_to_toc_item)
+            self._toc_groupboxes = self._collect_toc_groupboxes()
+            self._current_toc_items = []
+            self._current_toc_active_item = None
+            self._toc_check_icon = self._make_check_icon()
+            self._toc_circle_icon = self._make_circle_icon()
+            self._toc_lock_icon = self._make_lock_icon()
             self.tab_document_scroll.verticalScrollBar().valueChanged.connect(self._on_document_scrolled)
 
             # Индикатор несохранённых изменений (Фаза 5.4) -- точка на
@@ -195,9 +204,9 @@ class MainWindow(QMainWindow):
             self.mainSplitter.setStretchFactor(0, 0)
             self.mainSplitter.setStretchFactor(1, 1)
 
-            # Устанавливает начальный вид и корректно прячет tocSection --
-            # при запуске ни один документ ещё не открыт (_current_document_path
-            # is None), оглавление показывать нечего, см. _switch_view().
+            # Устанавливает начальный вид -- при запуске ни один документ
+            # ещё не открыт (_current_document_path is None), TOC-строк
+            # в дереве нет (появляются в _open_document()).
             self._switch_view("document")
             self._update_breadcrumb()
 
@@ -1532,10 +1541,6 @@ class MainWindow(QMainWindow):
         }[view]
         self.viewStack.setCurrentWidget(page)
         self._current_view = view
-        # Оглавление относится к конкретному открытому документу -- пока
-        # ни один не открыт (только что запустили приложение, ничего не
-        # выбрано в дереве), показывать нечего.
-        self.tocSection.setVisible(view == "document" and self._current_document_path is not None)
         self._update_report_buttons_visibility()
 
     def _reset_form(self):
@@ -1576,7 +1581,8 @@ class MainWindow(QMainWindow):
 
         if self.equipment_type.id == "pipeline":
             self._seed_program_table_defaults()
-            self._update_toc_progress()
+            self._current_toc_items = []
+            self._current_toc_active_item = None
             self._update_breadcrumb()
 
     def _refresh_objects_tree(self):
@@ -1617,9 +1623,9 @@ class MainWindow(QMainWindow):
 
     # Виджеты сайдбара, которые прячутся при сворачивании -- всё, кроме
     # самой строки заголовка с кнопкой sidebarBtn_collapse (она должна
-    # остаться, иначе развернуть сайдбар обратно будет нечем).
-    # tocSection сюда не входит -- её видимость и так завязана на
-    # текущий вид/документ, решает _switch_view().
+    # остаться, иначе развернуть сайдбар обратно будет нечем). Оглавление
+    # (Фаза 6) отдельного виджета не требует -- оно вложено в objectsTree
+    # и прячется вместе с деревом.
     _SIDEBAR_COLLAPSIBLE_WIDGETS = (
         "sidebarHeader_objects", "sidebarSearchBox",
         "sidebarBtn_createObject", "sidebarBtn_createDocument",
@@ -1646,20 +1652,25 @@ class MainWindow(QMainWindow):
             self.sidebar.setMaximumWidth(400)
             self.mainSplitter.setSizes(self._sidebar_expanded_sizes)
             self.sidebarBtn_collapse.setText("◀")
-            # tocSection могла быть скрыта до сворачивания по причине,
-            # не связанной со сворачиванием (документ не открыт / вид
-            # не "document") -- пересчитываем её видимость заново, а не
-            # просто показываем.
             self._switch_view(self._current_view)
 
     def _on_objects_tree_item_clicked(self, item, column):
-        """Клик по строке objectsTree. У объектов (папок) данных в
-        UserRole нет -- для них ничего не делаем, QTreeWidget сам
-        разворачивает/сворачивает. У документов там путь к файлу --
-        открываем его, см. _open_document()."""
-        path = item.data(0, Qt.ItemDataRole.UserRole)
-        if path is not None:
+        """Клик по строке objectsTree -- три вида строк, различаются
+        глубиной вложенности. Объект (папка, верхний уровень,
+        item.parent() is None) -- ничего не делаем, QTreeWidget сам
+        разворачивает/сворачивает. Документ (2-й уровень, UserRole --
+        путь к файлу) -- открываем его, см. _open_document(). Раздел
+        оглавления (3-й уровень, дочерний у документа, UserRole -- сам
+        groupbox, см. Фаза 6) -- скроллим к разделу, см.
+        _scroll_to_toc_item()."""
+        parent = item.parent()
+        if parent is None:
+            return
+        if parent.parent() is None:
+            path = item.data(0, Qt.ItemDataRole.UserRole)
             self._open_document(path)
+        else:
+            self._scroll_to_toc_item(item)
 
     def _open_document(self, path):
         """Открывает документ дерева. Если это уже открытый документ --
@@ -1677,6 +1688,13 @@ class MainWindow(QMainWindow):
                 self.file_handler._save_current_project()
             except Exception as e:
                 print(f"Не удалось автосохранить текущий документ: {e}")
+            # Оглавление уходящего документа -- дочерние строки под его
+            # строкой в дереве -- снимается: статус разделов считается
+            # по живым виджетам формы, а они сейчас переиспользуются под
+            # другой документ (см. _reset_form()).
+            old_item = self._find_document_tree_item(self._current_document_path)
+            if old_item is not None:
+                old_item.takeChildren()
 
         self._reset_form()
         project = Project.load_from_file(path)
@@ -1686,7 +1704,9 @@ class MainWindow(QMainWindow):
         self._update_dirty_indicator()
         self._refresh_program_specialist_combo()
         self._switch_view("document")
-        self._update_toc_progress()
+        doc_item = self._find_document_tree_item(path)
+        if doc_item is not None:
+            self._populate_document_toc(doc_item)
         self._update_breadcrumb()
 
     def _find_document_tree_item(self, path):
@@ -1714,18 +1734,16 @@ class MainWindow(QMainWindow):
         object_name = Path(self._current_document_path).parent.name
         doc_item = self._find_document_tree_item(self._current_document_path)
         doc_label = doc_item.text(0) if doc_item is not None else ""
-        toc_item = self.tocList.currentItem()
-        section = toc_item.text().removeprefix("✓ ") if toc_item is not None else ""
+        section = self._current_toc_active_item.text(0) if self._current_toc_active_item is not None else ""
         parts = [p for p in (object_name, doc_label, section) if p]
         self.breadcrumbLabel.setText(" / ".join(parts))
         self.breadcrumbLabel.setVisible(True)
 
     def _make_dot_icon(self, color):
         """Рисует маленький закрашенный кружок как QIcon -- в проекте нет
-        инфраструктуры иконок-ресурсов (см. TOC_PROGRESS_GROUPS выше,
-        там по той же причине текстовый префикс вместо иконки), но для
-        одной точки проще нарисовать пиксмап на лету, чем заводить .qrc
-        ради одного файла."""
+        инфраструктуры иконок-ресурсов (.qrc), проще нарисовать пиксмап
+        на лету (см. также _make_check_icon()/_make_circle_icon()/
+        _make_lock_icon() -- тот же приём для иконок TOC, Фаза 6)."""
         pixmap = QPixmap(10, 10)
         pixmap.fill(Qt.GlobalColor.transparent)
         painter = QPainter(pixmap)
@@ -1755,14 +1773,23 @@ class MainWindow(QMainWindow):
     def _mark_dirty(self, *args):
         """Слот на любое изменение поля формы. Срабатывает и во время
         программного заполнения формы при открытии документа
-        (_fill_ui_from_project() дёргает те же сигналы) -- это ложное
-        срабатывание гасится сбросом _document_dirty=False сразу после
-        заполнения в _open_document() и после сохранения в
-        FileHandler._save_current_project()."""
-        if self._current_document_path is None or self._document_dirty:
+        (_fill_ui_from_project() дёргает те же сигналы) -- в этот момент
+        _current_document_path ещё None (сбрасывается в _reset_form() до
+        заполнения), поэтому ложных срабатываний нет.
+
+        Помимо самого факта "документ изменён" (once-флаг, дальше не
+        трогается до сохранения/переоткрытия), пересчитывает иконки
+        ✓/○/🔒 у TOC текущего документа на КАЖДОЕ изменение, не только
+        первое -- для 18 из 20 разделов (не завязанных на кнопку шага
+        STEP_ORDER) статус "готово" определяется именно заполненностью
+        полей (см. _groupbox_done()), а значит должен обновляться
+        живьём по мере ввода, а не только по клику кнопки расчёта."""
+        if self._current_document_path is None:
             return
-        self._document_dirty = True
-        self._update_dirty_indicator()
+        if not self._document_dirty:
+            self._document_dirty = True
+            self._update_dirty_indicator()
+        self._update_toc_progress()
 
     def _update_dirty_indicator(self):
         """Ставит/снимает точку-иконку у строки текущего документа в
@@ -1804,79 +1831,224 @@ class MainWindow(QMainWindow):
         self._refresh_objects_tree()
         self._open_document(doc_path)
 
-    def _populate_toc(self):
-        """Заполняет tocList оглавлением документа -- по одной строке на
-        каждый top-level QGroupBox ленты tab_document, в том порядке, в
-        котором они реально стоят в .ui. Ссылка на сам groupbox кладётся в
-        Qt.ItemDataRole.UserRole -- по ней потом скроллим и подсвечиваем
-        (см. _scroll_to_toc_item()/_on_document_scrolled())."""
+    def _collect_toc_groupboxes(self):
+        """Собирает top-level QGroupBox'ы ленты tab_document в порядке
+        компоновки -- статический список, форма всегда одна и та же
+        независимо от того, какой документ открыт (в отличие от
+        _current_toc_items, дочерних строк дерева, которые заново
+        строятся под каждым открываемым документом, см.
+        _populate_document_toc())."""
         layout = self.tab_document_scrollContent.layout()
-        self._toc_groupboxes = []
+        groupboxes = []
         for i in range(layout.count()):
             widget = layout.itemAt(i).widget()
             if isinstance(widget, QGroupBox):
-                item = QListWidgetItem(widget.title())
-                item.setData(Qt.ItemDataRole.UserRole, widget)
-                self.tocList.addItem(item)
-                self._toc_groupboxes.append(widget)
+                groupboxes.append(widget)
+        return groupboxes
+
+    def _populate_document_toc(self, doc_item):
+        """Строит оглавление как дочерние строки под строкой документа в
+        objectsTree (Фаза 6) -- по одной на каждый groupbox из
+        _toc_groupboxes, в том же порядке. Только для ТЕКУЩЕГО открытого
+        документа: статус разделов считается по живым виджетам формы
+        (см. _groupbox_done()), а данные другого документа в них не
+        загружены. Вызывается из _open_document() после заполнения
+        формы; TOC уходящего документа снимается там же через
+        item.takeChildren()."""
+        self._current_toc_items = []
+        for groupbox in self._toc_groupboxes:
+            item = QTreeWidgetItem([groupbox.title()])
+            item.setData(0, Qt.ItemDataRole.UserRole, groupbox)
+            doc_item.addChild(item)
+            self._current_toc_items.append(item)
+        doc_item.setExpanded(True)
+        self._current_toc_active_item = None
+        self._update_toc_progress()
 
     def _scroll_to_toc_item(self, item):
-        """Клик по пункту оглавления -- скроллит tab_document_scroll так,
-        чтобы верх выбранного раздела оказался у верха видимой области
-        (не ensureWidgetVisible(): для разделов выше высоты вьюпорта он
-        подтянул бы минимальным движением, а не встык к началу раздела)."""
-        groupbox = item.data(Qt.ItemDataRole.UserRole)
+        """Клик по строке оглавления в дереве -- скроллит
+        tab_document_scroll так, чтобы верх выбранного раздела оказался
+        у верха видимой области (не ensureWidgetVisible(): для разделов
+        выше высоты вьюпорта он подтянул бы минимальным движением, а не
+        встык к началу раздела). Заблокированные строки (см.
+        _toc_lock_reason()) не скроллят -- у них уже снят
+        Qt.ItemFlag.ItemIsEnabled в _update_toc_item_style(), но клик
+        может дойти и до отключённого item'а, проверка дублируется."""
+        groupbox = item.data(0, Qt.ItemDataRole.UserRole)
+        if self._toc_lock_reason(groupbox) is not None:
+            return
         self._suppress_toc_spy = True
         self.tab_document_scroll.verticalScrollBar().setValue(groupbox.y())
-        self.tocList.setCurrentItem(item)
+        self._set_toc_active_item(item)
         self._suppress_toc_spy = False
         self._update_breadcrumb()
 
     def _on_document_scrolled(self, value):
-        """Скролл-спай: при ручной прокрутке ленты подсвечивает в tocList
-        пункт последнего раздела, чей верх уже проскроллен (groupbox.y()
-        <= value). Отключается на время программного скролла по клику
-        (_suppress_toc_spy), иначе клик спорил бы сам с собой."""
-        if self._suppress_toc_spy or not self._toc_groupboxes:
+        """Скролл-спай: при ручной прокрутке ленты подсвечивает строку
+        последнего раздела, чей верх уже проскроллен (groupbox.y() <=
+        value), в оглавлении текущего открытого документа. Отключается
+        на время программного скролла по клику (_suppress_toc_spy),
+        иначе клик спорил бы сам с собой."""
+        if self._suppress_toc_spy or not self._current_toc_items:
             return
         current = 0
         for i, groupbox in enumerate(self._toc_groupboxes):
             if groupbox.y() <= value:
                 current = i
-        self.tocList.blockSignals(True)
-        self.tocList.setCurrentRow(current)
-        self.tocList.blockSignals(False)
+        self._set_toc_active_item(self._current_toc_items[current])
         self._update_breadcrumb()
 
-    # Пункты оглавления, у которых есть осмысленное понятие "выполнено" --
-    # только эти два groupbox'а физически содержат кнопки шагов из
-    # equipment_types.py STEP_ORDER (segments/thickness -> thick_group,
-    # strength/residual_life -> calc_appendix_group). Остальные 18 разделов
-    # -- просто поля ввода без состояния "выполнено/не выполнено", галочку
-    # им придумывать не из чего.
+    def _set_toc_active_item(self, item):
+        """Полная заливка активной строки TOC синим, как в референсе
+        (docs/design/pipeline_sidebar_mockup.html, .toc-active) -- через
+        setBackground()/setForeground() напрямую на item, а не через
+        нативное выделение QTreeWidget: нативная подсветка платформенно
+        по-разному ведёт себя в фокусе/без фокуса окна, а тут нужна
+        подсветка "текущий раздел", не зависящая от фокуса. Сброс роли в
+        None (не просто прозрачный цвет) возвращает предыдущему item'у
+        подлинный вид по умолчанию."""
+        if self._current_toc_active_item is not None:
+            self._current_toc_active_item.setData(0, Qt.ItemDataRole.BackgroundRole, None)
+            self._current_toc_active_item.setData(0, Qt.ItemDataRole.ForegroundRole, None)
+        item.setBackground(0, QColor("#0a84ff"))
+        item.setForeground(0, QColor("#ffffff"))
+        self._current_toc_active_item = item
+
+    # Пункты оглавления, у которых есть осмысленное понятие "выполнено" из
+    # реальной кнопки-расчёта -- только эти два groupbox'а физически
+    # содержат кнопки шагов из equipment_types.py STEP_ORDER
+    # (segments/thickness -> thick_group, strength/residual_life ->
+    # calc_appendix_group). У остальных 18 разделов такой кнопки нет --
+    # для них статус считает _groupbox_done() по заполненности полей.
     TOC_PROGRESS_GROUPS = {
         "thick_group": {"segments", "thickness"},
         "calc_appendix_group": {"strength", "residual_life"},
     }
 
+    def _groupbox_done(self, groupbox):
+        """"Готово" для раздела оглавления. Для thick_group/
+        calc_appendix_group -- точная семантика STEP_ORDER (см.
+        TOC_PROGRESS_GROUPS): у них есть настоящая кнопка-расчёт, это
+        строго более надёжный сигнал, чем заполненность полей, трогать
+        не нужно. Для остальных 18 разделов, где такой кнопки нет --
+        обобщённая проверка: все виджеты формы внутри groupbox'а (те же
+        типы, что в _reset_form()/get_form_data()) заполнены.
+
+        QDateEdit и QComboBox намеренно не проверяются. У даты всегда
+        есть значение (по умолчанию сегодняшнее) -- "пустой" даты, в
+        отличие от текстового поля, не бывает. У комбобоксов currentIndex()
+        == 0 НЕ значит "не заполнено": report_title -- редактируемый
+        комбобокс ровно с одним пунктом (реальный дефолтный текст, не
+        плейсхолдер-заглушка), work_medium -- 5 реальных веществ без
+        пустого варианта; для обоих индекс 0 -- уже осмысленный выбор,
+        который оператор имеет полное право оставить как есть (проверено
+        headless-тестом: report_title.count() == 1 в свежесозданном
+        документе -- проверка "index == 0 -> пусто" там попросту неверна)."""
+        steps = self.TOC_PROGRESS_GROUPS.get(groupbox.objectName())
+        if steps is not None:
+            return steps <= self._completed_steps
+        for edit in groupbox.findChildren(QPlainTextEdit):
+            if not edit.toPlainText().strip():
+                return False
+        for spin in groupbox.findChildren(QSpinBox):
+            if spin.value() == spin.minimum():
+                return False
+        for table in groupbox.findChildren(QTableWidget):
+            if table.rowCount() == 0:
+                return False
+        return True
+
+    def _toc_lock_reason(self, groupbox):
+        """Возвращает заголовок блокирующего раздела, если groupbox
+        заблокирован (🔒), иначе None. Единственная реальная зависимость
+        в данных этого приложения: calc_appendix_group (шаги
+        strength/residual_life) требует thick_group (шаги
+        segments/thickness) выполненным целиком -- тот же порядок, что
+        и в _check_prerequisite(). Другие 18 разделов никогда не
+        блокируются -- в реальной модели STEP_ORDER больше зависимостей
+        нет; выдумывать их ради сходства с иллюстрацией в референсе не
+        нужно (референсный "Приложение 8 заблокировано Приложением 6" --
+        условный пример для мокапа, не основанный на реальных данных
+        этого приложения)."""
+        if groupbox.objectName() == "calc_appendix_group" and not self._groupbox_done(self.thick_group):
+            return self.thick_group.title()
+        return None
+
+    def _update_toc_item_style(self, item, groupbox):
+        """Ставит иконку ✓/○/🔒 и тултип у одной строки TOC."""
+        lock_reason = self._toc_lock_reason(groupbox)
+        if lock_reason:
+            item.setIcon(0, self._toc_lock_icon)
+            item.setToolTip(0, f"Сначала завершите «{lock_reason}»")
+            item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEnabled)
+        else:
+            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEnabled)
+            item.setToolTip(0, "")
+            item.setIcon(0, self._toc_check_icon if self._groupbox_done(groupbox) else self._toc_circle_icon)
+
     def _update_toc_progress(self):
-        """Ставит префикс "✓ " на пункты tocList, чьи groupbox'ы входят в
-        TOC_PROGRESS_GROUPS, когда все их шаги выполнены (_completed_steps).
-        Текстовый префикс, не иконка -- в проекте нет инфраструктуры
-        иконок/ресурсов, заводить её ради двух галочек избыточно."""
-        for i in range(self.tocList.count()):
-            item = self.tocList.item(i)
-            groupbox = item.data(Qt.ItemDataRole.UserRole)
-            steps = self.TOC_PROGRESS_GROUPS.get(groupbox.objectName())
-            if steps is None:
-                continue
-            done = steps <= self._completed_steps
-            text = item.text()
-            has_mark = text.startswith("✓ ")
-            if done and not has_mark:
-                item.setText("✓ " + text)
-            elif not done and has_mark:
-                item.setText(text[2:])
+        """Обновляет иконки ✓/○/🔒 у всех строк TOC текущего открытого
+        документа. Единая точка входа после любого изменения, влияющего
+        на статус разделов -- клика по кнопке шага STEP_ORDER (см. 4
+        вызова ниже) или правки любого поля формы (см. _mark_dirty()).
+        Безопасно вызывать и когда документ не открыт -- _current_toc_items
+        тогда пуст, zip() ничего не делает."""
+        for item, groupbox in zip(self._current_toc_items, self._toc_groupboxes):
+            self._update_toc_item_style(item, groupbox)
+
+    def _make_check_icon(self):
+        """✓ готово -- зелёный кружок с белой галочкой (аналог
+        ti-circle-check из референса). Рисуется на лету тем же приёмом,
+        что и _make_dot_icon()."""
+        pixmap = QPixmap(14, 14)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setBrush(QColor("#30d158"))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawEllipse(1, 1, 12, 12)
+        pen = QPen(QColor("#ffffff"))
+        pen.setWidthF(1.6)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        painter.setPen(pen)
+        painter.drawLine(QPointF(4, 7.2), QPointF(6.2, 9.5))
+        painter.drawLine(QPointF(6.2, 9.5), QPointF(10, 4.7))
+        painter.end()
+        return QIcon(pixmap)
+
+    def _make_circle_icon(self):
+        """○ не готово -- серый контур кружка (аналог ti-circle)."""
+        pixmap = QPixmap(14, 14)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        pen = QPen(QColor("#8e8e93"))
+        pen.setWidthF(1.2)
+        painter.setPen(pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawEllipse(2, 2, 10, 10)
+        painter.end()
+        return QIcon(pixmap)
+
+    def _make_lock_icon(self):
+        """🔒 заблокировано -- серый замок, тело + дужка (аналог
+        ti-lock)."""
+        pixmap = QPixmap(14, 14)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        color = QColor("#8e8e93")
+        pen = QPen(color)
+        pen.setWidthF(1.6)
+        painter.setPen(pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawArc(3, 1, 8, 8, 0, 180 * 16)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(color)
+        painter.drawRoundedRect(2, 6, 10, 7, 2, 2)
+        painter.end()
+        return QIcon(pixmap)
 
     def _update_report_buttons_visibility(self):
         """Скрывает кнопки "Выгрузить в Word"/"Сохранить проект"/"Открыть
