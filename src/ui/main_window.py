@@ -179,7 +179,13 @@ class MainWindow(QMainWindow):
             self._refresh_objects_tree()
             self.sidebarSearchBox.textChanged.connect(self._filter_objects_tree)
             self._sidebar_collapsed = False
-            self._sidebar_expanded_sizes = [240, 760]
+            # mainSplitter -- три ребёнка (revealStrip, sidebar, viewStack,
+            # Фаза 7), sizes должен покрывать все три -- список короче
+            # count() даёт непредсказуемое распределение (найдено
+            # реальным багом: sidebar защёлкивался на maximumWidth=400
+            # вместо заданных 240, потому что setSizes([240, 760]) на
+            # трёх виджетах интерпретировался не так, как рассчитывали).
+            self._sidebar_expanded_sizes = [0, 240, 760]
             self.sidebarBtn_collapse.clicked.connect(self._toggle_sidebar)
             self.sidebarBtn_expand.clicked.connect(self._toggle_sidebar)
             # sidebarBtn_pin -- чисто визуальный тумблер, как и в
@@ -214,10 +220,15 @@ class MainWindow(QMainWindow):
             # Ширина сайдбара задаётся кодом: .ui-формат не умеет
             # сериализовать QSplitter.sizes (нет XML-типа под QList<int>).
             # Диапазон перетаскивания ограничен minimumSize/maximumSize
-            # самого sidebar (180..400 px в .ui).
-            self.mainSplitter.setSizes([240, 760])
+            # самого sidebar (180..400 px в .ui). Индексы -- по составу
+            # mainSplitter после Фазы 7: 0=revealStrip, 1=sidebar,
+            # 2=viewStack; растягивается при изменении размера окна
+            # только форма (индекс 2), сайдбар держит выставленную
+            # ширину.
+            self.mainSplitter.setSizes(self._sidebar_expanded_sizes)
             self.mainSplitter.setStretchFactor(0, 0)
-            self.mainSplitter.setStretchFactor(1, 1)
+            self.mainSplitter.setStretchFactor(1, 0)
+            self.mainSplitter.setStretchFactor(2, 1)
             # Ручка перетаскивания шире дефолтной (~3-4px) -- за неё
             # неудобно было попасть мышью, отсюда и ощущение, что
             # ширину нельзя менять руками.
