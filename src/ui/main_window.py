@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QPlainTextEdit, QComboBo
                              QPushButton, QSpinBox, QDateEdit, QTableWidgetItem, QTableWidget,
                              QMessageBox, QFileDialog, QGroupBox,
                              QTreeWidgetItem, QInputDialog, QMenu)
-from PyQt6.QtCore import QLocale, Qt, QDate, QPointF
+from PyQt6.QtCore import QLocale, Qt, QDate, QPointF, QTimer
 from PyQt6.QtGui import QPixmap, QIcon, QPainter, QColor, QPen
 from PyQt6.uic import loadUi
 from typing import Dict, Union
@@ -14,6 +14,7 @@ from docxtpl import DocxTemplate, InlineImage, RichText
 
 import os
 import subprocess
+import html
 
 from ..equipment_types import EquipmentType, REGISTRY
 from ..services.calculations import (
@@ -222,6 +223,8 @@ class MainWindow(QMainWindow):
             # ещё не открыт (_current_document_path is None), TOC-строк
             # в дереве нет (появляются в _open_document()).
             self._switch_view("document")
+            self.breadcrumbLabel.setOpenExternalLinks(False)
+            self.breadcrumbLabel.linkActivated.connect(self._on_breadcrumb_link_activated)
             self._update_breadcrumb()
 
     def init_file_handler(self):
@@ -1845,7 +1848,15 @@ class MainWindow(QMainWindow):
         """Обновляет breadcrumbLabel над лентой документа: объект /
         документ / текущий раздел оглавления. Ярлык документа берётся
         готовым из строки дерева (там уже "рег.XXXX" из
-        workspace._document_label()), а не пересчитывается заново."""
+        workspace._document_label()), а не пересчитывается заново.
+
+        Объект и документ -- кликабельные ссылки (Фаза 11, как revealFolder()/
+        revealDoc() в референсе, docs/design/pipeline_sidebar_mockup.html)
+        через встроенную поддержку rich-text гиперссылок в QLabel
+        (setOpenExternalLinks(False) + сигнал linkActivated, см.
+        _on_breadcrumb_link_activated()) -- три отдельных виджета под
+        три сегмента заводить не пришлось. Раздел -- не ссылка, как и в
+        референсе (там у него нет своего reveal-обработчика)."""
         if self._current_document_path is None:
             self.breadcrumbLabel.setText("")
             self.breadcrumbLabel.setVisible(False)
@@ -1854,9 +1865,50 @@ class MainWindow(QMainWindow):
         doc_item = self._find_document_tree_item(self._current_document_path)
         doc_label = doc_item.text(0) if doc_item is not None else ""
         section = self._current_toc_active_item.text(0) if self._current_toc_active_item is not None else ""
-        parts = [p for p in (object_name, doc_label, section) if p]
+        parts = []
+        if object_name:
+            parts.append(f'<a href="object" style="color:inherit; text-decoration:none;">{html.escape(object_name)}</a>')
+        if doc_label:
+            parts.append(f'<a href="document" style="color:inherit; text-decoration:none;">{html.escape(doc_label)}</a>')
+        if section:
+            parts.append(html.escape(section))
         self.breadcrumbLabel.setText(" / ".join(parts))
         self.breadcrumbLabel.setVisible(True)
+
+    def _on_breadcrumb_link_activated(self, href):
+        """Клик по сегменту breadcrumb -- разворачивает сайдбар (если
+        свёрнут), раскрывает нужную строку дерева и на мгновение
+        подсвечивает её (см. revealFolder()/revealDoc() в референсе)."""
+        if self._sidebar_collapsed:
+            self._toggle_sidebar()
+        if href == "document":
+            item = self._find_document_tree_item(self._current_document_path)
+        else:
+            object_name = Path(self._current_document_path).parent.name
+            item = None
+            for i in range(self.objectsTree.topLevelItemCount()):
+                top_item = self.objectsTree.topLevelItem(i)
+                if top_item.text(0) == object_name:
+                    item = top_item
+                    break
+        if item is None:
+            return
+        if item.parent() is not None:
+            item.parent().setExpanded(True)
+        item.setExpanded(True)
+        self.objectsTree.scrollToItem(item)
+        self._flash_tree_item(item)
+
+    def _flash_tree_item(self, item):
+        """Кратковременная подсветка строки дерева (700ms, как
+        folder-flash/doc-flash в референсе) -- в отличие от
+        _set_toc_active_item(), это одноразовая вспышка (взгляду
+        помочь найти строку после клика по breadcrumb), а не постоянная
+        подсветка "текущий раздел"."""
+        flash_color = QColor("#0a84ff")
+        flash_color.setAlpha(38)
+        item.setBackground(0, flash_color)
+        QTimer.singleShot(700, lambda: item.setData(0, Qt.ItemDataRole.BackgroundRole, None))
 
     def _make_dot_icon(self, color):
         """Рисует маленький закрашенный кружок как QIcon -- в проекте нет
