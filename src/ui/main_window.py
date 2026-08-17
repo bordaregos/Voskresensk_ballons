@@ -218,6 +218,10 @@ class MainWindow(QMainWindow):
             self.mainSplitter.setSizes([240, 760])
             self.mainSplitter.setStretchFactor(0, 0)
             self.mainSplitter.setStretchFactor(1, 1)
+            # Ручка перетаскивания шире дефолтной (~3-4px) -- за неё
+            # неудобно было попасть мышью, отсюда и ощущение, что
+            # ширину нельзя менять руками.
+            self.mainSplitter.setHandleWidth(6)
 
             # Нижняя панель -- три равные колонки, как в референсе.
             # <property name="stretch"> в .ui не сработал бы: uic.loadUi()
