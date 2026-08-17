@@ -167,6 +167,7 @@ class MainWindow(QMainWindow):
             # навешено.
             self.sidebarBtn_createObject.clicked.connect(self._create_object_dialog)
             self.sidebarBtn_createDocument.clicked.connect(self._create_document_dialog)
+            self.sidebarBtn_templates.clicked.connect(self._show_templates_menu)
             self.objectsTree.itemClicked.connect(self._on_objects_tree_item_clicked)
             self.objectsTree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
             self.objectsTree.customContextMenuRequested.connect(self._show_objects_tree_context_menu)
@@ -1922,27 +1923,55 @@ class MainWindow(QMainWindow):
         self._refresh_objects_tree()
 
     def _create_document_dialog(self):
-        """«Создать документ»: выбор объекта (готовый список, редактируемый
-        комбобокс -- можно ввести и новое название прямо тут, не уходя в
-        отдельный диалог «Создать объект») либо, если объектов ещё нет,
-        сразу текстовое поле под название нового. Документ создаётся на
-        дефолтном шаблоне -- выбор между несколькими шаблонами не
-        реализован (см. план Фазы 2, «Мои шаблоны» — отдельная задача
-        позже)."""
-        objects = workspace.list_objects()
-        if objects:
-            name, ok = QInputDialog.getItem(
-                self, "Документ — объект", "Объект (выберите или введите новый):",
-                objects, 0, True,
-            )
-        else:
-            name, ok = QInputDialog.getText(self, "Документ — объект", "Название объекта:")
+        """«Создать документ» -- всплывающее меню от кнопки: список
+        существующих объектов + «Новый объект…» снизу (соответствует
+        шагу 1 референсного мокапа, docs/design/pipeline_sidebar_mockup.html,
+        #stepObject). Шаг 2 референса ("Использовать шаблон"/"Создать
+        новый шаблон") сознательно не реализован -- реальной
+        инфраструктуры нескольких шаблонов на equipment_type нет
+        (find_template() захардкожен на один файл в config.py), а
+        generate_template() -- разовая операция подготовки заготовки
+        под ручную правку в Word (см. template_generator.py), не
+        предназначенная запускаться при каждом создании документа.
+        Фиктивный шаг выбора шаблона, который ничего не переключает,
+        хуже, чем его отсутствие."""
+        menu = QMenu(self)
+        for object_name in workspace.list_objects():
+            menu.addAction(object_name, lambda name=object_name: self._create_document_in_object(name))
+        if menu.actions():
+            menu.addSeparator()
+        menu.addAction("Новый объект…", self._create_document_in_new_object)
+        button = self.sidebarBtn_createDocument
+        menu.exec(button.mapToGlobal(button.rect().bottomLeft()))
+
+    def _create_document_in_new_object(self):
+        """«Новый объект…» в меню «Создать документ» -- спрашивает имя,
+        создаёт объект и сразу документ внутри него за один шаг (в
+        отличие от отдельной кнопки «Создать объект», после которой
+        пришлось бы ещё раз открывать это же меню)."""
+        name, ok = QInputDialog.getText(self, "Новый объект", "Название объекта:")
         if not ok or not name.strip():
             return
-        object_dir = workspace.create_object(name)
-        doc_path = workspace.create_document(object_dir, self.equipment_type.id)
-        self._refresh_objects_tree()
-        self._open_document(doc_path)
+        self._create_document_in_object(name)
+
+    def _show_templates_menu(self):
+        """«Мои шаблоны» -- показывает реально существующий шаблон
+        (find_template() поддерживает ровно один файл на equipment_type,
+        см. TEMPLATE_PATHS_BY_TYPE в config.py -- инфраструктуры выбора
+        между несколькими шаблонами в проекте нет). Пункт
+        информационный, недоступен для клика -- переключать нечего,
+        пока шаблон один; помечать его "по умолч." было бы обманчиво,
+        раз альтернативы не существует."""
+        from ..config import find_template
+        menu = QMenu(self)
+        try:
+            template_path = find_template(self.equipment_type.id)
+            action = menu.addAction(template_path.stem)
+        except FileNotFoundError:
+            action = menu.addAction("Шаблон не найден")
+        action.setEnabled(False)
+        button = self.sidebarBtn_templates
+        menu.exec(button.mapToGlobal(button.rect().bottomLeft()))
 
     def _collect_toc_groupboxes(self):
         """Собирает top-level QGroupBox'ы ленты tab_document в порядке

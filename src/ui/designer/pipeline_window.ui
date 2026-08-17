@@ -61,13 +61,14 @@
   </widget></item>
   <item><widget class="QPushButton" name="sidebarBtn_createObject"><property name="text"><string>Создать объект</string></property></widget></item>
   <item><widget class="QPushButton" name="sidebarBtn_createDocument"><property name="text"><string>Создать документ</string></property></widget></item>
-  <item><widget class="QTreeWidget" name="objectsTree"><column><property name="text"><string>Документы</string></property></column></widget></item>
   <item><widget class="QFrame" name="navDivider">
    <property name="frameShape"><enum>QFrame::HLine</enum></property>
    <property name="frameShadow"><enum>QFrame::Sunken</enum></property>
   </widget></item>
+  <item><widget class="QPushButton" name="sidebarBtn_templates"><property name="text"><string>Мои шаблоны</string></property></widget></item>
   <item><widget class="QPushButton" name="sidebarBtn_employees"><property name="text"><string>Сотрудники</string></property></widget></item>
   <item><widget class="QPushButton" name="sidebarBtn_instruments"><property name="text"><string>Приборы</string></property></widget></item>
+  <item><widget class="QTreeWidget" name="objectsTree"><column><property name="text"><string>Документы</string></property></column></widget></item>
  </layout>
 </widget>
 <widget class="QStackedWidget" name="viewStack">
