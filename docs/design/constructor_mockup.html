@@ -1,0 +1,289 @@
+<title>Мокап: Конструктор документов</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<h2 style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);">Мокап конструктора документов: доступные блоки слева, перетаскивание в основную область, форма реквизитов, сборка документа</h2>
+<div style="background:#eeeeef;min-height:100vh;box-sizing:border-box;padding:32px 20px;display:flex;align-items:flex-start;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,sans-serif;">
+<div style="width:100%;max-width:720px;">
+<p style="margin:0 0 14px;font-size:13px;color:#6b6b70;text-align:center;">Кликабельный мокап — перетащите блок титульного листа из списка слева в основную область</p>
+<div style="max-width:680px;margin:0 auto;background:#1c1c1e;border-radius:10px;overflow:hidden;border:0.5px solid #38383a;position:relative;box-shadow:0 12px 32px rgba(0,0,0,.18);">
+  <div style="display:flex;align-items:center;padding:10px 14px;background:#2c2c2e;border-bottom:0.5px solid #38383a;position:relative;">
+    <span style="width:11px;height:11px;border-radius:50%;background:#ff5f57;margin-right:6px;"></span>
+    <span style="width:11px;height:11px;border-radius:50%;background:#febc2e;margin-right:6px;"></span>
+    <span style="width:11px;height:11px;border-radius:50%;background:#28c840;"></span>
+    <span style="position:absolute;left:50%;transform:translateX(-50%);font-size:12px;color:#8e8e93;">Конструктор документов — MainWindow</span>
+  </div>
+
+  <div style="display:flex;height:520px;">
+    <div id="sidebar" style="width:220px;background:#242426;border-right:0.5px solid #38383a;flex-shrink:0;overflow-y:auto;">
+      <div style="padding:10px 10px 4px;">
+        <div class="group-row" onclick="toggleGroup('titleGroup')">
+          <i id="titleGroupChev" class="ti ti-chevron-down" style="font-size:13px;color:#8e8e93;" aria-hidden="true"></i>
+          <i class="ti ti-files" style="font-size:14px;color:#8e8e93;" aria-hidden="true"></i>
+          <span>Титульные листы</span>
+        </div>
+        <div id="titleGroup" style="padding:4px 0 6px 14px;display:flex;flex-direction:column;gap:8px;">
+          <div class="block-card" draggable="true" data-variant="otchet" oncontextmenu="return openBlockMenu(event,this,'otchet')" ondragstart="onDragStart(event)">
+            <i class="ti ti-file-text" style="font-size:15px;color:#0a84ff;flex-shrink:0;" aria-hidden="true"></i>
+            <span>Отчёт по результатам технического диагностирования</span>
+          </div>
+          <div class="block-card" draggable="true" data-variant="zaklyuchenie" oncontextmenu="return openBlockMenu(event,this,'zaklyuchenie')" ondragstart="onDragStart(event)">
+            <i class="ti ti-file-text" style="font-size:15px;color:#0a84ff;flex-shrink:0;" aria-hidden="true"></i>
+            <span>Заключение по техническому освидетельствованию</span>
+          </div>
+          <div class="add-block-row" onclick="openAddModal()">
+            <i class="ti ti-plus" style="font-size:13px;" aria-hidden="true"></i>
+            <span>Добавить</span>
+          </div>
+        </div>
+
+        <div class="group-row group-row-soon" title="Появится в Phase 2">
+          <i class="ti ti-chevron-right" style="font-size:13px;color:#5a5a5c;" aria-hidden="true"></i>
+          <i class="ti ti-files" style="font-size:14px;color:#5a5a5c;" aria-hidden="true"></i>
+          <span>Приложения — скоро</span>
+        </div>
+      </div>
+
+      <div style="padding:10px;margin-top:auto;font-size:10.5px;color:#5a5a5c;line-height:1.5;">
+        Перетащите блок в основную область справа, чтобы включить его в документ.
+      </div>
+    </div>
+
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;">
+      <div style="padding:8px 18px;background:#202022;border-bottom:0.5px solid #2c2c2e;font-size:11px;color:#8e8e93;flex-shrink:0;">
+        Конструктор документов / <span id="crumbBlock" style="color:#e5e5e7;">без титульного листа</span>
+      </div>
+
+      <div style="flex:1;overflow-y:auto;padding:16px 18px;">
+
+        <div style="font-size:11px;color:#8e8e93;margin-bottom:8px;text-transform:uppercase;letter-spacing:.03em;">Документ</div>
+
+        <div id="dropZone" class="drop-zone" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+          <div id="dropEmpty" style="display:flex;flex-direction:column;align-items:center;gap:6px;color:#5a5a5c;font-size:12px;padding:18px 0;">
+            <i class="ti ti-drag-drop" style="font-size:22px;" aria-hidden="true"></i>
+            Перетащите титульный лист сюда
+          </div>
+          <div id="dropFilled" style="display:none;align-items:center;gap:8px;width:100%;align-self:stretch;box-sizing:border-box;padding:10px 12px;background:#2c2c2e;border-radius:8px;">
+            <i class="ti ti-file-text" style="font-size:15px;color:#0a84ff;flex-shrink:0;" aria-hidden="true"></i>
+            <span id="droppedLabel" style="flex:1;font-size:12px;color:#e5e5e7;"></span>
+            <button class="remove-btn" onclick="clearBlock()" title="Убрать" aria-label="Убрать"><i class="ti ti-x" aria-hidden="true"></i></button>
+          </div>
+        </div>
+
+        <div id="fieldsPanel" style="display:none;margin-top:22px;">
+          <div style="font-size:11px;color:#8e8e93;margin-bottom:10px;text-transform:uppercase;letter-spacing:.03em;">Реквизиты титульного листа</div>
+          <div class="field-grid" id="fieldsGrid"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;border-top:0.5px solid #38383a;">
+    <div id="assembleBtn" onclick="assemble()" style="flex:1;text-align:center;padding:9px;font-size:12px;color:#5a5a5c;border-right:0.5px solid #38383a;cursor:default;">Собрать документ</div>
+    <div style="flex:1;text-align:center;padding:9px;font-size:12px;color:#c7c7cc;border-right:0.5px solid #38383a;cursor:pointer;">Сохранить проект</div>
+    <div style="flex:1;text-align:center;padding:9px;font-size:12px;color:#c7c7cc;cursor:pointer;">Открыть проект</div>
+  </div>
+
+  <div id="blockMenu" style="display:none;position:absolute;z-index:20;background:#2c2c2e;border:0.5px solid #48484a;border-radius:8px;overflow:hidden;min-width:170px;box-shadow:0 8px 24px rgba(0,0,0,.4);">
+    <div class="menu-row" style="color:#ff453a;" onclick="deleteBlockFromMenu()"><i class="ti ti-trash" style="font-size:14px;color:#ff453a;" aria-hidden="true"></i>Удалить</div>
+  </div>
+
+  <div id="addModal" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.55);align-items:center;justify-content:center;z-index:10;">
+    <div style="background:#2c2c2e;border:0.5px solid #48484a;border-radius:10px;padding:18px;width:260px;">
+      <div style="font-size:13px;font-weight:500;color:#e5e5e7;margin-bottom:10px;">Новый вариант титульного листа</div>
+      <input id="newVariantName" type="text" placeholder="Например, Протокол по результатам контроля" style="width:100%;box-sizing:border-box;background:#1c1c1e;border:0.5px solid #48484a;border-radius:6px;padding:7px 8px;font-size:12px;color:#e5e5e7;margin-bottom:14px;" />
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button onclick="closeAddModal()" style="background:transparent;border:0.5px solid #48484a;color:#c7c7cc;font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;">Отмена</button>
+        <button onclick="confirmAddVariant()" style="background:#0a84ff;border:none;color:#fff;font-size:12px;font-weight:500;padding:6px 12px;border-radius:6px;cursor:pointer;">Создать</button>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+<style>
+body{background:#eeeeef;}
+.group-row{display:flex;align-items:center;gap:6px;padding:6px 6px;border-radius:5px;cursor:pointer;font-size:11.5px;color:#e5e5e7;font-weight:500;}
+.group-row:hover{background:#2c2c2e;}
+.group-row-soon{cursor:not-allowed;color:#5a5a5c;}
+.group-row-soon:hover{background:transparent;}
+.block-card{display:flex;align-items:center;gap:8px;background:#2c2c2e;border:0.5px solid #38383a;border-radius:7px;padding:8px 9px;font-size:11.5px;color:#e5e5e7;cursor:grab;line-height:1.3;}
+.block-card:active{cursor:grabbing;}
+.block-card:hover{border-color:#0a84ff;}
+.add-block-row{display:flex;align-items:center;gap:6px;border:0.5px dashed #48484a;border-radius:7px;padding:7px 9px;font-size:11.5px;color:#8e8e93;cursor:pointer;}
+.add-block-row:hover{border-color:#0a84ff;color:#e5e5e7;}
+.remove-btn{display:flex;align-items:center;justify-content:center;width:22px;height:22px;flex-shrink:0;background:transparent;border:none;border-radius:5px;color:#8e8e93;font-size:14px;cursor:pointer;padding:0;}
+.remove-btn:hover{background:#3a3a3c;color:#e5e5e7;}
+.menu-row{padding:8px 10px;font-size:12px;color:#e5e5e7;cursor:pointer;display:flex;align-items:center;gap:6px;}
+.menu-row:hover{background:#3a3a3c;}
+.drop-zone{border:1.5px dashed #38383a;border-radius:8px;transition:border-color .15s,background .15s;min-height:56px;display:flex;align-items:center;justify-content:center;}
+.drop-zone.drag-over{border-color:#0a84ff;background:rgba(10,132,255,.08);}
+.field-grid{display:grid;grid-template-columns:180px 1fr;row-gap:9px;column-gap:10px;align-items:center;font-size:12px;}
+.lbl{color:#c7c7cc;}
+input.fld{background:#2c2c2e;border:0.5px solid #38383a;border-radius:5px;padding:6px 8px;color:#e5e5e7;font-family:inherit;font-size:12px;box-sizing:border-box;width:100%;}
+input.fld:focus{outline:none;border-color:#0a84ff;}
+input.fld::placeholder{color:#5a5a5c;}
+</style>
+
+<script>
+var labels = {
+  otchet: 'Отчёт по результатам технического диагностирования',
+  zaklyuchenie: 'Заключение по техническому освидетельствованию'
+};
+var currentVariant = null;
+
+// Реквизиты титульного листа -- свой набор полей под каждый вариант (форма
+// подставляет значения в plchldr'ы фрагмента этого варианта). Для
+// вариантов без собственного набора -- generic 4 поля, см. defaultFields.
+var defaultFields = [
+  {id:'doc_number', label:'Номер документа', placeholder:'681/24'},
+  {id:'reg_number', label:'Рег./уч. номер', placeholder:'720291'},
+  {id:'doc_date', label:'Дата', placeholder:'15 ноября 2026'},
+  {id:'object_title', label:'Наименование объекта', placeholder:'Трубопровод технологический №1'}
+];
+var variantFields = {
+  otchet: [
+    {id:'title_heading', label:'Заголовок титульного листа', placeholder:'Отчёт по результатам технического диагностирования'},
+    {id:'doc_number', label:'Номер документа', placeholder:'681/24'},
+    {id:'diag_object', label:'Объект диагностирования', placeholder:'Трубопровод технологический №1'},
+    {id:'reg_number', label:'Рег./уч. номер', placeholder:'720291'},
+    {id:'location', label:'Местонахождение', placeholder:'промплощадка АО «КБХиммаш», г. Воскресенск'},
+    {id:'owner', label:'Владелец', placeholder:'АО «КБХиммаш»'},
+    {id:'signed_date', label:'Дата подписания руководством', placeholder:'15 ноября 2026'},
+    {id:'city_year', label:'Город / год', placeholder:'Воскресенск, 2026'}
+  ]
+};
+function renderFields(variant){
+  var fields = variantFields[variant] || defaultFields;
+  var grid = document.getElementById('fieldsGrid');
+  grid.innerHTML = '';
+  fields.forEach(function(f){
+    var lbl = document.createElement('span');
+    lbl.className = 'lbl';
+    lbl.textContent = f.label;
+    var input = document.createElement('input');
+    input.className = 'fld';
+    input.id = f.id;
+    input.placeholder = f.placeholder;
+    grid.appendChild(lbl);
+    grid.appendChild(input);
+  });
+}
+
+function toggleGroup(id){
+  var body = document.getElementById(id);
+  var chev = document.getElementById(id + 'Chev');
+  var open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'flex';
+  chev.className = open ? 'ti ti-chevron-right' : 'ti ti-chevron-down';
+}
+function onDragStart(ev){
+  ev.dataTransfer.setData('text/plain', ev.currentTarget.getAttribute('data-variant'));
+  ev.dataTransfer.effectAllowed = 'move';
+}
+function onDragOver(ev){
+  ev.preventDefault();
+  document.getElementById('dropZone').classList.add('drag-over');
+}
+function onDragLeave(ev){
+  document.getElementById('dropZone').classList.remove('drag-over');
+}
+function onDrop(ev){
+  ev.preventDefault();
+  document.getElementById('dropZone').classList.remove('drag-over');
+  var variant = ev.dataTransfer.getData('text/plain');
+  if (!labels[variant]) return; // "скоро" — не перетаскивается по-настоящему
+  setBlock(variant);
+}
+function setBlock(variant){
+  // Второй drop заменяет первый — в документе ровно один титульный лист
+  // (Phase 1), см. docs/design и план реализации.
+  currentVariant = variant;
+  document.getElementById('dropEmpty').style.display = 'none';
+  var filled = document.getElementById('dropFilled');
+  filled.style.display = 'flex';
+  document.getElementById('droppedLabel').textContent = labels[variant];
+  renderFields(variant);
+  document.getElementById('fieldsPanel').style.display = 'block';
+  document.getElementById('crumbBlock').textContent = labels[variant];
+  var btn = document.getElementById('assembleBtn');
+  btn.style.color = '#c7c7cc';
+  btn.style.cursor = 'pointer';
+}
+function clearBlock(){
+  currentVariant = null;
+  document.getElementById('dropEmpty').style.display = 'flex';
+  document.getElementById('dropFilled').style.display = 'none';
+  document.getElementById('fieldsPanel').style.display = 'none';
+  document.getElementById('crumbBlock').textContent = 'без титульного листа';
+  var btn = document.getElementById('assembleBtn');
+  btn.style.color = '#5a5a5c';
+  btn.style.cursor = 'default';
+}
+function assemble(){
+  if (!currentVariant) return;
+  alert('Здесь MainWindow._calculate_constructor() отрендерит ' + labels[currentVariant] + ' с введёнными реквизитами и сохранит .docx.');
+}
+
+// -- Добавление нового варианта титульного листа ----------------------------
+function openAddModal(){
+  document.getElementById('addModal').style.display = 'flex';
+  document.getElementById('newVariantName').focus();
+}
+function closeAddModal(){
+  document.getElementById('addModal').style.display = 'none';
+  document.getElementById('newVariantName').value = '';
+}
+var nextVariantId = 1;
+function confirmAddVariant(){
+  var input = document.getElementById('newVariantName');
+  var text = input.value.trim();
+  if (!text) { input.focus(); return; }
+
+  var variantId = 'custom-' + (nextVariantId++);
+  labels[variantId] = text;
+
+  var card = document.createElement('div');
+  card.className = 'block-card';
+  card.draggable = true;
+  card.setAttribute('data-variant', variantId);
+  card.setAttribute('ondragstart', 'onDragStart(event)');
+  card.setAttribute('oncontextmenu', "return openBlockMenu(event,this,'" + variantId + "')");
+  card.innerHTML = '<i class="ti ti-file-text" style="font-size:15px;color:#0a84ff;flex-shrink:0;" aria-hidden="true"></i><span>' + text + '</span>';
+
+  var addRow = document.querySelector('#titleGroup .add-block-row');
+  addRow.parentNode.insertBefore(card, addRow);
+
+  closeAddModal();
+}
+
+// -- Удаление варианта правой кнопкой мыши -----------------------------------
+var blockMenuTargetEl = null, blockMenuTargetVariant = null;
+function openBlockMenu(ev, el, variant){
+  ev.preventDefault();
+  ev.stopPropagation();
+  var menu = document.getElementById('blockMenu');
+  var frame = menu.parentElement.getBoundingClientRect();
+  menu.style.left = (ev.clientX - frame.left) + 'px';
+  menu.style.top = (ev.clientY - frame.top) + 'px';
+  menu.style.display = 'block';
+  blockMenuTargetEl = el;
+  blockMenuTargetVariant = variant;
+  return false;
+}
+function closeBlockMenu(){
+  document.getElementById('blockMenu').style.display = 'none';
+}
+function deleteBlockFromMenu(){
+  if (!blockMenuTargetEl) { closeBlockMenu(); return; }
+  if (!confirm('Удалить вариант «' + labels[blockMenuTargetVariant] + '»?')) { closeBlockMenu(); return; }
+  if (currentVariant === blockMenuTargetVariant) { clearBlock(); }
+  delete labels[blockMenuTargetVariant];
+  blockMenuTargetEl.remove();
+  closeBlockMenu();
+}
+document.addEventListener('click', function(ev){
+  var bm = document.getElementById('blockMenu');
+  if (bm.style.display === 'block' && !bm.contains(ev.target)) { closeBlockMenu(); }
+});
+</script>

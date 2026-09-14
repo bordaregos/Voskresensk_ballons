@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>900</width>
+    <height>640</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Конструктор документов</string>
+  </property>
+  <widget class="QWidget" name="constructorCentral">
+   <layout class="QVBoxLayout" name="outerLayout">
+    <property name="spacing"><number>0</number></property>
+    <property name="leftMargin"><number>0</number></property>
+    <property name="topMargin"><number>0</number></property>
+    <property name="rightMargin"><number>0</number></property>
+    <property name="bottomMargin"><number>0</number></property>
+    <item>
+     <widget class="QWidget" name="bodyWidget">
+      <layout class="QHBoxLayout" name="bodyLayout">
+       <property name="spacing"><number>0</number></property>
+       <property name="leftMargin"><number>0</number></property>
+       <property name="topMargin"><number>0</number></property>
+       <property name="rightMargin"><number>0</number></property>
+       <property name="bottomMargin"><number>0</number></property>
+       <item>
+        <widget class="QWidget" name="constructorSidebar">
+         <property name="maximumSize">
+          <size><width>240</width><height>16777215</height></size>
+         </property>
+         <layout class="QVBoxLayout" name="sidebarLayout">
+          <property name="leftMargin"><number>10</number></property>
+          <property name="topMargin"><number>10</number></property>
+          <property name="rightMargin"><number>10</number></property>
+          <property name="bottomMargin"><number>10</number></property>
+          <item>
+           <widget class="QPushButton" name="titleGroupToggle">
+            <property name="text"><string>▾  Титульные листы</string></property>
+            <property name="checkable"><bool>true</bool></property>
+            <property name="checked"><bool>true</bool></property>
+            <property name="flat"><bool>true</bool></property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QListWidget" name="availableBlocksList">
+            <property name="dragEnabled"><bool>true</bool></property>
+            <property name="frameShape"><enum>QFrame::Shape::NoFrame</enum></property>
+            <property name="wordWrap"><bool>true</bool></property>
+            <property name="textElideMode"><enum>Qt::TextElideMode::ElideNone</enum></property>
+            <property name="resizeMode"><enum>QListView::ResizeMode::Adjust</enum></property>
+            <property name="horizontalScrollBarPolicy">
+             <enum>Qt::ScrollBarPolicy::ScrollBarAlwaysOff</enum>
+            </property>
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
+              <horstretch>0</horstretch><verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="appendicesSoonLabel">
+            <property name="text"><string>▸  Приложения — скоро</string></property>
+            <property name="toolTip"><string>Появится в Phase 2</string></property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="sidebarSpacer">
+            <property name="orientation"><enum>Qt::Orientation::Vertical</enum></property>
+            <property name="sizeHint" stdset="0">
+             <size><width>20</width><height>20</height></size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QWidget" name="mainArea">
+         <layout class="QVBoxLayout" name="mainAreaOuterLayout">
+          <property name="spacing"><number>0</number></property>
+          <property name="leftMargin"><number>0</number></property>
+          <property name="topMargin"><number>0</number></property>
+          <property name="rightMargin"><number>0</number></property>
+          <property name="bottomMargin"><number>0</number></property>
+          <item>
+           <widget class="QLabel" name="crumbLabel">
+            <property name="text"><string>Конструктор документов / без титульного листа</string></property>
+            <property name="wordWrap"><bool>true</bool></property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QWidget" name="mainAreaContent">
+            <layout class="QVBoxLayout" name="mainAreaLayout">
+             <property name="leftMargin"><number>18</number></property>
+             <property name="topMargin"><number>16</number></property>
+             <property name="rightMargin"><number>18</number></property>
+             <property name="bottomMargin"><number>16</number></property>
+             <item>
+              <widget class="QLabel" name="documentSectionLabel">
+               <property name="text"><string>ДОКУМЕНТ</string></property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QListWidget" name="includedBlockList">
+               <property name="acceptDrops"><bool>true</bool></property>
+               <property name="dragDropMode">
+                <enum>QAbstractItemView::DragDropMode::DragDrop</enum>
+               </property>
+               <property name="defaultDropAction">
+                <enum>Qt::DropAction::MoveAction</enum>
+               </property>
+               <property name="frameShape"><enum>QFrame::Shape::NoFrame</enum></property>
+               <property name="horizontalScrollBarPolicy">
+                <enum>Qt::ScrollBarPolicy::ScrollBarAlwaysOff</enum>
+               </property>
+               <property name="verticalScrollBarPolicy">
+                <enum>Qt::ScrollBarPolicy::ScrollBarAlwaysOff</enum>
+               </property>
+               <property name="maximumSize">
+                <size><width>16777215</width><height>56</height></size>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QGroupBox" name="fieldsPanel">
+               <property name="title"><string>Реквизиты титульного листа</string></property>
+               <property name="visible"><bool>false</bool></property>
+               <layout class="QFormLayout" name="titleFieldsLayout"/>
+              </widget>
+             </item>
+             <item>
+              <spacer name="mainAreaSpacer">
+               <property name="orientation"><enum>Qt::Orientation::Vertical</enum></property>
+               <property name="sizeHint" stdset="0">
+                <size><width>20</width><height>40</height></size>
+               </property>
+              </spacer>
+             </item>
+            </layout>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item>
+     <widget class="QWidget" name="constructorBottomBar">
+      <layout class="QHBoxLayout" name="bottomBarLayout">
+       <property name="spacing"><number>0</number></property>
+       <property name="leftMargin"><number>0</number></property>
+       <property name="topMargin"><number>0</number></property>
+       <property name="rightMargin"><number>0</number></property>
+       <property name="bottomMargin"><number>0</number></property>
+       <item>
+        <widget class="QPushButton" name="pushButt_generateWord">
+         <property name="text"><string>Собрать документ</string></property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="pushButton_saveProject">
+         <property name="text"><string>Сохранить проект</string></property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="pushButton_openProject">
+         <property name="text"><string>Открыть проект</string></property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

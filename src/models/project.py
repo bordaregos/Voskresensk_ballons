@@ -28,7 +28,11 @@ class Project:
 
     # Данные баллонов
     balloons_data: List[Dict[str, Any]] = field(default_factory=list)
-    
+
+    # Конструктор документов (equipment_type == "constructor") — id
+    # включённых блоков документа в порядке сборки, см. src/equipment_types.py.
+    document_blocks: List[str] = field(default_factory=list)
+
     # Настройки
     settings: Dict[str, Any] = field(default_factory=lambda: {
         'working_pressure': 39.0,
@@ -61,6 +65,7 @@ class Project:
             equipment_type=data.get('equipment_type', 'balloon'),
             report_data=data.get('report_data', {}),
             balloons_data=data.get('balloons_data', []),
+            document_blocks=data.get('document_blocks', []),
             settings=data.get('settings', {}),
             template_path=data.get('template_path'),
             output_dir=data.get('output_dir', 'output'),

@@ -626,3 +626,53 @@ SCHEMAS: Dict[str, ReportSchema] = {
     "pipeline": PIPELINE_SCHEMA,
     "balloon": BALLOON_SCHEMA,
 }
+
+
+# ---------------------------------------------------------------------------
+# Конструктор документов (equipment_type_id == "constructor") -- Phase 1:
+# титульный лист как первый перетаскиваемый блок. Варианты -- один и тот же
+# макет (add_title() в template_generator.py), разный document_title;
+# формулировки дословно те же, что уже используют PIPELINE_SCHEMA.title и
+# BALLOON_SCHEMA.title выше -- ничего нового не придумываем. Ключ словаря --
+# id блока для Project.document_blocks. Приложения (Phase 2) добавятся сюда
+# же отдельным реестром (напр. APPENDIX_REGISTRY), тем же паттерном.
+# ---------------------------------------------------------------------------
+
+# DEFAULT_TITLE_SUBTITLE_FIELDS -- публичная (переиспользуется в
+# src/services/title_variants_store.py для новых пользовательских вариантов,
+# добавленных через UI кнопкой «Добавить»).
+DEFAULT_TITLE_SUBTITLE_FIELDS = ["doc_number", "reg_number", "doc_date", "object_title"]
+
+TITLE_VARIANTS: Dict[str, TitleConfig] = {
+    # Реальный состав реквизитов титульного листа отчёта по техническому
+    # диагностированию -- порядок задан пользователем, отличается от
+    # DEFAULT_TITLE_SUBTITLE_FIELDS (у остальных вариантов пока общий
+    # набор, доведём каждый отдельным шагом).
+    "otchet": TitleConfig(
+        document_title="Отчёт по результатам технического диагностирования",
+        subtitle_fields=[
+            "title_heading", "doc_number", "diag_object", "reg_number",
+            "location", "owner", "signed_date", "city_year",
+        ],
+    ),
+    "zaklyuchenie": TitleConfig(
+        document_title="Заключение по техническому освидетельствованию",
+        subtitle_fields=DEFAULT_TITLE_SUBTITLE_FIELDS,
+    ),
+}
+
+# Человекочитаемые подписи полей реквизитов -- единый источник для формы в
+# src/ui/main_window.py (_render_title_fields()), общий для всех вариантов
+# титульного листа, встроенных и пользовательских.
+TITLE_FIELD_LABELS: Dict[str, str] = {
+    "title_heading": "Заголовок титульного листа",
+    "doc_number": "Номер документа",
+    "diag_object": "Объект диагностирования",
+    "reg_number": "Рег./уч. номер",
+    "location": "Местонахождение",
+    "owner": "Владелец",
+    "signed_date": "Дата подписания руководством",
+    "city_year": "Город / год",
+    "doc_date": "Дата",
+    "object_title": "Наименование объекта",
+}

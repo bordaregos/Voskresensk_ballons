@@ -3,12 +3,15 @@
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QPlainTextEdit, QComboBox,
                              QPushButton, QSpinBox, QDateEdit, QTableWidgetItem, QTableWidget,
                              QMessageBox, QFileDialog, QGroupBox,
-                             QTreeWidgetItem, QInputDialog, QMenu)
-from PyQt6.QtCore import QLocale, Qt, QDate, QPointF, QTimer
+                             QTreeWidgetItem, QInputDialog, QMenu, QListWidgetItem,
+                             QDialog, QLineEdit, QVBoxLayout, QHBoxLayout, QDialogButtonBox,
+                             QLabel, QWidget)
+from PyQt6.QtCore import QLocale, Qt, QDate, QPointF, QTimer, QSize
 from PyQt6.QtGui import QPixmap, QIcon, QPainter, QColor, QPen
 from PyQt6.uic import loadUi
 from typing import Dict, Union
 from pathlib import Path
+from uuid import uuid4
 from docx.shared import Mm
 from docxtpl import DocxTemplate, InlineImage, RichText
 
@@ -16,6 +19,7 @@ import os
 import re
 import subprocess
 import html
+import math
 
 from ..equipment_types import EquipmentType, REGISTRY
 from ..services.calculations import (
@@ -49,6 +53,66 @@ from ..config import NK_SCHEME_DIR, PNEVMO_GRAPH_DIR
 from .widget_names_pipeline import SEGMENT_TYPES, PROGRAM_DEFAULT_ITEMS, AE_CLASS_TYPES
 
 
+# Тёмная тема окна конструктора документов -- палитра 1:1 из
+# docs/design/constructor_mockup.html (#1c1c1e/#2c2c2e/#0a84ff/#8e8e93/
+# #38383a). Применяется ТОЛЬКО к окну конструктора (self.setStyleSheet() в
+# __init__ при equipment_type.id == "constructor") -- баллоны и трубопровод
+# по-прежнему рендерятся нативным стилем Qt, эта тема их не затрагивает.
+# В проекте нет иконочного шрифта/.qrc (см. CLAUDE.md) -- там, где в мокапе
+# иконка, здесь текстовые символы (▾/▸, ×) на обычных QPushButton/QLabel.
+CONSTRUCTOR_QSS = """
+QMainWindow, #constructorCentral { background: #1c1c1e; }
+#constructorSidebar { background: #242426; border-right: 0.5px solid #38383a; }
+#constructorSidebar QLabel { color: #8e8e93; font-size: 11px; }
+#titleGroupToggle {
+    background: transparent; border: none; color: #e5e5e7; font-size: 12px;
+    font-weight: 500; text-align: left; padding: 6px; border-radius: 5px;
+}
+#titleGroupToggle:hover { background: #2c2c2e; }
+#appendicesSoonLabel { color: #5a5a5c; font-size: 11.5px; padding: 6px; }
+QListWidget#availableBlocksList {
+    background: transparent; border: none; outline: none; font-size: 11.5px;
+}
+QListWidget#availableBlocksList::item {
+    background: #2c2c2e; border: 0.5px solid #38383a; border-radius: 7px;
+    padding: 8px 9px; margin: 2px 0; color: #e5e5e7;
+}
+QListWidget#availableBlocksList::item:hover { border-color: #0a84ff; }
+QListWidget#availableBlocksList::item:selected { background: #2c2c2e; }
+QLabel#crumbLabel {
+    background: #202022; color: #8e8e93; font-size: 11px; padding: 8px 18px;
+    border-bottom: 0.5px solid #2c2c2e;
+}
+QLabel#documentSectionLabel { color: #8e8e93; font-size: 11px; }
+QListWidget#includedBlockList { background: transparent; outline: none; border: none; }
+QListWidget#includedBlockList[filled="false"] {
+    border: 1.5px dashed #38383a; border-radius: 8px;
+}
+QListWidget#includedBlockList[filled="true"]::item {
+    background: #2c2c2e; border-radius: 8px; padding: 0; margin: 0;
+}
+QGroupBox#fieldsPanel {
+    border: none; margin-top: 14px; padding-top: 8px;
+}
+QGroupBox#fieldsPanel::title {
+    color: #8e8e93; font-size: 11px; subcontrol-origin: margin; left: 0; padding: 0;
+}
+QGroupBox#fieldsPanel QLabel { color: #c7c7cc; font-size: 12px; }
+QGroupBox#fieldsPanel QPlainTextEdit {
+    background: #2c2c2e; border: 0.5px solid #38383a; border-radius: 5px;
+    color: #e5e5e7; font-size: 12px; padding: 6px 8px;
+}
+QGroupBox#fieldsPanel QPlainTextEdit:focus { border-color: #0a84ff; }
+#constructorBottomBar { background: #1c1c1e; border-top: 0.5px solid #38383a; }
+#constructorBottomBar QPushButton {
+    background: transparent; border: none; color: #c7c7cc; font-size: 12px;
+    padding: 9px; border-left: 0.5px solid #38383a;
+}
+#constructorBottomBar QPushButton#pushButt_generateWord { border-left: none; }
+#constructorBottomBar QPushButton:disabled { color: #5a5a5c; }
+"""
+
+
 class MainWindow(QMainWindow):
     def __init__(self, equipment_type: EquipmentType = REGISTRY["balloon"]):
         """Инициализация конструктора класса. Пишем все атрибуты,
@@ -68,7 +132,11 @@ class MainWindow(QMainWindow):
         self._current_document_path = None
 
         self.equipment_type = equipment_type
-        self.PLAIN_TEXT_EDIT_NAMES = equipment_type.widget_names.PLAIN_TEXT_EDIT_NAMES
+        # list(...) -- копия, не ссылка: конструктор документов дописывает
+        # сюда имена динамически созданных полей реквизитов в рантайме (см.
+        # _render_title_fields()); без копии .append() мутировал бы сам
+        # модуль widget_names_constructor.py между запусками окна.
+        self.PLAIN_TEXT_EDIT_NAMES = list(equipment_type.widget_names.PLAIN_TEXT_EDIT_NAMES)
         self.COMBO_BOX_NAMES = equipment_type.widget_names.COMBO_BOX_NAMES
         self.DATE_EDIT_NAMES = equipment_type.widget_names.DATE_EDIT_NAMES
         self.BUTTON_NAMES = equipment_type.widget_names.BUTTON_NAMES
@@ -285,6 +353,29 @@ class MainWindow(QMainWindow):
             self.breadcrumbLabel.setOpenExternalLinks(False)
             self.breadcrumbLabel.linkActivated.connect(self._on_breadcrumb_link_activated)
             self._update_breadcrumb()
+        elif equipment_type.id == "constructor":
+            # Перетаскивание между списками настроено декларативно в самом
+            # .ui (dragEnabled/acceptDrops/dragDropMode) -- Qt по умолчанию
+            # кодирует все роли item'а (включая UserRole) в MIME при
+            # перетаскивании между двумя QListWidget, так что специального
+            # кода на сам drag не нужно. pushButt_generateWord уже
+            # подключена к self.calculate выше (общая кнопка для всех
+            # типов) -- она же и «Собрать документ» для конструктора.
+            self.setStyleSheet(CONSTRUCTOR_QSS)
+            self._dynamic_field_names = []
+
+            self._refresh_available_blocks_list()
+            self.availableBlocksList.itemClicked.connect(self._on_available_block_clicked)
+            self.availableBlocksList.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+            self.availableBlocksList.customContextMenuRequested.connect(
+                self._show_available_block_context_menu
+            )
+
+            self.titleGroupToggle.toggled.connect(self._toggle_title_group)
+
+            self.includedBlockList.model().rowsInserted.connect(self._on_block_dropped)
+            self.pushButt_generateWord.setEnabled(False)
+            self._show_included_block_placeholder()
 
     def init_file_handler(self):
         """Инициализация FileHandler для импорта/экспорта."""
@@ -415,6 +506,15 @@ class MainWindow(QMainWindow):
 
     def calculate(self):
         """Обработчик нажатия кнопки генерации Word с улучшенной обработкой ошибок"""
+        if self.equipment_type.id == "constructor":
+            # Конструктор собирает документ из перетащенных блоков, а не из
+            # одного большого статического шаблона -- рендер устроен
+            # совсем иначе (см. _calculate_constructor()), чем у
+            # balloon/pipeline ниже, поэтому отдельная ветка, а не третий
+            # elif в теле этого метода.
+            self._calculate_constructor()
+            return
+
         missing = [step for step in self.STEP_ORDER if step not in self._completed_steps]
         if missing:
             missing_labels = ", ".join(self.STEP_LABELS[step] for step in missing)
@@ -763,6 +863,353 @@ class MainWindow(QMainWindow):
                 f"Неизвестная ошибка: {str(e)}",
                 QMessageBox.Icon.Critical
             )
+
+    def _calculate_constructor(self):
+        """Сборка документа конструктора (equipment_type == "constructor").
+
+        Phase 1: ровно один блок -- титульный лист, перетащенный из
+        availableBlocksList в includedBlockList (id варианта -- в
+        Qt.ItemDataRole.UserRole каждого item'а, см. _add_available_blocks()).
+        Рендер -- тот же однократный DocxTemplate(path).render(data) +
+        .save(path), что и в calculate() (строки 659-740) для balloon/
+        pipeline, просто на маленьком файле-фрагменте вместо большого шаблона.
+        Склейка нескольких блоков в один .docx появится в Phase 2, когда
+        блоков в includedBlockList станет больше одного."""
+        if self.includedBlockList.count() == 0:
+            self.show_message(
+                "Нечего собирать",
+                "Перетащите титульный лист из списка слева в основную область.",
+                QMessageBox.Icon.Warning,
+            )
+            return
+
+        variant_id = self.includedBlockList.item(0).data(Qt.ItemDataRole.UserRole)
+
+        try:
+            from ..config import OUTPUT_DIR, find_title_template
+
+            form_data = self.get_form_data()
+            tpl = DocxTemplate(find_title_template(variant_id))
+            tpl.render(form_data)
+
+            doc_number_widget = getattr(self, "doc_number", None)
+            safe_doc_number = (
+                doc_number_widget.toPlainText().strip().replace("/", "-") if doc_number_widget else ""
+            )
+            output_filename = f"констр_{safe_doc_number or 'документ'}.docx"
+
+            output_dir = str(OUTPUT_DIR)
+            os.makedirs(output_dir, exist_ok=True)
+            default_path = os.path.join(output_dir, output_filename)
+
+            output_path, _ = QFileDialog.getSaveFileName(
+                self, "Сохранить документ", default_path, "Документы Word (*.docx)"
+            )
+            if not output_path:
+                return  # отменено пользователем -- не ошибка
+
+            tpl.save(output_path)
+
+            self.show_message(
+                "Готово!", f"Документ успешно сохранён:\n{output_path}", QMessageBox.Icon.Information,
+            )
+            print(f"Документ успешно сохранён: {output_path}")
+
+        except FileNotFoundError as fe:
+            self.show_message("Файл не найден", str(fe), QMessageBox.Icon.Critical)
+        except PermissionError:
+            self.show_message(
+                "Ошибка доступа", "Нет прав для записи в указанную папку", QMessageBox.Icon.Critical,
+            )
+        except Exception as e:
+            self.show_message("Ошибка генерации", f"Неизвестная ошибка: {str(e)}", QMessageBox.Icon.Critical)
+
+    # -- Конструктор документов: сайдбар «Титульные листы» -------------------
+
+    ADD_VARIANT_MARKER = "__add__"
+    INCLUDED_BLOCK_PLACEHOLDER = "__empty__"
+
+    def _toggle_title_group(self, expanded: bool):
+        """Сворачивание/разворачивание группы «Титульные листы» -- сам
+        QListWidget прячется/показывается, кнопка-заголовок меняет текст
+        (▾/▸ -- в проекте нет иконочного шрифта, см. CONSTRUCTOR_QSS)."""
+        self.availableBlocksList.setVisible(expanded)
+        arrow = "▾" if expanded else "▸"
+        self.titleGroupToggle.setText(f"{arrow}  Титульные листы")
+
+    ITEM_CHARS_PER_LINE = 18  # см. _set_wrapped_item_size_hint()
+
+    def _set_wrapped_item_size_hint(self, item: QListWidgetItem):
+        """QListWidget не пересчитывает высоту item'а под перенесённый на
+        несколько строк текст сам по себе -- реальная отрисованная высота
+        строки (QSS font-size, паддинг item'а) оказалась заметно больше,
+        чем даёт QFontMetrics/QLabel.sizeHint() при замере до полного
+        применения стиля (проверено: даже нарочно завышенная в 2 раза
+        оценка не спасала от обрезки многоточием). Вместо хрупкого замера
+        шрифтом -- грубая, но надёжная оценка по числу символов: пусть
+        лучше немного лишнего пустого места снизу, чем обрезанный текст.
+
+        QSize с отрицательной шириной Qt считает невалидным и тихо
+        игнорирует весь setSizeHint() целиком (проверено) -- ширину нельзя
+        оставить «как есть» через -1, нужно явное значение."""
+        width = self.availableBlocksList.viewport().width() or 200
+        lines = max(1, math.ceil(len(item.text()) / self.ITEM_CHARS_PER_LINE))
+        item.setSizeHint(QSize(width, lines * 22 + 20))
+
+    def _refresh_available_blocks_list(self):
+        """Перестраивает availableBlocksList из get_all_title_variants()
+        (встроенные TITLE_VARIANTS + пользовательские из JSON) + сентинел
+        «+ Добавить» последним item'ом -- вызывается при старте и после
+        любой правки списка вариантов (добавление/удаление)."""
+        from ..services.title_variants_store import get_all_title_variants
+
+        self.availableBlocksList.clear()
+        for variant_id, title_config in get_all_title_variants().items():
+            item = QListWidgetItem(title_config.document_title)
+            item.setData(Qt.ItemDataRole.UserRole, variant_id)
+            self.availableBlocksList.addItem(item)
+
+        add_item = QListWidgetItem("+  Добавить")
+        add_item.setData(Qt.ItemDataRole.UserRole, self.ADD_VARIANT_MARKER)
+        add_item.setFlags(add_item.flags() & ~Qt.ItemFlag.ItemIsDragEnabled)
+        add_item.setForeground(QColor("#0a84ff"))
+        self.availableBlocksList.addItem(add_item)
+
+        # Пересчёт высоты -- следующим тиком цикла событий: во время
+        # заполнения (в т.ч. при старте, до первого show()) viewport() ещё
+        # не имеет окончательной геометрии, ширина под перенос текста и
+        # суммарная высота item'ов посчитались бы неверно.
+        QTimer.singleShot(0, self._resize_available_blocks_list_to_content)
+
+    def _resize_available_blocks_list_to_content(self):
+        """QListWidget с vsizetype=Maximum (.ui) сам по себе не растягивает
+        sizeHint() под сумму высот item'ов -- без этого список обрезался бы
+        внутренним скроллом даже когда под содержимое хватает места в
+        сайдбаре."""
+        list_widget = self.availableBlocksList
+        for i in range(list_widget.count()):
+            self._set_wrapped_item_size_hint(list_widget.item(i))
+        total_height = sum(
+            list_widget.item(i).sizeHint().height() for i in range(list_widget.count())
+        )
+        list_widget.setFixedHeight(total_height + 4)
+
+    def _on_available_block_clicked(self, item: QListWidgetItem):
+        """Клик по обычному варианту ничего не делает (выбор -- через
+        drag-and-drop, см. _on_block_dropped()); клик по сентинелу «+
+        Добавить» открывает модалку создания нового варианта."""
+        if item.data(Qt.ItemDataRole.UserRole) == self.ADD_VARIANT_MARKER:
+            self._open_add_title_variant_dialog()
+
+    def _open_add_title_variant_dialog(self):
+        """Модалка «Новый вариант титульного листа» -- сохраняет только
+        метаданные (id + текст заголовка) в JSON, как справочники
+        сотрудников/приборов; .docx-заготовку под новый id оператор
+        генерирует отдельно через CLI (find_title_template() уже подсказывает
+        точную команду, если заготовки ещё нет)."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Новый вариант титульного листа")
+        layout = QVBoxLayout(dialog)
+        layout.addWidget(QLabel("Заголовок:"))
+        line_edit = QLineEdit()
+        line_edit.setPlaceholderText("Например, Протокол по результатам контроля")
+        layout.addWidget(line_edit)
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        text = line_edit.text().strip()
+        if not text:
+            return
+
+        from ..models.title_variant import TitleVariant
+        from ..services.template_schema import DEFAULT_TITLE_SUBTITLE_FIELDS
+        from ..services.title_variants_store import load_title_variants, save_title_variants
+
+        variants = load_title_variants()
+        variants.append(TitleVariant(
+            id=uuid4().hex[:8], document_title=text, subtitle_fields=DEFAULT_TITLE_SUBTITLE_FIELDS,
+        ))
+        save_title_variants(variants)
+        self._refresh_available_blocks_list()
+
+    def _show_available_block_context_menu(self, pos):
+        """Правый клик по варианту -- «Удалить», только для пользовательских
+        вариантов (встроенные TITLE_VARIANTS через UI не удаляются)."""
+        from ..services.template_schema import TITLE_VARIANTS
+
+        item = self.availableBlocksList.itemAt(pos)
+        if item is None:
+            return
+        variant_id = item.data(Qt.ItemDataRole.UserRole)
+        if variant_id in (None, self.ADD_VARIANT_MARKER) or variant_id in TITLE_VARIANTS:
+            return
+
+        menu = QMenu(self)
+        delete_action = menu.addAction("Удалить")
+        if menu.exec(self.availableBlocksList.mapToGlobal(pos)) == delete_action:
+            self._delete_title_variant(variant_id, item.text())
+
+    def _delete_title_variant(self, variant_id: str, label: str):
+        answer = QMessageBox.question(
+            self, "Удалить вариант", f"Удалить вариант «{label}»?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+
+        from ..services.title_variants_store import load_title_variants, save_title_variants
+
+        variants = [v for v in load_title_variants() if v.id != variant_id]
+        save_title_variants(variants)
+        self._refresh_available_blocks_list()
+
+        included = self.includedBlockList
+        if included.count() and included.item(0).data(Qt.ItemDataRole.UserRole) == variant_id:
+            self._clear_included_block()
+
+    # -- Конструктор документов: область документа ---------------------------
+
+    def _on_block_dropped(self, parent, first, last):
+        """Реагирует на успешный drop в includedBlockList. rowsInserted
+        стреляет ДО того, как Qt успевает заполнить данные нового item'а
+        (проверено: text() и UserRole внутри этого сигнала ещё пустые,
+        заполняются через мгновение уже после dropMimeData()) -- поэтому
+        сама обработка отложена на следующий тик цикла событий через
+        QTimer.singleShot(0, ...), где item уже полностью готов."""
+        QTimer.singleShot(0, self._process_block_drop)
+
+    def _process_block_drop(self):
+        """Реагирует на успешный drop в includedBlockList (Qt сам создаёт
+        item со всеми ролями исходного, включая UserRole, при перетаскивании
+        между двумя QListWidget -- см. план). В документе ровно один
+        титульный лист (Phase 1) -- второй drop оставляет только последний
+        добавленный item.
+
+        rowsInserted стреляет и на программные addItem() (см.
+        _show_included_block_placeholder() -- вызывается при старте и при
+        очистке, не только на реальный drag-and-drop), поэтому если
+        последний item в списке -- сам плейсхолдер, а не что-то
+        перетащенное, выходим сразу, ничего не перестраивая."""
+        block_list = self.includedBlockList
+        if block_list.count() == 0:
+            return
+        last_item = block_list.item(block_list.count() - 1)
+        if last_item.data(Qt.ItemDataRole.UserRole) == self.INCLUDED_BLOCK_PLACEHOLDER:
+            return
+
+        while block_list.count() > 1:
+            block_list.takeItem(0)
+
+        item = block_list.item(0)
+        variant_id = item.data(Qt.ItemDataRole.UserRole)
+        label_text = item.text()
+        # Текст item'а показывает не нативная отрисовка делегата, а сам row
+        # (QLabel ниже) -- иначе поверх setItemWidget() проступает
+        # оригинальный текст item'а вторым, наложенным слоем. sizeHint тоже
+        # сбрасываем -- Qt копирует роли (включая SizeHintRole) исходного
+        # item'а при перетаскивании, из-за чего сюда попадала многострочная
+        # высота карточки в availableBlocksList вместо компактной строки.
+        item.setText("")
+        item.setSizeHint(QSize(block_list.viewport().width() or 200, 42))
+
+        row = QWidget()
+        row_layout = QHBoxLayout(row)
+        row_layout.setContentsMargins(10, 8, 6, 8)
+        text_label = QLabel(label_text)
+        text_label.setWordWrap(True)
+        row_layout.addWidget(text_label, stretch=1)
+        remove_btn = QPushButton("×")
+        remove_btn.setFixedSize(22, 22)
+        remove_btn.setFlat(True)
+        remove_btn.clicked.connect(self._clear_included_block)
+        row_layout.addWidget(remove_btn)
+        block_list.setItemWidget(item, row)
+        self._set_included_block_filled(True)
+
+        # Список без этого остаётся высотой под старый maximumSize из .ui
+        # (под пустое состояние с текстом-подсказкой) -- карточка внутри
+        # тогда болтается с зазором сверху/снизу вместо того, чтобы
+        # заполнять всю площадь блока.
+        block_list.setFixedHeight(
+            item.sizeHint().height() + 2 * block_list.frameWidth() + 4
+        )
+
+        self._render_title_fields(variant_id)
+        self.crumbLabel.setText(f"Конструктор документов / {label_text}")
+        self.fieldsPanel.setVisible(True)
+        self.pushButt_generateWord.setEnabled(True)
+
+    def _set_included_block_filled(self, filled: bool):
+        """Переключает QSS-состояние includedBlockList через динамическое
+        свойство ("filled" в CONSTRUCTOR_QSS) -- пунктирная рамка только в
+        пустом состоянии, у заполненной карточки своя (сплошной фон,
+        никакой рамки у самого списка) -- иначе рамка списка и фон
+        item'а никогда не совпадают точь-в-точь (зазоры/наплывы по краям,
+        не совпадающие радиусы), что и было исходной проблемой."""
+        block_list = self.includedBlockList
+        block_list.setProperty("filled", filled)
+        block_list.style().unpolish(block_list)
+        block_list.style().polish(block_list)
+
+    def _show_included_block_placeholder(self):
+        """Пустое состояние includedBlockList -- ненажимаемый item-подсказка
+        вместо пустого списка без текста (Qt не даёт «placeholder-текст» у
+        QListWidget нативно)."""
+        block_list = self.includedBlockList
+        block_list.clear()
+
+        placeholder = QListWidgetItem("Перетащите титульный лист сюда")
+        placeholder.setData(Qt.ItemDataRole.UserRole, self.INCLUDED_BLOCK_PLACEHOLDER)
+        placeholder.setFlags(Qt.ItemFlag.NoItemFlags)
+        placeholder.setForeground(QColor("#5a5a5c"))
+        placeholder.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        block_list.addItem(placeholder)
+        self._set_included_block_filled(False)
+        block_list.setFixedHeight(56)
+
+    def _clear_included_block(self):
+        self._show_included_block_placeholder()
+        self.fieldsPanel.setVisible(False)
+        self.crumbLabel.setText("Конструктор документов / без титульного листа")
+        self.pushButt_generateWord.setEnabled(False)
+
+    def _render_title_fields(self, variant_id: str):
+        """Перестраивает titleFieldsLayout под набор полей конкретного
+        варианта (get_all_title_variants()[variant_id].subtitle_fields) --
+        поля разные у разных вариантов (напр. «Отчёт» -- 8 полей, остальные
+        -- 4), поэтому строятся в рантайме, а не заранее в .ui.
+
+        Динамически созданные виджеты регистрируются в self.PLAIN_TEXT_EDIT_NAMES
+        -- том же списке, что уже читают get_form_data()/init_widgets() --
+        вместо отдельного пути сохранения/чтения данных для конструктора."""
+        from ..services.template_schema import TITLE_FIELD_LABELS
+        from ..services.title_variants_store import get_all_title_variants
+
+        for name in self._dynamic_field_names:
+            if name in self.PLAIN_TEXT_EDIT_NAMES:
+                self.PLAIN_TEXT_EDIT_NAMES.remove(name)
+        self._dynamic_field_names = []
+
+        layout = self.titleFieldsLayout
+        while layout.rowCount():
+            layout.removeRow(0)
+
+        field_ids = get_all_title_variants()[variant_id].subtitle_fields
+        for field_id in field_ids:
+            widget = QPlainTextEdit()
+            widget.setMaximumHeight(32)
+            widget.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            widget.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+            layout.addRow(TITLE_FIELD_LABELS.get(field_id, field_id), widget)
+            setattr(self, field_id, widget)
+            self.PLAIN_TEXT_EDIT_NAMES.append(field_id)
+            self._dynamic_field_names.append(field_id)
 
     def show_message(self, title, text, icon=QMessageBox.Icon.Information):
         """Универсальный метод показа сообщений"""
