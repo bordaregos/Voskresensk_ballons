@@ -955,12 +955,17 @@ class MainWindow(QMainWindow):
     INCLUDED_BLOCK_PLACEHOLDER = "__empty__"
 
     def _toggle_title_group(self, expanded: bool):
-        """Сворачивание/разворачивание группы «Титульные листы» -- сам
-        QListWidget прячется/показывается, шеврон на кнопке-заголовке
-        меняет направление. QPushButton поддерживает только один icon() --
-        шеврон и папка (как в мокапе, см. docs/design/constructor_mockup.html)
-        собираются в один composite-пиксель через icons.combine()."""
+        """Сворачивание/разворачивание группы «Титульные листы» -- список
+        вариантов и addTitleVariantBtn прячутся/показываются вместе (в
+        мокапе «Добавить» -- последняя строка ВНУТРИ той же группы, а не
+        независимый элемент сайдбара, хотя в .ui это отдельная от
+        availableBlocksList QPushButton -- см. _refresh_available_blocks_list()),
+        шеврон на кнопке-заголовке меняет направление. QPushButton
+        поддерживает только один icon() -- шеврон и папка (как в мокапе, см.
+        docs/design/constructor_mockup.html) собираются в один
+        composite-пиксель через icons.combine()."""
         self.availableBlocksList.setVisible(expanded)
+        self.addTitleVariantBtn.setVisible(expanded)
         chevron = "chevron-down" if expanded else "chevron-right"
         self.titleGroupToggle.setIcon(
             icons.combine([(chevron, "#8e8e93"), ("files", "#8e8e93")], size=13, gap=4)
