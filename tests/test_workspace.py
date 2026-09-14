@@ -68,19 +68,19 @@ def test_list_documents_filters_by_equipment_type(tmp_path):
     assert [path for path, _ in documents] == [pipeline_path]
 
 
-def test_list_documents_label_uses_reg_number_or_placeholder(tmp_path):
+def test_list_documents_label_is_filename_stem(tmp_path):
     object_dir = create_object("КБ ХИММАШ", tmp_path)
     new_doc = create_document(object_dir, "pipeline")
 
-    filled_project = Project(equipment_type="pipeline", report_data={"reg_number": "720291"})
-    filled_project.save_to_file(object_dir / "документ_с_рег_номером.json")
+    named_project = Project(equipment_type="pipeline", report_data={"reg_number": "720291"})
+    named_project.save_to_file(object_dir / "тест.json")
 
     documents = dict(
         (path.name, label) for path, label in list_documents(object_dir, "pipeline")
     )
 
-    assert documents[new_doc.name] == "Новый документ"
-    assert documents["документ_с_рег_номером.json"] == "рег.720291"
+    assert documents[new_doc.name] == new_doc.stem
+    assert documents["тест.json"] == "тест"
 
 
 def test_list_documents_skips_unparseable_json(tmp_path):

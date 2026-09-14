@@ -13,6 +13,7 @@ from docx.shared import Mm
 from docxtpl import DocxTemplate, InlineImage, RichText
 
 import os
+import re
 import subprocess
 import html
 
@@ -38,7 +39,10 @@ from ..services.calculations_pipeline import (
     get_allowable_stress,
     SegmentSpec,
 )
-from ..services.employees_store import store_kleishe_image
+from ..services.employees_store import (
+    store_kleishe_image, load_employees, resolve_kleishe_path, find_employee_id_by_name,
+)
+from ..services.docx_layout import float_drawings_behind_text
 from ..services import workspace
 from ..models.project import Project
 from ..config import NK_SCHEME_DIR, PNEVMO_GRAPH_DIR
@@ -97,6 +101,35 @@ class MainWindow(QMainWindow):
             self.pushButt_tverdost.clicked.connect(self.tverdost)
             self.pushButton_importCSV.clicked.connect(self.import_csv)
         elif equipment_type.id == "pipeline":
+            # Комбобоксы выбора специалиста (Приложения 1-6, 8, 9) --
+            # хранят не текст, а индекс строки table_specialists (см.
+            # _refresh_specialist_combo()), поэтому не входят ни в один
+            # список widget_names_pipeline.py. Из-за этого выбор нигде
+            # не попадал в JSON проекта и при открытии всегда откатывался
+            # на первую строку -- см. get_form_data()/_fill_ui_from_project()
+            # в file_handler.py и _refresh_program_specialist_combo() ниже.
+            self.SPECIALIST_COMBO_NAMES = [
+                "program_specialist", "act2_specialist", "vik_specialist",
+                "thick_specialist", "uzk_specialist", "calc_specialist",
+                "pnevmo_specialist", "ae_zakl_specialist",
+            ]
+            # employee_id сотрудника из справочника «Сотрудники» для каждой
+            # строки table_specialists, по порядку строк -- см.
+            # _add_specialist_row()/_remove_specialist_row(). Не входит ни в
+            # TABLE_WIDGET, ни в один список widget_names_pipeline.py --
+            # сохраняется/восстанавливается отдельно, см. file_handler.py.
+            self._specialist_employee_ids = []
+            # Префиксы плейсхолдеров подписи, для которых в шаблон
+            # подставляется клише специалиста (InlineImage), см. calculate()
+            # и _specialist_kleishe_image(). lead_specialist -- всегда первая
+            # строка table_specialists, остальные 8 -- SPECIALIST_COMBO_NAMES
+            # (program_specialist -> programm_specialist_* и т.п., названия
+            # плейсхолдеров исторически с двумя "м", см. calculate()).
+            self.KLEISHE_ROLE_PREFIXES = [
+                "lead_specialist", "programm_specialist", "act2_specialist",
+                "vik_specialist", "thick_specialist", "uzk_specialist",
+                "calc_specialist", "pnevmo_specialist", "ae_zakl_specialist",
+            ]
             self.pushButt_segments.clicked.connect(self.fill_segments_table)
             self.pushButton_genThickness.clicked.connect(self.calc_pipeline_thickness)
             self.pushButton_calcStrength.clicked.connect(self.calc_pipeline_strength_ui)
@@ -128,10 +161,13 @@ class MainWindow(QMainWindow):
             self.obj_naznach.textChanged.connect(self._update_pnevmo_obj_naznach_display)
             self.pnevmo_obj_naznach.textChanged.connect(self._update_ae_zakl_obj_control_display)
             self.pnevmo_date.dateChanged.connect(self._update_ae_zakl_date_display)
+            self.report_date.dateChanged.connect(self._update_ae_zakl_report_date_display)
             self.pnevmo_pressure.textChanged.connect(self._update_pnevmo_pressure_hint)
             self.pnevmo_pressure.textChanged.connect(self._update_result_76_pressure)
             self.final_years_allowed.textChanged.connect(self._update_final_deadline_date)
             self.report_year.textChanged.connect(self._update_final_deadline_date)
+            self.report_year.textChanged.connect(self._update_years_of_operation_display)
+            self.year_start.textChanged.connect(self._update_years_of_operation_display)
             self.pushButt_addProgramItem.clicked.connect(self._add_program_item_row)
             self.pushButt_addProgramSubitem.clicked.connect(self._add_program_subitem_row)
             self.pushButt_removeProgramRow.clicked.connect(self._remove_program_row)
@@ -312,6 +348,16 @@ class MainWindow(QMainWindow):
             widget = getattr(self, name)
             self.data[name] = widget.currentText()
 
+        # Комбобоксы выбора специалиста (только трубопровод) -- хранят
+        # индекс строки table_specialists (currentData()), а не текст,
+        # поэтому не в COMBO_BOX_NAMES. Сохраняем отдельно, иначе выбор
+        # не переживает "Сохранить проект" -> "Открыть проект" и после
+        # открытия откатывается на первую строку, см.
+        # FileHandler._fill_ui_from_project()/_refresh_program_specialist_combo().
+        for name in getattr(self, "SPECIALIST_COMBO_NAMES", []):
+            widget = getattr(self, name)
+            self.data[name] = widget.currentData()
+
         # Получаем текст из QSpinBox.
         for name in self.SPIN_BOX_NAMES:
             widget = getattr(self, name)
@@ -402,8 +448,26 @@ class MainWindow(QMainWindow):
                 )
                 # name_initials -- "И. О. Фамилия" для таблицы подписи после
                 # раздела 8 (Таблица 2 продолжает использовать полное "name").
-                for specialist in self.data["specialists"]:
+                # employee_id -- сотрудник справочника «Сотрудники», из
+                # которого взята эта строка (см. _add_specialist_row()),
+                # нужен ниже для подстановки клише (InlineImage) в каждое из
+                # 9 мест подписи, см. _specialist_kleishe_image(). Если связи
+                # нет (строка вписана вручную или сохранена в project.json
+                # до появления привязки к справочнику) -- пробуем найти
+                # сотрудника по точному совпадению ФИО, иначе документы,
+                # набранные раньше этой доработки, никогда не получили бы
+                # клише, хотя вписанное ФИО совпадает с сотрудником в
+                # справочнике буква в букву.
+                roster = load_employees()
+                for row, specialist in enumerate(self.data["specialists"]):
                     specialist["name_initials"] = format_fio_initials(specialist["name"])
+                    employee_id = (
+                        self._specialist_employee_ids[row]
+                        if row < len(self._specialist_employee_ids) else None
+                    )
+                    if not employee_id:
+                        employee_id = find_employee_id_by_name(roster, specialist["name"])
+                    specialist["employee_id"] = employee_id
 
                 # Таблица подписи после раздела 8 -- подписывает только один
                 # (первый по списку) специалист, не цикл по всем; см.
@@ -419,6 +483,7 @@ class MainWindow(QMainWindow):
                 self.data["lead_specialist_position"] = lead_specialist["position"]
                 self.data["lead_specialist_name_initials"] = lead_specialist["name_initials"]
                 self.data["lead_specialist_cert_number"] = lead_specialist["cert_number_short"]
+                self.data["lead_specialist_employee_id"] = lead_specialist["employee_id"]
 
                 # "Программу составил" (Приложение 1) -- специалиста выбирает
                 # оператор через program_specialist (индекс строки Таблицы 2),
@@ -436,6 +501,7 @@ class MainWindow(QMainWindow):
                 self.data["programm_specialist_position"] = programm_specialist["position"]
                 self.data["programm_specialist_name_initials"] = programm_specialist["name_initials"]
                 self.data["programm_specialist_cert_number"] = programm_specialist["cert_number_short"]
+                self.data["programm_specialist_employee_id"] = programm_specialist["employee_id"]
 
                 # "Анализ документации провёл" (Приложение 2) -- тот же
                 # паттерн, что и "Программу составил" выше.
@@ -452,6 +518,7 @@ class MainWindow(QMainWindow):
                 self.data["act2_specialist_position"] = act2_specialist["position"]
                 self.data["act2_specialist_name_initials"] = act2_specialist["name_initials"]
                 self.data["act2_specialist_cert_number"] = act2_specialist["cert_number_short"]
+                self.data["act2_specialist_employee_id"] = act2_specialist["employee_id"]
 
                 # "Контроль провёл" (Приложение 3) -- тот же паттерн.
                 vik_specialist_idx = self.vik_specialist.currentData()
@@ -467,6 +534,7 @@ class MainWindow(QMainWindow):
                 self.data["vik_specialist_position"] = vik_specialist["position"]
                 self.data["vik_specialist_name_initials"] = vik_specialist["name_initials"]
                 self.data["vik_specialist_cert_number"] = vik_specialist["cert_number_short"]
+                self.data["vik_specialist_employee_id"] = vik_specialist["employee_id"]
 
                 # "Измерение провёл" (Приложение 4) -- тот же паттерн.
                 thick_specialist_idx = self.thick_specialist.currentData()
@@ -482,6 +550,7 @@ class MainWindow(QMainWindow):
                 self.data["thick_specialist_position"] = thick_specialist["position"]
                 self.data["thick_specialist_name_initials"] = thick_specialist["name_initials"]
                 self.data["thick_specialist_cert_number"] = thick_specialist["cert_number_short"]
+                self.data["thick_specialist_employee_id"] = thick_specialist["employee_id"]
 
                 # "Измерение провёл" (Приложение 5) -- тот же паттерн.
                 uzk_specialist_idx = self.uzk_specialist.currentData()
@@ -497,6 +566,7 @@ class MainWindow(QMainWindow):
                 self.data["uzk_specialist_position"] = uzk_specialist["position"]
                 self.data["uzk_specialist_name_initials"] = uzk_specialist["name_initials"]
                 self.data["uzk_specialist_cert_number"] = uzk_specialist["cert_number_short"]
+                self.data["uzk_specialist_employee_id"] = uzk_specialist["employee_id"]
 
                 # "Расчёт выполнил" (Приложение 6) -- тот же паттерн.
                 calc_specialist_idx = self.calc_specialist.currentData()
@@ -512,6 +582,7 @@ class MainWindow(QMainWindow):
                 self.data["calc_specialist_position"] = calc_specialist["position"]
                 self.data["calc_specialist_name_initials"] = calc_specialist["name_initials"]
                 self.data["calc_specialist_cert_number"] = calc_specialist["cert_number_short"]
+                self.data["calc_specialist_employee_id"] = calc_specialist["employee_id"]
 
                 # "Контроль выполнил" (Приложение 8) -- тот же паттерн.
                 pnevmo_specialist_idx = self.pnevmo_specialist.currentData()
@@ -527,6 +598,7 @@ class MainWindow(QMainWindow):
                 self.data["pnevmo_specialist_position"] = pnevmo_specialist["position"]
                 self.data["pnevmo_specialist_name_initials"] = pnevmo_specialist["name_initials"]
                 self.data["pnevmo_specialist_cert_number"] = pnevmo_specialist["cert_number_short"]
+                self.data["pnevmo_specialist_employee_id"] = pnevmo_specialist["employee_id"]
 
                 # "Заключение составил" (Приложение 9) -- тот же паттерн.
                 ae_zakl_specialist_idx = self.ae_zakl_specialist.currentData()
@@ -542,6 +614,7 @@ class MainWindow(QMainWindow):
                 self.data["ae_zakl_specialist_position"] = ae_zakl_specialist["position"]
                 self.data["ae_zakl_specialist_name_initials"] = ae_zakl_specialist["name_initials"]
                 self.data["ae_zakl_specialist_cert_number"] = ae_zakl_specialist["cert_number_short"]
+                self.data["ae_zakl_specialist_employee_id"] = ae_zakl_specialist["employee_id"]
 
                 # Таблица 1 (Приложение 8, п.11) -- список словарей под
                 # {%tr for %} в шаблоне; колонки: 0 -- ПАЭ №, 1 -- Нагрузка,
@@ -606,7 +679,30 @@ class MainWindow(QMainWindow):
                 else:
                     form_data["pnevmo_graph_image"] = ""
 
+                # Клише специалиста (картинка из справочника «Сотрудники»,
+                # см. EmployeesTabController) в каждое из 9 мест подписи --
+                # тот же приём, не обязательно (сотрудник мог не загрузить
+                # клише, а специалист может быть не найден в справочнике
+                # даже через find_employee_id_by_name() выше). roster --
+                # тот же справочник, что уже читали выше для employee_id.
+                # kleishe_paths_used -- для _float_kleishe_drawings_behind_
+                # text() ниже, после рендера.
+                kleishe_paths_used = set()
+                for prefix in self.KLEISHE_ROLE_PREFIXES:
+                    form_data[f"{prefix}_kleishe"] = self._specialist_kleishe_image(
+                        doc, roster, self.data.get(f"{prefix}_employee_id"), kleishe_paths_used
+                    )
+
             doc.render(form_data)
+
+            if self.equipment_type.id == "pipeline":
+                # Клише должно быть "за текстом" (Word: Обтекание текстом ->
+                # За текстом), а не обычной инлайн-картинкой, растягивающей
+                # ячейку -- docxtpl не умеет вставлять плавающие картинки
+                # напрямую, поэтому уже отрисованный XML патчится постфактум,
+                # см. src/services/docx_layout.py. Размер (<wp:extent>) при
+                # этом не меняется -- переносится тот же узел, а не пересоздаётся.
+                self._float_kleishe_drawings_behind_text(doc, kleishe_paths_used)
 
             # 5. Генерируем имя файла
             if self.equipment_type.id == "balloon":
@@ -1135,9 +1231,11 @@ class MainWindow(QMainWindow):
         pnevmo_obj_naznach/ae_zakl_obj_control сюда не входят -- они теперь
         самостоятельные редактируемые поля, см.
         _update_pnevmo_obj_naznach_display()/_update_ae_zakl_obj_control_display().
-        ae_zakl_date_display тоже сюда не входит -- обновляется сразу по
-        pnevmo_date.dateChanged, см. _update_ae_zakl_date_display() (раньше
-        ждало переключения вкладки, из-за чего показывало старую дату)."""
+        ae_zakl_date_display и ae_zakl_report_date_display тоже сюда не
+        входят -- обновляются сразу по dateChanged (pnevmo_date и
+        report_date соответственно), см. _update_ae_zakl_date_display()/
+        _update_ae_zakl_report_date_display() (раньше ждали переключения
+        вкладки, из-за чего показывали старую дату)."""
         self.pnevmo_reg_number_display.setPlainText(self.reg_number.toPlainText())
         self.pnevmo_year_start_display.setPlainText(self.year_start.toPlainText())
         self.pnevmo_p_rab_display.setPlainText(self.p_rab_kgs.toPlainText())
@@ -1147,7 +1245,6 @@ class MainWindow(QMainWindow):
 
         # Приложение 9 -- те же исходные значения, тот же приём зеркал.
         self.ae_zakl_reg_number_display.setPlainText(self.reg_number.toPlainText())
-        self.ae_zakl_report_date_display.setPlainText(self.report_date.date().toString("dd.MM.yyyy"))
         self.ae_zakl_location_display.setPlainText(self.obj_location.toPlainText())
 
     def _update_ae_zakl_date_display(self):
@@ -1158,6 +1255,17 @@ class MainWindow(QMainWindow):
         после правки даты в Приложении 8 тут держалась старая дата (по
         умолчанию 01.01.2000) до следующего переключения вкладки."""
         self.ae_zakl_date_display.setPlainText(self.pnevmo_date.date().toString("dd.MM.yyyy"))
+
+    def _update_ae_zakl_report_date_display(self):
+        """Зеркалит report_date (титульный лист, "Дата отчёта") в
+        read-only ae_zakl_report_date_display (Приложение 9, "Дата
+        отчёта (к «УТВЕРЖДАЮ»)") сразу при изменении даты -- тот же
+        баг и тот же приём, что и в _update_ae_zakl_date_display(): без
+        прямой подписки на dateChanged поле держало дату по умолчанию
+        (01.01.2000) до переключения вкладки, из-за чего дата отчёта в
+        Приложении 9 расходилась с титульным листом, хотя оба места
+        рендерятся из одного и того же report_date в шаблоне .docx."""
+        self.ae_zakl_report_date_display.setPlainText(self.report_date.date().toString("dd.MM.yyyy"))
 
     def _update_pnevmo_obj_naznach_display(self):
         """Подсказка pnevmo_obj_naznach (Приложение 8, п.3 "Трубопровод
@@ -1200,15 +1308,30 @@ class MainWindow(QMainWindow):
         return ""
 
     def fill_segments_table(self):
-        """Заполнение таблицы участков трассы. STEP_ORDER: 'segments'."""
+        """Заполнение таблицы участков трассы. STEP_ORDER: 'segments'.
+
+        Идемпотентно: повторное нажатие (например, чтобы заново отметить
+        шаг выполненным после открытия сохранённого проекта -- см.
+        FileHandler) не затирает уже введённые тип элемента и типоразмер
+        существующих строк значениями по умолчанию, только достраивает
+        новые строки при увеличении segments_count."""
         count = self.segments_count.value()
-        size = self._first_pipe_material_value(3) or "-"
+        default_size = self._first_pipe_material_value(3) or "-"
         table = self.table_segments
+        existing_rows = table.rowCount()
         table.setRowCount(count)
         for row in range(count):
             table.setItem(row, 0, QTableWidgetItem(str(row + 1)))
-            self._install_segment_type_combo(table, row)
-            table.setItem(row, 2, QTableWidgetItem(size))
+            if row < existing_rows:
+                type_combo = table.cellWidget(row, 1)
+                current_type = type_combo.currentText() if type_combo else SEGMENT_TYPES[0]
+                size_item = table.item(row, 2)
+                current_size = size_item.text() if size_item and size_item.text() else default_size
+            else:
+                current_type = SEGMENT_TYPES[0]
+                current_size = default_size
+            self._install_segment_type_combo(table, row, current_type)
+            table.setItem(row, 2, QTableWidgetItem(current_size))
         self._completed_steps.add("segments")
         self._update_toc_progress()
 
@@ -1289,13 +1412,23 @@ class MainWindow(QMainWindow):
                 )
             self.calc_steel_grade.setPlainText(steel_grade)
 
-            allowable_stress = get_allowable_stress(steel_grade, temp)
+            try:
+                allowable_stress = get_allowable_stress(steel_grade, temp)
+                self.calc_sigma_allow.setPlainText(format_ru(allowable_stress))
+            except (KeyError, ValueError) as e:
+                manual_value = self.calc_sigma_allow.toPlainText().strip()
+                if not manual_value:
+                    raise ValueError(
+                        f"{e} Введите [σ] вручную в поле «Допускаемое "
+                        "напряжение [σ], МПа»."
+                    )
+                allowable_stress = parse_ru(manual_value)
+
             result = calculate_pipeline_strength(
                 p_working=p_working, d_outer=d_outer, allowable_stress=allowable_stress,
                 s_actual=s_actual, c2=c2, phi=phi,
             )
 
-            self.calc_sigma_allow.setPlainText(format_ru(allowable_stress))
             self.calc_sr.setPlainText(format_ru(result.s_calc))
             self.calc_s_reject.setPlainText(format_ru(result.s_reject))
             self.calc_p_allow.setPlainText(format_ru(result.p_allow))
@@ -1407,26 +1540,112 @@ class MainWindow(QMainWindow):
         table.setCellWidget(row, col, combo)
 
     def _add_specialist_row(self):
-        """Добавляет строку в table_specialists и сразу устанавливает в неё
-        4 редактируемых комбобокса (Должность, ФИО, Удостоверение,
-        Удостоверение (кратко)) -- см. _install_growable_combo(). Короткая
-        форма ("удостоверение № ... от ...") идёт в подписи после каждого
-        из 9 приложений, полная -- только в Таблицу 2 (1.3), см. calculate()."""
+        """Добавляет строку в table_specialists -- специалиста выбирают из
+        справочника «Сотрудники» (EmployeesTabController), а не вводят
+        текстом: так подтвердил пользователь, весь состав специалистов
+        отчёта должен идти через справочник (иначе для строки не с кем
+        связать клише -- см. _specialist_kleishe_image()). Если нужного
+        человека нет в справочнике -- его сначала заводят на вкладке
+        «Сотрудники».
+
+        4 ячейки по-прежнему QComboBox (редактируемый, как и раньше --
+        _cell_text()/_table_to_dicts() рассчитаны именно на этот тип), но
+        предзаполненные из Employee, а не пустые."""
+        employees = load_employees()
+        if not employees:
+            self.show_message(
+                "Справочник пуст",
+                "Сначала добавьте сотрудников на вкладке «Сотрудники» -- "
+                "специалисты отчёта выбираются оттуда.",
+                QMessageBox.Icon.Warning,
+            )
+            return
+
+        labels = [f"{e.position} — {e.full_name}" for e in employees]
+        label, ok = QInputDialog.getItem(
+            self, "Выбор специалиста", "Сотрудник:", labels, editable=False
+        )
+        if not ok:
+            return
+        employee = employees[labels.index(label)]
+
+        cert_full = ""
+        cert_short = ""
+        if employee.certificates:
+            cert_full = employee.certificates[0]
+            if len(employee.certificates) > 1:
+                cert_full, ok = QInputDialog.getItem(
+                    self, "Выбор удостоверения", "Удостоверение:",
+                    employee.certificates, editable=False,
+                )
+                if not ok:
+                    cert_full = employee.certificates[0]
+            match = re.search(r"№\s*\S+", cert_full)
+            cert_short = match.group(0) if match else cert_full
+
         table = self.table_specialists
         row = table.rowCount()
         table.insertRow(row)
-        for col in range(4):
-            self._install_growable_combo(table, row, col)
+        for col, text in enumerate((employee.position, employee.full_name, cert_full, cert_short)):
+            self._install_growable_combo(table, row, col, text)
+        self._specialist_employee_ids.append(employee.id)
         self._refresh_program_specialist_combo()
 
     def _remove_specialist_row(self):
-        """Удаляет выбранную строку table_specialists и обновляет комбобоксы
-        выбора специалиста (program_specialist и т.п.) -- раньше эти
-        комбобоксы обновлялись только при переключении вкладки, теперь
-        вкладок нет, обновление дергается прямо из точек, где меняется
-        table_specialists, см. _refresh_program_specialist_combo()."""
+        """Удаляет выбранную строку table_specialists, синхронно убирает её
+        employee_id из _specialist_employee_ids (см. _add_specialist_row()) и
+        обновляет комбобоксы выбора специалиста (program_specialist и
+        т.п.) -- раньше эти комбобоксы обновлялись только при переключении
+        вкладки, теперь вкладок нет, обновление дергается прямо из точек,
+        где меняется table_specialists, см. _refresh_program_specialist_combo()."""
+        row = self.table_specialists.currentRow()
+        if row >= 0 and row < len(self._specialist_employee_ids):
+            self._specialist_employee_ids.pop(row)
         self._remove_table_row(self.table_specialists)
         self._refresh_program_specialist_combo()
+
+    def _specialist_kleishe_image(self, doc, employees, employee_id, used_paths):
+        """InlineImage клише сотрудника для подстановки в form_data (см.
+        calculate(), KLEISHE_ROLE_PREFIXES) -- тот же приём, что и
+        nk_scheme_image/pnevmo_graph_image: пустая строка, если клише нет
+        (сотрудник не выбран, не привязан к справочнику или не загрузил
+        клише), без ошибки рендера. Путь к файлу резолвит
+        resolve_kleishe_path() (src/services/employees_store.py).
+
+        used_paths -- set, куда добавляется путь картинки, если она
+        подставлена -- после doc.render() по нему находим rId вставленных
+        картинок для _float_kleishe_drawings_behind_text() (картинка клише
+        должна плавать "за текстом", а не как схема НК/график нагружения,
+        см. calculate()).
+
+        width/height не заданы намеренно -- InlineImage тогда берёт
+        реальный размер картинки (пиксели + DPI из самого файла, см.
+        docx.image.image.Image.width/height), а не произвольно
+        подогнанный -- раньше здесь стоял фиксированный width=Mm(30),
+        из-за чего клише в документе не совпадало по размеру с исходным
+        файлом."""
+        path = resolve_kleishe_path(employees, employee_id)
+        if not path:
+            return ""
+        used_paths.add(path)
+        return InlineImage(doc, str(path))
+
+    def _float_kleishe_drawings_behind_text(self, doc, used_paths):
+        """После doc.render() переводит уже вставленные картинки клише из
+        обычного инлайн-положения в плавающее "за текстом" (Word:
+        Обтекание текстом -> За текстом) -- без изменения размера. Только
+        клише -- схема НК/график нагружения (тоже InlineImage) не
+        затрагиваются, т.к. их rId в used_paths не попадают.
+
+        rId картинок определяем через get_or_add_image() -- она дедуплицирует
+        по содержимому так же, как это уже сделал docxtpl при рендере (см.
+        docx.parts.story.StoryPart.get_or_add_image()), поэтому для уже
+        вставленной картинки метод просто возвращает тот же rId, без
+        побочных эффектов."""
+        if not used_paths:
+            return
+        target_rids = {doc.part.get_or_add_image(str(path))[0] for path in used_paths}
+        float_drawings_behind_text(doc.docx, target_rids)
 
     def _add_pipe_material_row(self):
         """Добавляет строку в table_pipe_materials (Таблица 6 -- Сведения о
@@ -1523,7 +1742,7 @@ class MainWindow(QMainWindow):
                 sub += 1
                 item.setText(f"{top}.{sub}.")
 
-    def _refresh_program_specialist_combo(self):
+    def _refresh_program_specialist_combo(self, saved_indices=None):
         """Обновляет списки в program_specialist (поле "Программу составил",
         Приложение 1), act2_specialist (поле "Анализ документации провёл",
         Приложение 2), vik_specialist (поле "Контроль провёл", Приложение 3),
@@ -1541,23 +1760,32 @@ class MainWindow(QMainWindow):
         список widget_names_pipeline.py (как pnevmo_pressure_hint) -- каждый
         даёт индекс строки специалиста, а не текст для .docx напрямую,
         итоговые плейсхолдеры собирает calculate(). Заодно обновляет
-        read-only зеркала пункта 3 Приложения 8, см. _update_pnevmo_mirrors()."""
-        self._refresh_specialist_combo(self.program_specialist)
-        self._refresh_specialist_combo(self.act2_specialist)
-        self._refresh_specialist_combo(self.vik_specialist)
-        self._refresh_specialist_combo(self.thick_specialist)
-        self._refresh_specialist_combo(self.uzk_specialist)
-        self._refresh_specialist_combo(self.calc_specialist)
-        self._refresh_specialist_combo(self.pnevmo_specialist)
-        self._refresh_specialist_combo(self.ae_zakl_specialist)
+        read-only зеркала пункта 3 Приложения 8, см. _update_pnevmo_mirrors().
+
+        saved_indices -- необязательный dict {имя_комбобокса: индекс},
+        восстановленный из report_data при загрузке проекта (см.
+        FileHandler.open_project_json()/MainWindow._open_document()).
+        Перекрывает обычную логику "сохранить текущий выбор" в
+        _refresh_specialist_combo() -- для только что открытого документа
+        combo.currentData() всегда None (комбобоксы ещё не заполнены),
+        без этого выбор специалиста откатывался на первую строку."""
+        saved_indices = saved_indices or {}
+        for name in self.SPECIALIST_COMBO_NAMES:
+            self._refresh_specialist_combo(getattr(self, name), saved_indices.get(name))
         self._update_pnevmo_mirrors()
 
-    def _refresh_specialist_combo(self, combo):
+    def _refresh_specialist_combo(self, combo, desired=None):
         """Перезаполняет один комбобокс-выбор специалиста вариантами из
-        table_specialists, сохраняя текущий выбор (по индексу строки), если
-        он всё ещё существует -- общая логика для program_specialist и
-        act2_specialist, см. _refresh_program_specialist_combo()."""
-        previous = combo.currentData()
+        table_specialists, сохраняя выбор (по индексу строки), если он
+        всё ещё существует -- общая логика для program_specialist и
+        act2_specialist, см. _refresh_program_specialist_combo().
+
+        desired -- индекс строки, который нужно выставить явно (при
+        загрузке проекта, когда живого текущего выбора в ещё не
+        заполненном комбобоксе нет); по умолчанию берётся
+        combo.currentData() -- обычный случай live-редактирования
+        таблицы специалистов, когда выбор уже стоит в комбобоксе."""
+        previous = desired if desired is not None else combo.currentData()
         combo.blockSignals(True)
         combo.clear()
         for row in range(self.table_specialists.rowCount()):
@@ -1622,6 +1850,7 @@ class MainWindow(QMainWindow):
 
         if self.equipment_type.id == "pipeline":
             self._seed_program_table_defaults()
+            self._specialist_employee_ids = []
             self._current_toc_items = []
             self._current_toc_active_item = None
             self._update_breadcrumb()
@@ -1644,6 +1873,20 @@ class MainWindow(QMainWindow):
                 doc_item.setData(0, Qt.ItemDataRole.UserRole, path)
                 object_item.addChild(doc_item)
             object_item.setExpanded(True)
+
+        # objectsTree.clear() выше уничтожает и дочерние строки
+        # оглавления под строкой текущего документа (см.
+        # _populate_document_toc()), а _current_toc_items/
+        # _current_toc_active_item эти QTreeWidgetItem не сбрасывает --
+        # без восстановления это висячие ссылки на удалённые C++
+        # объекты (падение "wrapped C/C++ object of type QTreeWidgetItem
+        # has been deleted" при следующем _update_breadcrumb()/
+        # _on_document_scrolled()). Отстраиваем TOC текущего документа
+        # заново, если он есть в новом дереве.
+        if self._current_document_path is not None:
+            doc_item = self._find_document_tree_item(self._current_document_path)
+            if doc_item is not None:
+                self._populate_document_toc(doc_item)
 
     def _filter_objects_tree(self, text):
         """Фильтр по вводу в sidebarSearchBox. Документ виден, если текст
@@ -1716,11 +1959,13 @@ class MainWindow(QMainWindow):
 
     def _show_document_context_menu(self, item, pos):
         """ПКМ по строке документа. «Переименовать» из референсного
-        мокапа (docs/design/pipeline_sidebar_mockup.html) сознательно
-        не реализовано -- у документа нет отдельного имени: ярлык
-        всегда пересчитывается из reg_number (workspace._document_label()),
-        переименование файла на диске никак не отразилось бы на том,
-        что видит оператор, была бы обманчивая кнопка."""
+        мокапа (docs/design/pipeline_sidebar_mockup.html) отдельным
+        пунктом меню не реализовано -- ярлык документа это имя файла
+        (path.stem, см. workspace.list_documents()), а переименование
+        уже доступно через «Сохранить проект»: диалог всегда просит имя
+        файла (FileHandler._prompt_document_path()), и при вводе
+        другого имени старый файл удаляется, а не остаётся сиротой
+        (см. FileHandler.save_project_json())."""
         path = item.data(0, Qt.ItemDataRole.UserRole)
         menu = QMenu(self)
         menu.addAction("Дублировать", lambda: self._duplicate_document(path))
@@ -1847,7 +2092,10 @@ class MainWindow(QMainWindow):
         self._current_document_path = path
         self._document_dirty = False
         self._update_dirty_indicator()
-        self._refresh_program_specialist_combo()
+        saved_indices = {
+            name: project.report_data.get(name) for name in self.SPECIALIST_COMBO_NAMES
+        }
+        self._refresh_program_specialist_combo(saved_indices)
         self._switch_view("document")
         doc_item = self._find_document_tree_item(path)
         if doc_item is not None:
@@ -1870,8 +2118,8 @@ class MainWindow(QMainWindow):
     def _update_breadcrumb(self):
         """Обновляет breadcrumbLabel над лентой документа: объект /
         документ / текущий раздел оглавления. Ярлык документа берётся
-        готовым из строки дерева (там уже "рег.XXXX" из
-        workspace._document_label()), а не пересчитывается заново.
+        готовым из строки дерева (там уже имя файла из
+        workspace.list_documents()), а не пересчитывается заново.
 
         Объект и документ -- кликабельные ссылки (Фаза 11, как revealFolder()/
         revealDoc() в референсе, docs/design/pipeline_sidebar_mockup.html)
@@ -2321,6 +2569,72 @@ class MainWindow(QMainWindow):
             return
         target.setPlainText(source_text)
         setattr(self, state_attr, source_text)
+
+    # Пары (target, source, state_attr) для _sync_mirror_field() -- вынесены
+    # сюда одним списком, чтобы завести его один раз и переиспользовать и в
+    # сигналах __init__ (через свои _update_*_display()), и в
+    # _seed_mirror_states_after_load() ниже.
+    MIRROR_FIELD_PAIRS = (
+        ("calc_temp", "work_temp", "_calc_temp_auto_value"),
+        ("pnevmo_obj_naznach", "obj_naznach", "_pnevmo_obj_naznach_auto_value"),
+        ("ae_zakl_obj_control", "pnevmo_obj_naznach", "_ae_zakl_obj_control_auto_value"),
+        ("calc_years_operation", "years_of_operation", "_calc_years_operation_auto_value"),
+    )
+
+    def _seed_mirror_states_after_load(self):
+        """Восстанавливает state_attr у "зеркал, пока не тронутых"
+        (_sync_mirror_field(): calc_temp/pnevmo_obj_naznach/
+        ae_zakl_obj_control/calc_years_operation) сразу после загрузки
+        проекта (FileHandler._fill_ui_from_project()) -- единственный
+        признак "не тронуто" там -- current-текст target совпадает с
+        state_attr, а на свежем окне state_attr всегда None. Без этого
+        восстановленное из JSON непустое значение target (даже если оно
+        никогда не редактировалось вручную и просто совпадает с source)
+        навсегда воспринималось бы как "оператор его трогал" -- дальше
+        правки в source-поле (например years_of_operation, раздел 6)
+        переставали подхватываться в target (calc_years_operation,
+        Приложение 6), хотя раньше, до сохранения/открытия проекта,
+        подхватывались нормально.
+
+        Сеем состояние только когда target совпадает с source -- если они
+        разошлись (оператор реально переопределил target перед
+        сохранением), это и есть корректное "тронуто", трогать не нужно."""
+        for target_name, source_name, state_attr in self.MIRROR_FIELD_PAIRS:
+            target = getattr(self, target_name)
+            source = getattr(self, source_name)
+            if target.toPlainText() == source.toPlainText():
+                setattr(self, state_attr, target.toPlainText())
+
+        # years_of_operation -- отдельный случай: источник не одно
+        # текстовое поле, а вычисление report_year - year_start, см.
+        # _update_years_of_operation_display(). Та же логика "seed только
+        # если совпадает с вычисленным значением".
+        try:
+            computed = str(
+                int(parse_ru(self.report_year.toPlainText()))
+                - int(parse_ru(self.year_start.toPlainText()))
+            )
+        except ValueError:
+            computed = None
+        if computed is not None and self.years_of_operation.toPlainText() == computed:
+            self._years_of_operation_auto_value = computed
+
+    def _update_years_of_operation_display(self):
+        """Подсказка years_of_operation (раздел 6, "Срок эксплуатации,
+        лет") -- по умолчанию год составления отчёта (report_year,
+        раздел 1) минус год ввода в эксплуатацию (year_start, раздел 6),
+        но поле редактируемое: инженер может исправить вручную (например,
+        если объект фактически простаивал часть срока), см.
+        _sync_mirror_field()."""
+        try:
+            report_year = int(parse_ru(self.report_year.toPlainText()))
+            year_start = int(parse_ru(self.year_start.toPlainText()))
+        except ValueError:
+            return
+        self._sync_mirror_field(
+            self.years_of_operation, str(report_year - year_start),
+            "_years_of_operation_auto_value",
+        )
 
     def _update_calc_temp_display(self):
         """Подсказка calc_temp (Приложение 6) значением work_temp (1. Общие

@@ -30,10 +30,11 @@ def list_objects(base_dir: Path = OUTPUT_DIR) -> List[str]:
 def list_documents(object_dir: Path, equipment_type_id: str) -> List[Tuple[Path, str]]:
     """Документы папки-объекта, отфильтрованные по equipment_type_id —
     окно одного типа не умеет открыть документ другого (другой набор
-    виджетов целиком). Возвращает пары (путь, ярлык); ярлык — по
-    reg_number из самого файла, а не имя файла на диске. Файлы, которые
-    не парсятся как Project, тихо пропускаются — один битый/чужой .json
-    в папке не должен ломать построение всего дерева."""
+    виджетов целиком). Возвращает пары (путь, ярлык); ярлык — имя файла
+    без расширения (path.stem), то самое имя, которое оператор вводит
+    вручную в диалоге сохранения (см. FileHandler._prompt_document_path()).
+    Файлы, которые не парсятся как Project, тихо пропускаются — один
+    битый/чужой .json в папке не должен ломать построение всего дерева."""
     if not object_dir.exists():
         return []
     documents = []
@@ -44,18 +45,8 @@ def list_documents(object_dir: Path, equipment_type_id: str) -> List[Tuple[Path,
             continue
         if project.equipment_type != equipment_type_id:
             continue
-        documents.append((path, _document_label(project)))
+        documents.append((path, path.stem))
     return documents
-
-
-def _document_label(project: Project) -> str:
-    """Ярлык документа для дерева. reg_number ещё пуст сразу после
-    create_document() (до первого реального сохранения оператором) —
-    тогда возвращается плейсхолдер вместо пустой строки."""
-    reg_number = str(project.report_data.get("reg_number", "")).strip()
-    if reg_number:
-        return f"рег.{reg_number}"
-    return "Новый документ"
 
 
 def sanitize_object_name(name: str) -> str:
@@ -96,12 +87,12 @@ def create_document(object_dir: Path, equipment_type_id: str) -> Path:
 
 def duplicate_document(path: Path) -> Path:
     """Копирует документ в ту же папку-объект под новым свободным
-    именем (Фаза 8, «Дублировать» в контекстном меню). Копируется сам
-    JSON-файл как есть, включая report_data — reg_number у копии
-    останется прежним, и ярлык в дереве совпадёт с оригиналом, пока
-    оператор не поправит номер вручную вслед за реальным рабочим
-    процессом (два документа с одним reg_number до правки — ожидаемо,
-    не ошибка)."""
+    именем — «оригинал_копия.json», «оригинал_копия_2.json» и т.д.
+    (Фаза 8, «Дублировать» в контекстном меню). Ярлык в дереве — это
+    имя файла (см. list_documents()), так что копия сразу отличима от
+    оригинала; report_data (включая reg_number) копируется как есть,
+    оператор поправляет его вручную вслед за реальным рабочим
+    процессом."""
     i = 1
     while True:
         suffix = "_копия" if i == 1 else f"_копия_{i}"
