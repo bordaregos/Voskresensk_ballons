@@ -48,6 +48,7 @@ from ..services.employees_store import (
 )
 from ..services.docx_layout import float_drawings_behind_text
 from ..services import workspace
+from . import icons
 from ..models.project import Project
 from ..config import NK_SCHEME_DIR, PNEVMO_GRAPH_DIR
 from .widget_names_pipeline import SEGMENT_TYPES, PROGRAM_DEFAULT_ITEMS, AE_CLASS_TYPES
@@ -69,7 +70,7 @@ QMainWindow, #constructorCentral { background: #1c1c1e; }
     font-weight: 500; text-align: left; padding: 6px; border-radius: 5px;
 }
 #titleGroupToggle:hover { background: #2c2c2e; }
-#appendicesSoonLabel { color: #5a5a5c; font-size: 11.5px; padding: 6px; }
+#appendicesSoonLabel { color: #5a5a5c; font-size: 11.5px; }
 QListWidget#availableBlocksList {
     background: transparent; border: none; outline: none; font-size: 11.5px;
 }
@@ -364,6 +365,7 @@ class MainWindow(QMainWindow):
             self.setStyleSheet(CONSTRUCTOR_QSS)
             self._dynamic_field_names = []
 
+            self.availableBlocksList.setIconSize(QSize(15, 15))
             self._refresh_available_blocks_list()
             self.availableBlocksList.itemClicked.connect(self._on_available_block_clicked)
             self.availableBlocksList.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -371,7 +373,14 @@ class MainWindow(QMainWindow):
                 self._show_available_block_context_menu
             )
 
+            # "Приложения — скоро" -- статичная строка-заглушка (см. .ui,
+            # appendicesSoonRow), иконки выставляются один раз и не меняются.
+            self.appendicesSoonChevron.setPixmap(icons.render("chevron-right", "#5a5a5c", 13))
+            self.appendicesSoonFiles.setPixmap(icons.render("files", "#5a5a5c", 14))
+
+            self.titleGroupToggle.setIconSize(QSize(13, 13))
             self.titleGroupToggle.toggled.connect(self._toggle_title_group)
+            self._toggle_title_group(self.titleGroupToggle.isChecked())
 
             # В списке ровно один блок (Phase 1, см. _process_block_drop()) --
             # родная линия-подсказка Qt "вставить выше/ниже" вводит в
@@ -939,11 +948,12 @@ class MainWindow(QMainWindow):
 
     def _toggle_title_group(self, expanded: bool):
         """Сворачивание/разворачивание группы «Титульные листы» -- сам
-        QListWidget прячется/показывается, кнопка-заголовок меняет текст
-        (▾/▸ -- в проекте нет иконочного шрифта, см. CONSTRUCTOR_QSS)."""
+        QListWidget прячется/показывается, шеврон на кнопке-заголовке
+        меняет направление (см. icons.py)."""
         self.availableBlocksList.setVisible(expanded)
-        arrow = "▾" if expanded else "▸"
-        self.titleGroupToggle.setText(f"{arrow}  Титульные листы")
+        self.titleGroupToggle.setIcon(
+            icons.icon("chevron-down" if expanded else "chevron-right", "#8e8e93", 13)
+        )
 
     ITEM_CHARS_PER_LINE = 18  # см. _set_wrapped_item_size_hint()
 
@@ -974,10 +984,12 @@ class MainWindow(QMainWindow):
         self.availableBlocksList.clear()
         for variant_id, title_config in get_all_title_variants().items():
             item = QListWidgetItem(title_config.document_title)
+            item.setIcon(icons.icon("file-text", "#0a84ff", 15))
             item.setData(Qt.ItemDataRole.UserRole, variant_id)
             self.availableBlocksList.addItem(item)
 
-        add_item = QListWidgetItem("+  Добавить")
+        add_item = QListWidgetItem("Добавить")
+        add_item.setIcon(icons.icon("plus", "#0a84ff", 13))
         add_item.setData(Qt.ItemDataRole.UserRole, self.ADD_VARIANT_MARKER)
         add_item.setFlags(add_item.flags() & ~Qt.ItemFlag.ItemIsDragEnabled)
         add_item.setForeground(QColor("#0a84ff"))
@@ -1059,7 +1071,7 @@ class MainWindow(QMainWindow):
             return
 
         menu = QMenu(self)
-        delete_action = menu.addAction("Удалить")
+        delete_action = menu.addAction(icons.icon("trash", "#ff453a", 14), "Удалить")
         if menu.exec(self.availableBlocksList.mapToGlobal(pos)) == delete_action:
             self._delete_title_variant(variant_id, item.text())
 
@@ -1125,10 +1137,18 @@ class MainWindow(QMainWindow):
         # замене. Новый item опознаётся по отсутствию itemWidget: его
         # выставляет только эта функция, а Qt при перетаскивании копирует
         # роли исходного item'а (текст, UserRole), но не itemWidget.
+        #
+        # Если ВСЕ реальные item'ы уже с itemWidget (уже были обработаны
+        # раньше) -- функция не идемпотентна по конструкции (она стирает
+        # text() обрабатываемого item'а), поэтому повторный вызов без
+        # нового перетащенного item'а должен быть no-op, а не портить уже
+        # готовую карточку.
         keep_index = next(
             (i for i in real_indices if block_list.itemWidget(block_list.item(i)) is None),
-            real_indices[-1],
+            None,
         )
+        if keep_index is None:
+            return
         for i in reversed(range(block_list.count())):
             if i != keep_index:
                 block_list.takeItem(i)
@@ -1148,20 +1168,25 @@ class MainWindow(QMainWindow):
         row = QWidget()
         row_layout = QHBoxLayout(row)
         row_layout.setContentsMargins(10, 8, 6, 8)
-        # WA_TransparentForMouseEvents -- клики по тексту должны доходить до
-        # row.mousePressEvent (сворачивание/разворачивание реквизитов, см.
-        # _toggle_fields_panel()), а не гаситься самим QLabel (мышиные
-        # события Qt не всплывают от ребёнка к родителю сами по себе, в
-        # отличие от event bubbling в DOM).
+        # WA_TransparentForMouseEvents -- клики по тексту/иконкам должны
+        # доходить до row.mousePressEvent (сворачивание/разворачивание
+        # реквизитов, см. _toggle_fields_panel()), а не гаситься самими
+        # QLabel (мышиные события Qt не всплывают от ребёнка к родителю
+        # сами по себе, в отличие от event bubbling в DOM).
+        icon_label = QLabel()
+        icon_label.setPixmap(icons.render("file-text", "#0a84ff", 15))
+        icon_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        row_layout.addWidget(icon_label)
         text_label = QLabel(label_text)
         text_label.setWordWrap(True)
         text_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         row_layout.addWidget(text_label, stretch=1)
-        self.includedBlockChevron = QLabel("▾")
-        self.includedBlockChevron.setStyleSheet("color: #8e8e93; font-size: 11px;")
+        self.includedBlockChevron = QLabel()
+        self.includedBlockChevron.setPixmap(icons.render("chevron-down", "#8e8e93", 13))
         self.includedBlockChevron.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         row_layout.addWidget(self.includedBlockChevron)
-        remove_btn = QPushButton("×")
+        remove_btn = QPushButton()
+        remove_btn.setIcon(icons.icon("x", "#8e8e93", 14))
         remove_btn.setFixedSize(22, 22)
         remove_btn.setFlat(True)
         remove_btn.clicked.connect(self._clear_included_block)
@@ -1202,22 +1227,37 @@ class MainWindow(QMainWindow):
     def _show_included_block_placeholder(self):
         """Пустое состояние includedBlockList -- ненажимаемый item-подсказка
         вместо пустого списка без текста (Qt не даёт «placeholder-текст» у
-        QListWidget нативно)."""
+        QListWidget нативно). Иконка над текстом -- как в мокапе
+        (docs/design/constructor_mockup.html, #dropEmpty) -- через
+        itemWidget: сам item лишь резервирует место (NoItemFlags, пустой
+        текст), рисует содержимое QWidget с QVBoxLayout."""
         block_list = self.includedBlockList
         block_list.clear()
 
-        placeholder = QListWidgetItem("Перетащите титульный лист сюда")
+        placeholder = QListWidgetItem()
         placeholder.setData(Qt.ItemDataRole.UserRole, self.INCLUDED_BLOCK_PLACEHOLDER)
         placeholder.setFlags(Qt.ItemFlag.NoItemFlags)
-        placeholder.setForeground(QColor("#5a5a5c"))
-        placeholder.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-        # AlignCenter центрирует текст только внутри РЕАЛЬНОЙ высоты item'а
-        # (без явного sizeHint это естественная высота одной строки, ~20px),
-        # а не внутри всех 56px box'а -- без этого текст залипает у верхнего
-        # края с пустотой снизу. frameShape=NoFrame (.ui) -- inner-высота
-        # виджета совпадает с его maximumSize, поэтому 56 без поправок.
+        # frameShape=NoFrame (.ui) -- inner-высота виджета совпадает с его
+        # maximumSize, поэтому item получает все 56px без поправок на рамку
+        # -- иначе (без явного sizeHint) реальная высота item'а была бы
+        # только под содержимое itemWidget, а не под весь box.
         placeholder.setSizeHint(QSize(block_list.viewport().width() or 200, 56))
         block_list.addItem(placeholder)
+
+        row = QWidget()
+        row_layout = QVBoxLayout(row)
+        row_layout.setContentsMargins(0, 0, 0, 0)
+        row_layout.setSpacing(6)
+        icon_label = QLabel()
+        icon_label.setPixmap(icons.render("drag-drop", "#5a5a5c", 22))
+        icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        row_layout.addWidget(icon_label)
+        text_label = QLabel("Перетащите титульный лист сюда")
+        text_label.setStyleSheet("color: #5a5a5c; font-size: 12px;")
+        text_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        row_layout.addWidget(text_label)
+        block_list.setItemWidget(placeholder, row)
+
         self._set_included_block_filled(False)
         block_list.setFixedHeight(56)
 
@@ -1236,7 +1276,9 @@ class MainWindow(QMainWindow):
             return
         visible = not self.fieldsPanel.isVisible()
         self.fieldsPanel.setVisible(visible)
-        self.includedBlockChevron.setText("▾" if visible else "▸")
+        self.includedBlockChevron.setPixmap(
+            icons.render("chevron-down" if visible else "chevron-right", "#8e8e93", 13)
+        )
 
     def _render_title_fields(self, variant_id: str):
         """Перестраивает titleFieldsLayout под набор полей конкретного

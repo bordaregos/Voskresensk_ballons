@@ -40,7 +40,7 @@
           <property name="bottomMargin"><number>10</number></property>
           <item>
            <widget class="QPushButton" name="titleGroupToggle">
-            <property name="text"><string>▾  Титульные листы</string></property>
+            <property name="text"><string>  Титульные листы</string></property>
             <property name="checkable"><bool>true</bool></property>
             <property name="checked"><bool>true</bool></property>
             <property name="flat"><bool>true</bool></property>
@@ -64,9 +64,32 @@
            </widget>
           </item>
           <item>
-           <widget class="QLabel" name="appendicesSoonLabel">
-            <property name="text"><string>▸  Приложения — скоро</string></property>
+           <widget class="QWidget" name="appendicesSoonRow">
             <property name="toolTip"><string>Появится в Phase 2</string></property>
+            <layout class="QHBoxLayout" name="appendicesSoonRowLayout">
+             <property name="spacing"><number>6</number></property>
+             <property name="leftMargin"><number>6</number></property>
+             <property name="topMargin"><number>6</number></property>
+             <property name="rightMargin"><number>6</number></property>
+             <property name="bottomMargin"><number>6</number></property>
+             <item>
+              <widget class="QLabel" name="appendicesSoonChevron"/>
+             </item>
+             <item>
+              <widget class="QLabel" name="appendicesSoonFiles"/>
+             </item>
+             <item>
+              <widget class="QLabel" name="appendicesSoonLabel">
+               <property name="text"><string>Приложения — скоро</string></property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="appendicesSoonSpacer">
+               <property name="orientation"><enum>Qt::Orientation::Horizontal</enum></property>
+               <property name="sizeHint" stdset="0"><size><width>1</width><height>1</height></size></property>
+              </spacer>
+             </item>
+            </layout>
            </widget>
           </item>
           <item>
