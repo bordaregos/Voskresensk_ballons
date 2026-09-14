@@ -373,6 +373,14 @@ class MainWindow(QMainWindow):
 
             self.titleGroupToggle.toggled.connect(self._toggle_title_group)
 
+            # В списке ровно один блок (Phase 1, см. _process_block_drop()) --
+            # родная линия-подсказка Qt "вставить выше/ниже" вводит в
+            # заблуждение при замене (выглядит так, будто можно вставить
+            # второй блок рядом), хотя реально всегда остаётся один. Сама
+            # вставка above/below при этом всё равно у Qt происходит --
+            # обрабатывается в _process_block_drop() независимо от того,
+            # видна эта линия или нет.
+            self.includedBlockList.setDropIndicatorShown(False)
             self.includedBlockList.model().rowsInserted.connect(self._on_block_dropped)
             self.pushButt_generateWord.setEnabled(False)
             self._show_included_block_placeholder()
@@ -1093,18 +1101,37 @@ class MainWindow(QMainWindow):
 
         rowsInserted стреляет и на программные addItem() (см.
         _show_included_block_placeholder() -- вызывается при старте и при
-        очистке, не только на реальный drag-and-drop), поэтому если
-        последний item в списке -- сам плейсхолдер, а не что-то
-        перетащенное, выходим сразу, ничего не перестраивая."""
+        очистке, не только на реальный drag-and-drop), поэтому плейсхолдер
+        сначала исключается из рассмотрения, а не только последний item --
+        Qt может вставить перетащенный item и ПЕРЕД плейсхолдером/старым
+        item'ом (см. ниже), не только после."""
         block_list = self.includedBlockList
-        if block_list.count() == 0:
-            return
-        last_item = block_list.item(block_list.count() - 1)
-        if last_item.data(Qt.ItemDataRole.UserRole) == self.INCLUDED_BLOCK_PLACEHOLDER:
-            return
+        real_indices = [
+            i for i in range(block_list.count())
+            if block_list.item(i).data(Qt.ItemDataRole.UserRole) != self.INCLUDED_BLOCK_PLACEHOLDER
+        ]
+        if not real_indices:
+            return  # в списке только сам плейсхолдер -- нечего обрабатывать
 
-        while block_list.count() > 1:
-            block_list.takeItem(0)
+        # При замене (два реальных item'а: старый + новый перетащенный, или
+        # первый drop -- плейсхолдер + новый) Qt сам решает, вставить ли
+        # новый item ДО или ПОСЛЕ уже лежащего, в зависимости от того, в
+        # верхнюю или нижнюю половину курсор попал при drop'е
+        # (DropIndicatorPosition AboveItem/BelowItem) -- порядок в списке не
+        # гарантирован. Раньше код слепо брал последний item -- если Qt
+        # вставлял новый ПЕРЕД старым, последним оставался старый item с
+        # уже стёртым text() (см. item.setText("") ниже, из предыдущей
+        # обработки) -- отсюда пустая строка вместо названия при повторной
+        # замене. Новый item опознаётся по отсутствию itemWidget: его
+        # выставляет только эта функция, а Qt при перетаскивании копирует
+        # роли исходного item'а (текст, UserRole), но не itemWidget.
+        keep_index = next(
+            (i for i in real_indices if block_list.itemWidget(block_list.item(i)) is None),
+            real_indices[-1],
+        )
+        for i in reversed(range(block_list.count())):
+            if i != keep_index:
+                block_list.takeItem(i)
 
         item = block_list.item(0)
         variant_id = item.data(Qt.ItemDataRole.UserRole)
