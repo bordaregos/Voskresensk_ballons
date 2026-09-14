@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import List, Dict, Any
 
-from PyQt6.QtWidgets import QFileDialog, QMessageBox, QTableWidgetItem
+from PyQt6.QtWidgets import QFileDialog, QMessageBox, QTableWidgetItem, QInputDialog
 
 from src.services.importer import (
     import_balloon_list_from_csv,
@@ -116,35 +116,162 @@ class FileHandler:
                 QMessageBox.Icon.Critical
             )
     
+    def _save_current_project(self):
+        """Сохраняет текущий документ в main_window._current_document_path
+        напрямую, без диалога и без сообщения об успехе -- общая часть
+        save_project_json() (когда путь уже есть) и тихого автосохранения
+        при переключении документа в дереве объектов, см.
+        MainWindow._open_document(). Вызывающая сторона отвечает за то,
+        что _current_document_path не None."""
+        project = self._create_project()
+        project.save_to_file(self.main_window._current_document_path)
+        # Индикатор несохранённых изменений (Фаза 5.4) -- есть только у
+        # трубопровода; hasattr-проверка, чтобы не задевать баллоны.
+        if hasattr(self.main_window, "_document_dirty"):
+            self.main_window._document_dirty = False
+            self.main_window._update_dirty_indicator()
+
+    def _prompt_document_path(self) -> bool:
+        """Для трубопровода спрашивает имя файла (и, если документ ещё
+        не привязан ни к одному объекту -- сам объект: выбрать
+        существующий или создать новый) -- КАЖДЫЙ раз при явном нажатии
+        «Сохранить проект», а не только при первой привязке. Имя
+        JSON-проекта должно всегда быть ручным вводом пользователя в
+        диалоге сохранения, а не тихой перезаписью в уже известный путь.
+
+        Если объект уже определён (main_window._current_document_path
+        лежит внутри папки-объекта, см. src/services/workspace.py) --
+        шаг выбора объекта пропускается, но диалог имени файла
+        показывается всё равно, с текущим именем как значением по
+        умолчанию.
+
+        Тихое автосохранение при переключении документа в дереве
+        объектов (MainWindow._open_document() -> _save_current_project())
+        этот метод не вызывает и не затрагивает -- иначе каждый клик по
+        дереву превращался бы в диалог.
+
+        Пипелайн-специфично: у баллонов концепции объектов/дерева нет,
+        _document_dirty как маркер типа окна -- тот же приём, что и
+        везде в этом файле (Фаза 5.4/6); save_project_json() вызывает
+        этот метод только когда hasattr(mw, "_document_dirty").
+
+        Возвращает False, если пользователь отменил диалог -- вызывающая
+        сторона обязана прервать сохранение целиком, не писать файл ни
+        в старое, ни в частично выбранное новое место."""
+        mw = self.main_window
+        path = mw._current_document_path
+
+        from src.services import workspace
+
+        if path is not None and path.parent.parent == workspace.OUTPUT_DIR:
+            object_dir = path.parent
+            default_name = path.stem
+        else:
+            objects = workspace.list_objects()
+            if objects:
+                object_name, ok = QInputDialog.getItem(
+                    mw, "Сохранение — папка объекта",
+                    "Выберите объект (или введите новый):",
+                    objects, 0, True,
+                )
+            else:
+                object_name, ok = QInputDialog.getText(
+                    mw, "Сохранение — папка объекта",
+                    "Название объекта:",
+                )
+            if not ok or not object_name.strip():
+                return False
+            object_dir = workspace.create_object(object_name)
+            default_name = path.stem if path is not None else "документ"
+
+        while True:
+            filename, ok = QInputDialog.getText(
+                mw, "Сохранение — имя файла", "Имя файла:", text=default_name,
+            )
+            if not ok or not filename.strip():
+                return False
+            # sanitize_object_name() назван под объекты, но сама очистка
+            # (замена FS-небезопасных символов) ровно так же годится и
+            # для имени файла -- заводить дублирующую функцию под
+            # единственное отличие (запасной текст на случай пустой
+            # строки, сюда практически недостижимый: filename.strip()
+            # уже проверен выше) избыточно.
+            new_path = object_dir / f"{workspace.sanitize_object_name(filename)}.json"
+            # Тот же путь, что уже открыт -- это повторное сохранение
+            # под тем же именем, а не конфликт с чужим файлом.
+            if new_path == path or not new_path.exists():
+                break
+            QMessageBox.warning(
+                mw, "Имя занято",
+                f"В объекте «{object_dir.name}» уже есть файл «{new_path.name}» — выберите другое имя.",
+            )
+            default_name = filename
+
+        mw._current_document_path = new_path
+        mw._refresh_objects_tree()
+        mw._update_breadcrumb()
+        return True
+
     def save_project_json(self):
         """
         Сохранение проекта в JSON файл.
-        
-        Сохраняет все данные проекта в JSON файл.
+
+        Трубопровод (hasattr(mw, "_document_dirty")): имя файла --
+        всегда ручной ввод пользователя в диалоге сохранения, см.
+        _prompt_document_path(); не важно, сохранялся документ раньше
+        в этом сеансе или нет -- тихой перезаписи в уже известный путь
+        нет ни разу.
+
+        Баллоны: поведение не менялось -- если main_window.
+        _current_document_path уже указывает куда сохранять (документ
+        уже сохранялся в этом сеансе), пишем туда напрямую без диалога;
+        иначе -- обычный "Сохранить как", а выбранный путь запоминается
+        как текущий документ.
         """
-        file_path, _ = QFileDialog.getSaveFileName(
-            self.main_window,
-            "Выберите место для сохранения проекта",
-            str(OUTPUT_DIR / "проект.json"),
-            "JSON файлы (*.json);;All files (*.*)"
-        )
-        
-        if not file_path:
-            return
-        
+        mw = self.main_window
+        is_pipeline = hasattr(mw, "_document_dirty")
+        existing_path = getattr(mw, "_current_document_path", None)
+
         try:
-            # Создание проекта
-            project = self._create_project()
-            
-            # Сохранение
-            project.save_to_file(Path(file_path))
-            
-            self.main_window.show_message(
+            if is_pipeline:
+                old_path = existing_path
+                if not self._prompt_document_path():
+                    return
+                self._save_current_project()
+                file_path = str(mw._current_document_path)
+                # Ввод другого имени в диалоге -- это переименование
+                # текущего документа, а не сохранение копии: старый файл
+                # под прежним именем не должен оставаться сиротой в
+                # папке объекта (ярлык в дереве -- это и есть имя файла,
+                # см. workspace.list_documents() -- сирота выглядела бы
+                # как отдельный документ-дубликат).
+                if old_path is not None and old_path != mw._current_document_path and old_path.exists():
+                    old_path.unlink()
+                    mw._refresh_objects_tree()
+                    mw._update_breadcrumb()
+            elif existing_path is not None:
+                self._save_current_project()
+                file_path = str(mw._current_document_path)
+            else:
+                file_path, _ = QFileDialog.getSaveFileName(
+                    mw,
+                    "Выберите место для сохранения проекта",
+                    str(OUTPUT_DIR / "проект.json"),
+                    "JSON файлы (*.json);;All files (*.*)"
+                )
+                if not file_path:
+                    return
+
+                project = self._create_project()
+                project.save_to_file(Path(file_path))
+                mw._current_document_path = Path(file_path)
+
+            mw.show_message(
                 "Успех",
                 f"Проект сохранён в {file_path}",
                 QMessageBox.Icon.Information
             )
-            
+
         except Exception as e:
             self.main_window.show_message(
                 "Ошибка",
@@ -171,10 +298,35 @@ class FileHandler:
         try:
             # Загрузка проекта
             project = Project.load_from_file(Path(file_path))
-            
+
+            # Форма сбрасывается перед наполнением -- иначе поля/строки
+            # таблиц, которых нет в загружаемом JSON (старый формат, ручное
+            # редактирование файла и т.п.), остались бы от предыдущего
+            # документа, а не были бы честно пустыми. См. _reset_form().
+            if self.main_window.equipment_type.id == "pipeline":
+                self.main_window._reset_form()
+
             # Заполнение UI данными
             self._fill_ui_from_project(project)
-            
+            self.main_window._current_document_path = Path(file_path)
+
+            # table_specialists заполняется выше generic-веткой TABLE_WIDGET
+            # (_fill_ui_from_project), но комбобоксы выбора специалиста
+            # (program_specialist и т.п.) сами по себе не обновляются --
+            # раньше это происходило при переключении вкладки, вкладок
+            # больше нет, см. MainWindow._refresh_program_specialist_combo().
+            # saved_indices -- какую строку table_specialists выбрать в
+            # каждом комбобоксе -- восстанавливаем из report_data, иначе
+            # выбор всегда откатывался на первую строку (комбобоксы ещё
+            # пустые в момент _fill_ui_from_project(), собственного
+            # "текущего выбора" сохранить не могут).
+            if self.main_window.equipment_type.id == "pipeline":
+                saved_indices = {
+                    name: project.report_data.get(name)
+                    for name in self.main_window.SPECIALIST_COMBO_NAMES
+                }
+                self.main_window._refresh_program_specialist_combo(saved_indices)
+
             self.main_window.show_message(
                 "Успех",
                 f"Проект загружен из {file_path}",
@@ -332,6 +484,16 @@ class FileHandler:
         equipment_type_id = self.main_window.equipment_type.id
         form_data = self.main_window.get_form_data()
 
+        if equipment_type_id == "pipeline":
+            # employee_id сотрудника справочника «Сотрудники» для каждой
+            # строки table_specialists, по порядку строк -- не Qt-виджет и
+            # не входит в TABLE_WIDGET/get_form_data(), сохраняем отдельно,
+            # чтобы связь со специалистом (и его клише) пережила «Открыть
+            # проект», см. _add_specialist_row()/_fill_ui_from_project().
+            form_data["specialists_employee_ids"] = list(
+                self.main_window._specialist_employee_ids
+            )
+
         if equipment_type_id != "balloon":
             # Для не-баллонных типов таблицы уже внутри form_data (см.
             # get_form_data() -- TABLE_WIDGET кладётся туда же), отдельное
@@ -369,7 +531,16 @@ class FileHandler:
         from PyQt6.QtCore import QDate, QLocale
         
         # Заполнение форм данными из report_data
+        specialist_combo_names = getattr(self.main_window, "SPECIALIST_COMBO_NAMES", ())
         for key, value in project.report_data.items():
+            if key in specialist_combo_names:
+                # Индекс строки table_specialists, не текст -- setCurrentText()
+                # ниже был бы бессмысленным вызовом на ещё пустом комбобоксе
+                # (сам список пунктов появляется только в
+                # _refresh_specialist_combo(), после этого цикла). Восстановление
+                # -- отдельным проходом после _refresh_program_specialist_combo(),
+                # см. вызывающую сторону (open_project_json()/_open_document()).
+                continue
             widget = getattr(self.main_window, key, None)
             if widget is not None:
                 if hasattr(widget, 'setPlainText'):
@@ -403,9 +574,24 @@ class FileHandler:
                                 year = int(date_parts[2])
                                 widget.setDate(QDate(year, month, day))
                             else:
-                                # Если не удалось, пробуем через QLocale
+                                # get_form_data() (main_window.py) пишет сюда не
+                                # "голую" dd MMMM yyyy, а текст для самого
+                                # Word-документа: «19» августа 2026 г. (report_date,
+                                # ёлочки-кавычки) или 19 августа 2026 г. (остальные
+                                # даты трубопровода, суффикс " г.") -- один и тот же
+                                # словарь report_data уходит и в шаблон, и в JSON
+                                # проекта. QLocale.toDate() со строгим форматом
+                                # 'dd MMMM yyyy' не прощает ни кавычки, ни суффикс
+                                # -- без очистки дата не парсилась НИКОГДА (кроме
+                                # final_deadline_date, у него в шаблоне уже своё
+                                # "года", суффикс не добавляется), а widget молча
+                                # оставался с прежним значением (по умолчанию --
+                                # сегодняшняя дата).
+                                cleaned = value.replace('«', '').replace('»', '').strip()
+                                if cleaned.endswith(' г.'):
+                                    cleaned = cleaned[:-len(' г.')].strip()
                                 locale = QLocale('ru_RU')
-                                date = locale.toDate(value, 'dd MMMM yyyy')
+                                date = locale.toDate(cleaned, 'dd MMMM yyyy')
                                 if date.isValid():
                                     widget.setDate(date)
                         except (ValueError, IndexError):
@@ -446,6 +632,17 @@ class FileHandler:
                             table.setItem(row_idx, col_idx, QTableWidgetItem(str(cell_text)))
 
             if self.main_window.equipment_type.id == "pipeline":
+                # employee_id по строкам table_specialists (см. _create_project())
+                # -- восстанавливаем после того, как generic-цикл выше уже
+                # воссоздал строки таблицы, длину приводим к фактическому
+                # числу строк (обрезаем/дополняем None) на случай старого
+                # проекта без этого поля или отредактированного вручную JSON.
+                saved_specialist_ids = project.report_data.get("specialists_employee_ids", [])
+                specialists_row_count = self.main_window.table_specialists.rowCount()
+                self.main_window._specialist_employee_ids = (
+                    list(saved_specialist_ids) + [None] * specialists_row_count
+                )[:specialists_row_count]
+
                 # Схема НК (Приложение 7) -- не виджет, generic-цикл выше её
                 # не восстанавливает (getattr(main_window, "nk_scheme_filename")
                 # не находит widget), нужен явный шаг.
@@ -457,3 +654,12 @@ class FileHandler:
                 pnevmo_graph_filename = project.report_data.get("pnevmo_graph_filename")
                 self.main_window.data["pnevmo_graph_filename"] = pnevmo_graph_filename
                 self.main_window._set_pnevmo_graph_preview(pnevmo_graph_filename)
+
+                # "Зеркала, пока не тронуты" (calc_years_operation и др., см.
+                # MainWindow._sync_mirror_field()) восстановлены выше generic-
+                # веткой как обычный текст -- их внутреннее состояние
+                # "тронуто/не тронуто" в JSON не попадает, без явного
+                # восстановления оно осталось бы неинициализированным, и
+                # правка source-поля (например years_of_operation) после
+                # открытия проекта переставала бы подхватываться.
+                self.main_window._seed_mirror_states_after_load()

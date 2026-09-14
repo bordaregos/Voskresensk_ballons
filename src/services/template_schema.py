@@ -289,6 +289,7 @@ PIPELINE_SCHEMA = ReportSchema(
                 FieldLabel("Должность", "programm_specialist_position"),
                 FieldLabel("ФИО", "programm_specialist_name_initials"),
                 FieldLabel("Удостоверение", "programm_specialist_cert_number"),
+                FieldLabel("Клише", "programm_specialist_kleishe"),
             ],
         ),
         RepeatingTableSection(
@@ -316,6 +317,7 @@ PIPELINE_SCHEMA = ReportSchema(
                 FieldLabel("Должность", "act2_specialist_position"),
                 FieldLabel("ФИО", "act2_specialist_name_initials"),
                 FieldLabel("Удостоверение", "act2_specialist_cert_number"),
+                FieldLabel("Клише", "act2_specialist_kleishe"),
             ],
         ),
         RepeatingTableSection(
@@ -349,6 +351,7 @@ PIPELINE_SCHEMA = ReportSchema(
                 FieldLabel("Должность", "vik_specialist_position"),
                 FieldLabel("ФИО", "vik_specialist_name_initials"),
                 FieldLabel("Удостоверение", "vik_specialist_cert_number"),
+                FieldLabel("Клише", "vik_specialist_kleishe"),
             ],
         ),
         RepeatingTableSection(
@@ -377,6 +380,7 @@ PIPELINE_SCHEMA = ReportSchema(
                 FieldLabel("Должность", "thick_specialist_position"),
                 FieldLabel("ФИО", "thick_specialist_name_initials"),
                 FieldLabel("Удостоверение", "thick_specialist_cert_number"),
+                FieldLabel("Клише", "thick_specialist_kleishe"),
             ],
         ),
         RepeatingTableSection(
@@ -406,6 +410,7 @@ PIPELINE_SCHEMA = ReportSchema(
                 FieldLabel("Должность", "uzk_specialist_position"),
                 FieldLabel("ФИО", "uzk_specialist_name_initials"),
                 FieldLabel("Удостоверение", "uzk_specialist_cert_number"),
+                FieldLabel("Клише", "uzk_specialist_kleishe"),
             ],
         ),
         FieldsTableSection(
@@ -442,6 +447,7 @@ PIPELINE_SCHEMA = ReportSchema(
                 FieldLabel("Должность", "calc_specialist_position"),
                 FieldLabel("ФИО", "calc_specialist_name_initials"),
                 FieldLabel("Удостоверение", "calc_specialist_cert_number"),
+                FieldLabel("Клише", "calc_specialist_kleishe"),
             ],
         ),
         FieldsTableSection(
@@ -524,6 +530,7 @@ PIPELINE_SCHEMA = ReportSchema(
                 FieldLabel("Должность", "pnevmo_specialist_position"),
                 FieldLabel("ФИО", "pnevmo_specialist_name_initials"),
                 FieldLabel("Удостоверение", "pnevmo_specialist_cert_number"),
+                FieldLabel("Клише", "pnevmo_specialist_kleishe"),
             ],
         ),
         # Приложение 9 -- своя QGroupBox (ae_zakl_group) в UI, идёт следом за
@@ -559,6 +566,7 @@ PIPELINE_SCHEMA = ReportSchema(
                 FieldLabel("Должность", "ae_zakl_specialist_position"),
                 FieldLabel("ФИО", "ae_zakl_specialist_name_initials"),
                 FieldLabel("Удостоверение", "ae_zakl_specialist_cert_number"),
+                FieldLabel("Клише", "ae_zakl_specialist_kleishe"),
             ],
         ),
         FieldsTableSection(
@@ -586,6 +594,7 @@ PIPELINE_SCHEMA = ReportSchema(
                 FieldLabel("Должность", "lead_specialist_position"),
                 FieldLabel("Подпись", "lead_specialist_name_initials"),
                 FieldLabel("Удостоверение", "lead_specialist_cert_number"),
+                FieldLabel("Клише", "lead_specialist_kleishe"),
             ],
         ),
     ],

@@ -2,9 +2,10 @@
 
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QPlainTextEdit, QComboBox,
                              QPushButton, QSpinBox, QDateEdit, QTableWidgetItem, QTableWidget,
-                             QMessageBox, QFileDialog)
-from PyQt6.QtCore import QLocale, Qt, QDate
-from PyQt6.QtGui import QPixmap
+                             QMessageBox, QFileDialog, QGroupBox,
+                             QTreeWidgetItem, QInputDialog, QMenu)
+from PyQt6.QtCore import QLocale, Qt, QDate, QPointF, QTimer
+from PyQt6.QtGui import QPixmap, QIcon, QPainter, QColor, QPen
 from PyQt6.uic import loadUi
 from typing import Dict, Union
 from pathlib import Path
@@ -12,6 +13,9 @@ from docx.shared import Mm
 from docxtpl import DocxTemplate, InlineImage, RichText
 
 import os
+import re
+import subprocess
+import html
 
 from ..equipment_types import EquipmentType, REGISTRY
 from ..services.calculations import (
@@ -35,7 +39,12 @@ from ..services.calculations_pipeline import (
     get_allowable_stress,
     SegmentSpec,
 )
-from ..services.employees_store import store_kleishe_image
+from ..services.employees_store import (
+    store_kleishe_image, load_employees, resolve_kleishe_path, find_employee_id_by_name,
+)
+from ..services.docx_layout import float_drawings_behind_text
+from ..services import workspace
+from ..models.project import Project
 from ..config import NK_SCHEME_DIR, PNEVMO_GRAPH_DIR
 from .widget_names_pipeline import SEGMENT_TYPES, PROGRAM_DEFAULT_ITEMS, AE_CLASS_TYPES
 
@@ -56,6 +65,7 @@ class MainWindow(QMainWindow):
         self.s_min_lst = []
         self.file_handler = None
         self._completed_steps = set()
+        self._current_document_path = None
 
         self.equipment_type = equipment_type
         self.PLAIN_TEXT_EDIT_NAMES = equipment_type.widget_names.PLAIN_TEXT_EDIT_NAMES
@@ -91,12 +101,41 @@ class MainWindow(QMainWindow):
             self.pushButt_tverdost.clicked.connect(self.tverdost)
             self.pushButton_importCSV.clicked.connect(self.import_csv)
         elif equipment_type.id == "pipeline":
+            # Комбобоксы выбора специалиста (Приложения 1-6, 8, 9) --
+            # хранят не текст, а индекс строки table_specialists (см.
+            # _refresh_specialist_combo()), поэтому не входят ни в один
+            # список widget_names_pipeline.py. Из-за этого выбор нигде
+            # не попадал в JSON проекта и при открытии всегда откатывался
+            # на первую строку -- см. get_form_data()/_fill_ui_from_project()
+            # в file_handler.py и _refresh_program_specialist_combo() ниже.
+            self.SPECIALIST_COMBO_NAMES = [
+                "program_specialist", "act2_specialist", "vik_specialist",
+                "thick_specialist", "uzk_specialist", "calc_specialist",
+                "pnevmo_specialist", "ae_zakl_specialist",
+            ]
+            # employee_id сотрудника из справочника «Сотрудники» для каждой
+            # строки table_specialists, по порядку строк -- см.
+            # _add_specialist_row()/_remove_specialist_row(). Не входит ни в
+            # TABLE_WIDGET, ни в один список widget_names_pipeline.py --
+            # сохраняется/восстанавливается отдельно, см. file_handler.py.
+            self._specialist_employee_ids = []
+            # Префиксы плейсхолдеров подписи, для которых в шаблон
+            # подставляется клише специалиста (InlineImage), см. calculate()
+            # и _specialist_kleishe_image(). lead_specialist -- всегда первая
+            # строка table_specialists, остальные 8 -- SPECIALIST_COMBO_NAMES
+            # (program_specialist -> programm_specialist_* и т.п., названия
+            # плейсхолдеров исторически с двумя "м", см. calculate()).
+            self.KLEISHE_ROLE_PREFIXES = [
+                "lead_specialist", "programm_specialist", "act2_specialist",
+                "vik_specialist", "thick_specialist", "uzk_specialist",
+                "calc_specialist", "pnevmo_specialist", "ae_zakl_specialist",
+            ]
             self.pushButt_segments.clicked.connect(self.fill_segments_table)
             self.pushButton_genThickness.clicked.connect(self.calc_pipeline_thickness)
             self.pushButton_calcStrength.clicked.connect(self.calc_pipeline_strength_ui)
             self.pushButton_calcResidualLife.clicked.connect(self.calc_pipeline_residual_life_ui)
             self.pushButt_addSpecialist.clicked.connect(self._add_specialist_row)
-            self.pushButt_removeSpecialist.clicked.connect(lambda: self._remove_table_row(self.table_specialists))
+            self.pushButt_removeSpecialist.clicked.connect(self._remove_specialist_row)
             self.pushButt_addReviewedDoc.clicked.connect(lambda: self._add_table_row(self.table_reviewed_docs))
             self.pushButt_removeReviewedDoc.clicked.connect(lambda: self._remove_table_row(self.table_reviewed_docs))
             self.pushButt_addDocSection5.clicked.connect(lambda: self._add_table_row(self.table_docs_section5))
@@ -122,14 +161,16 @@ class MainWindow(QMainWindow):
             self.obj_naznach.textChanged.connect(self._update_pnevmo_obj_naznach_display)
             self.pnevmo_obj_naznach.textChanged.connect(self._update_ae_zakl_obj_control_display)
             self.pnevmo_date.dateChanged.connect(self._update_ae_zakl_date_display)
+            self.report_date.dateChanged.connect(self._update_ae_zakl_report_date_display)
             self.pnevmo_pressure.textChanged.connect(self._update_pnevmo_pressure_hint)
             self.pnevmo_pressure.textChanged.connect(self._update_result_76_pressure)
             self.final_years_allowed.textChanged.connect(self._update_final_deadline_date)
             self.report_year.textChanged.connect(self._update_final_deadline_date)
+            self.report_year.textChanged.connect(self._update_years_of_operation_display)
+            self.year_start.textChanged.connect(self._update_years_of_operation_display)
             self.pushButt_addProgramItem.clicked.connect(self._add_program_item_row)
             self.pushButt_addProgramSubitem.clicked.connect(self._add_program_subitem_row)
             self.pushButt_removeProgramRow.clicked.connect(self._remove_program_row)
-            self.tabWidget.currentChanged.connect(self._refresh_program_specialist_combo)
             self._seed_program_table_defaults()
             self.pushButt_chooseNkScheme.clicked.connect(self._choose_nk_scheme)
             self.pushButt_clearNkScheme.clicked.connect(self._clear_nk_scheme)
@@ -147,11 +188,103 @@ class MainWindow(QMainWindow):
             from .instruments_tab import InstrumentsTabController
             self.instruments_tab = InstrumentsTabController(self)
 
-            # «Сотрудники» и «Приборы» — общие справочники компании, не
-            # часть текущего отчёта: кнопки генерации Word и работы с
-            # проектом там неуместны.
-            self.tabWidget.currentChanged.connect(self._update_report_buttons_visibility)
-            self._update_report_buttons_visibility()
+            from .orgdocs_tab import OrgDocsTabController
+            self.orgdocs_tab = OrgDocsTabController(self)
+
+            # Сайдбар: переключатели «Сотрудники»/«Приборы»/«Документы» —
+            # общие справочники компании, не часть текущего отчёта: кнопки
+            # генерации Word и работы с проектом там неуместны, см.
+            # _update_report_buttons_visibility(). Дерево объектов/
+            # документов (objectsTree) — навигация внутри "document".
+            self.sidebarBtn_employees.clicked.connect(lambda: self._switch_view("employees"))
+            self.sidebarBtn_instruments.clicked.connect(lambda: self._switch_view("instruments"))
+            self.sidebarBtn_orgdocs.clicked.connect(lambda: self._switch_view("orgdocs"))
+            self._current_view = "document"
+
+            # Дерево "объект (папка) -> документ (.json внутри неё)" --
+            # см. src/services/workspace.py. Клик по документу открывает
+            # его (см. _open_document()); клик по объекту — стандартное
+            # разворачивание/сворачивание QTreeWidget, ничего сверху не
+            # навешено.
+            self.sidebarBtn_createObject.clicked.connect(self._create_object_dialog)
+            self.sidebarBtn_createDocument.clicked.connect(self._create_document_dialog)
+            self.sidebarBtn_templates.clicked.connect(self._show_templates_menu)
+            self.objectsTree.itemClicked.connect(self._on_objects_tree_item_clicked)
+            self.objectsTree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+            self.objectsTree.customContextMenuRequested.connect(self._show_objects_tree_context_menu)
+            self._refresh_objects_tree()
+            self.sidebarSearchBox.textChanged.connect(self._filter_objects_tree)
+            self._sidebar_collapsed = False
+            # mainSplitter -- три ребёнка (revealStrip, sidebar, viewStack,
+            # Фаза 7), sizes должен покрывать все три -- список короче
+            # count() даёт непредсказуемое распределение (найдено
+            # реальным багом: sidebar защёлкивался на maximumWidth=400
+            # вместо заданных 240, потому что setSizes([240, 760]) на
+            # трёх виджетах интерпретировался не так, как рассчитывали).
+            self._sidebar_expanded_sizes = [0, 240, 760]
+            self.sidebarBtn_collapse.clicked.connect(self._toggle_sidebar)
+            self.sidebarBtn_expand.clicked.connect(self._toggle_sidebar)
+            # sidebarBtn_pin -- чисто визуальный тумблер, как и в
+            # референсе (togglePin() там тоже только перекрашивает
+            # иконку, без функционального эффекта): checkable=true +
+            # QPushButton:checked в styleSheet (.ui) уже даёт нужный вид
+            # сам, без единой строки кода здесь.
+
+            # Оглавление документа (Фаза 6): вложено в objectsTree как
+            # дочерние строки открытого документа -- список groupbox'ов
+            # статичен (не зависит от того, какой документ открыт,
+            # форма всегда одна и та же), берётся из самой ленты
+            # tab_document, а не хардкодится -- если разделы переставят
+            # в Designer'е, список подстроится сам. Клики по строкам TOC
+            # идут через тот же objectsTree.itemClicked, что и по
+            # объектам/документам -- см. _on_objects_tree_item_clicked().
+            self._suppress_toc_spy = False
+            self._toc_groupboxes = self._collect_toc_groupboxes()
+            self._current_toc_items = []
+            self._current_toc_active_item = None
+            self._toc_check_icon = self._make_check_icon()
+            self._toc_circle_icon = self._make_circle_icon()
+            self._toc_lock_icon = self._make_lock_icon()
+            self.tab_document_scroll.verticalScrollBar().valueChanged.connect(self._on_document_scrolled)
+
+            # Индикатор несохранённых изменений (Фаза 5.4) -- точка на
+            # строке текущего документа в objectsTree.
+            self._document_dirty = False
+            self._dirty_icon = self._make_dot_icon("#e0983c")
+            self._connect_dirty_tracking()
+
+            # Ширина сайдбара задаётся кодом: .ui-формат не умеет
+            # сериализовать QSplitter.sizes (нет XML-типа под QList<int>).
+            # Диапазон перетаскивания ограничен minimumSize/maximumSize
+            # самого sidebar (180..400 px в .ui). Индексы -- по составу
+            # mainSplitter после Фазы 7: 0=revealStrip, 1=sidebar,
+            # 2=viewStack; растягивается при изменении размера окна
+            # только форма (индекс 2), сайдбар держит выставленную
+            # ширину.
+            self.mainSplitter.setSizes(self._sidebar_expanded_sizes)
+            self.mainSplitter.setStretchFactor(0, 0)
+            self.mainSplitter.setStretchFactor(1, 0)
+            self.mainSplitter.setStretchFactor(2, 1)
+            # Ручка перетаскивания шире дефолтной (~3-4px) -- за неё
+            # неудобно было попасть мышью, отсюда и ощущение, что
+            # ширину нельзя менять руками.
+            self.mainSplitter.setHandleWidth(6)
+
+            # Нижняя панель -- три равные колонки, как в референсе.
+            # <property name="stretch"> в .ui не сработал бы: uic.loadUi()
+            # (в отличие от кодогенератора pyuic6) не умеет разбирать
+            # строку "1,1,1" для QHBoxLayout.setStretch(), падает на
+            # старте (проверено headless-тестом) -- выставляется кодом.
+            for i in range(self.bottom_buttons.count()):
+                self.bottom_buttons.setStretch(i, 1)
+
+            # Устанавливает начальный вид -- при запуске ни один документ
+            # ещё не открыт (_current_document_path is None), TOC-строк
+            # в дереве нет (появляются в _open_document()).
+            self._switch_view("document")
+            self.breadcrumbLabel.setOpenExternalLinks(False)
+            self.breadcrumbLabel.linkActivated.connect(self._on_breadcrumb_link_activated)
+            self._update_breadcrumb()
 
     def init_file_handler(self):
         """Инициализация FileHandler для импорта/экспорта."""
@@ -214,6 +347,16 @@ class MainWindow(QMainWindow):
         for name in self.COMBO_BOX_NAMES:
             widget = getattr(self, name)
             self.data[name] = widget.currentText()
+
+        # Комбобоксы выбора специалиста (только трубопровод) -- хранят
+        # индекс строки table_specialists (currentData()), а не текст,
+        # поэтому не в COMBO_BOX_NAMES. Сохраняем отдельно, иначе выбор
+        # не переживает "Сохранить проект" -> "Открыть проект" и после
+        # открытия откатывается на первую строку, см.
+        # FileHandler._fill_ui_from_project()/_refresh_program_specialist_combo().
+        for name in getattr(self, "SPECIALIST_COMBO_NAMES", []):
+            widget = getattr(self, name)
+            self.data[name] = widget.currentData()
 
         # Получаем текст из QSpinBox.
         for name in self.SPIN_BOX_NAMES:
@@ -305,8 +448,26 @@ class MainWindow(QMainWindow):
                 )
                 # name_initials -- "И. О. Фамилия" для таблицы подписи после
                 # раздела 8 (Таблица 2 продолжает использовать полное "name").
-                for specialist in self.data["specialists"]:
+                # employee_id -- сотрудник справочника «Сотрудники», из
+                # которого взята эта строка (см. _add_specialist_row()),
+                # нужен ниже для подстановки клише (InlineImage) в каждое из
+                # 9 мест подписи, см. _specialist_kleishe_image(). Если связи
+                # нет (строка вписана вручную или сохранена в project.json
+                # до появления привязки к справочнику) -- пробуем найти
+                # сотрудника по точному совпадению ФИО, иначе документы,
+                # набранные раньше этой доработки, никогда не получили бы
+                # клише, хотя вписанное ФИО совпадает с сотрудником в
+                # справочнике буква в букву.
+                roster = load_employees()
+                for row, specialist in enumerate(self.data["specialists"]):
                     specialist["name_initials"] = format_fio_initials(specialist["name"])
+                    employee_id = (
+                        self._specialist_employee_ids[row]
+                        if row < len(self._specialist_employee_ids) else None
+                    )
+                    if not employee_id:
+                        employee_id = find_employee_id_by_name(roster, specialist["name"])
+                    specialist["employee_id"] = employee_id
 
                 # Таблица подписи после раздела 8 -- подписывает только один
                 # (первый по списку) специалист, не цикл по всем; см.
@@ -322,6 +483,7 @@ class MainWindow(QMainWindow):
                 self.data["lead_specialist_position"] = lead_specialist["position"]
                 self.data["lead_specialist_name_initials"] = lead_specialist["name_initials"]
                 self.data["lead_specialist_cert_number"] = lead_specialist["cert_number_short"]
+                self.data["lead_specialist_employee_id"] = lead_specialist["employee_id"]
 
                 # "Программу составил" (Приложение 1) -- специалиста выбирает
                 # оператор через program_specialist (индекс строки Таблицы 2),
@@ -339,6 +501,7 @@ class MainWindow(QMainWindow):
                 self.data["programm_specialist_position"] = programm_specialist["position"]
                 self.data["programm_specialist_name_initials"] = programm_specialist["name_initials"]
                 self.data["programm_specialist_cert_number"] = programm_specialist["cert_number_short"]
+                self.data["programm_specialist_employee_id"] = programm_specialist["employee_id"]
 
                 # "Анализ документации провёл" (Приложение 2) -- тот же
                 # паттерн, что и "Программу составил" выше.
@@ -355,6 +518,7 @@ class MainWindow(QMainWindow):
                 self.data["act2_specialist_position"] = act2_specialist["position"]
                 self.data["act2_specialist_name_initials"] = act2_specialist["name_initials"]
                 self.data["act2_specialist_cert_number"] = act2_specialist["cert_number_short"]
+                self.data["act2_specialist_employee_id"] = act2_specialist["employee_id"]
 
                 # "Контроль провёл" (Приложение 3) -- тот же паттерн.
                 vik_specialist_idx = self.vik_specialist.currentData()
@@ -370,6 +534,7 @@ class MainWindow(QMainWindow):
                 self.data["vik_specialist_position"] = vik_specialist["position"]
                 self.data["vik_specialist_name_initials"] = vik_specialist["name_initials"]
                 self.data["vik_specialist_cert_number"] = vik_specialist["cert_number_short"]
+                self.data["vik_specialist_employee_id"] = vik_specialist["employee_id"]
 
                 # "Измерение провёл" (Приложение 4) -- тот же паттерн.
                 thick_specialist_idx = self.thick_specialist.currentData()
@@ -385,6 +550,7 @@ class MainWindow(QMainWindow):
                 self.data["thick_specialist_position"] = thick_specialist["position"]
                 self.data["thick_specialist_name_initials"] = thick_specialist["name_initials"]
                 self.data["thick_specialist_cert_number"] = thick_specialist["cert_number_short"]
+                self.data["thick_specialist_employee_id"] = thick_specialist["employee_id"]
 
                 # "Измерение провёл" (Приложение 5) -- тот же паттерн.
                 uzk_specialist_idx = self.uzk_specialist.currentData()
@@ -400,6 +566,7 @@ class MainWindow(QMainWindow):
                 self.data["uzk_specialist_position"] = uzk_specialist["position"]
                 self.data["uzk_specialist_name_initials"] = uzk_specialist["name_initials"]
                 self.data["uzk_specialist_cert_number"] = uzk_specialist["cert_number_short"]
+                self.data["uzk_specialist_employee_id"] = uzk_specialist["employee_id"]
 
                 # "Расчёт выполнил" (Приложение 6) -- тот же паттерн.
                 calc_specialist_idx = self.calc_specialist.currentData()
@@ -415,6 +582,7 @@ class MainWindow(QMainWindow):
                 self.data["calc_specialist_position"] = calc_specialist["position"]
                 self.data["calc_specialist_name_initials"] = calc_specialist["name_initials"]
                 self.data["calc_specialist_cert_number"] = calc_specialist["cert_number_short"]
+                self.data["calc_specialist_employee_id"] = calc_specialist["employee_id"]
 
                 # "Контроль выполнил" (Приложение 8) -- тот же паттерн.
                 pnevmo_specialist_idx = self.pnevmo_specialist.currentData()
@@ -430,6 +598,7 @@ class MainWindow(QMainWindow):
                 self.data["pnevmo_specialist_position"] = pnevmo_specialist["position"]
                 self.data["pnevmo_specialist_name_initials"] = pnevmo_specialist["name_initials"]
                 self.data["pnevmo_specialist_cert_number"] = pnevmo_specialist["cert_number_short"]
+                self.data["pnevmo_specialist_employee_id"] = pnevmo_specialist["employee_id"]
 
                 # "Заключение составил" (Приложение 9) -- тот же паттерн.
                 ae_zakl_specialist_idx = self.ae_zakl_specialist.currentData()
@@ -445,6 +614,7 @@ class MainWindow(QMainWindow):
                 self.data["ae_zakl_specialist_position"] = ae_zakl_specialist["position"]
                 self.data["ae_zakl_specialist_name_initials"] = ae_zakl_specialist["name_initials"]
                 self.data["ae_zakl_specialist_cert_number"] = ae_zakl_specialist["cert_number_short"]
+                self.data["ae_zakl_specialist_employee_id"] = ae_zakl_specialist["employee_id"]
 
                 # Таблица 1 (Приложение 8, п.11) -- список словарей под
                 # {%tr for %} в шаблоне; колонки: 0 -- ПАЭ №, 1 -- Нагрузка,
@@ -509,7 +679,30 @@ class MainWindow(QMainWindow):
                 else:
                     form_data["pnevmo_graph_image"] = ""
 
+                # Клише специалиста (картинка из справочника «Сотрудники»,
+                # см. EmployeesTabController) в каждое из 9 мест подписи --
+                # тот же приём, не обязательно (сотрудник мог не загрузить
+                # клише, а специалист может быть не найден в справочнике
+                # даже через find_employee_id_by_name() выше). roster --
+                # тот же справочник, что уже читали выше для employee_id.
+                # kleishe_paths_used -- для _float_kleishe_drawings_behind_
+                # text() ниже, после рендера.
+                kleishe_paths_used = set()
+                for prefix in self.KLEISHE_ROLE_PREFIXES:
+                    form_data[f"{prefix}_kleishe"] = self._specialist_kleishe_image(
+                        doc, roster, self.data.get(f"{prefix}_employee_id"), kleishe_paths_used
+                    )
+
             doc.render(form_data)
+
+            if self.equipment_type.id == "pipeline":
+                # Клише должно быть "за текстом" (Word: Обтекание текстом ->
+                # За текстом), а не обычной инлайн-картинкой, растягивающей
+                # ячейку -- docxtpl не умеет вставлять плавающие картинки
+                # напрямую, поэтому уже отрисованный XML патчится постфактум,
+                # см. src/services/docx_layout.py. Размер (<wp:extent>) при
+                # этом не меняется -- переносится тот же узел, а не пересоздаётся.
+                self._float_kleishe_drawings_behind_text(doc, kleishe_paths_used)
 
             # 5. Генерируем имя файла
             if self.equipment_type.id == "balloon":
@@ -1038,9 +1231,11 @@ class MainWindow(QMainWindow):
         pnevmo_obj_naznach/ae_zakl_obj_control сюда не входят -- они теперь
         самостоятельные редактируемые поля, см.
         _update_pnevmo_obj_naznach_display()/_update_ae_zakl_obj_control_display().
-        ae_zakl_date_display тоже сюда не входит -- обновляется сразу по
-        pnevmo_date.dateChanged, см. _update_ae_zakl_date_display() (раньше
-        ждало переключения вкладки, из-за чего показывало старую дату)."""
+        ae_zakl_date_display и ae_zakl_report_date_display тоже сюда не
+        входят -- обновляются сразу по dateChanged (pnevmo_date и
+        report_date соответственно), см. _update_ae_zakl_date_display()/
+        _update_ae_zakl_report_date_display() (раньше ждали переключения
+        вкладки, из-за чего показывали старую дату)."""
         self.pnevmo_reg_number_display.setPlainText(self.reg_number.toPlainText())
         self.pnevmo_year_start_display.setPlainText(self.year_start.toPlainText())
         self.pnevmo_p_rab_display.setPlainText(self.p_rab_kgs.toPlainText())
@@ -1050,7 +1245,6 @@ class MainWindow(QMainWindow):
 
         # Приложение 9 -- те же исходные значения, тот же приём зеркал.
         self.ae_zakl_reg_number_display.setPlainText(self.reg_number.toPlainText())
-        self.ae_zakl_report_date_display.setPlainText(self.report_date.date().toString("dd.MM.yyyy"))
         self.ae_zakl_location_display.setPlainText(self.obj_location.toPlainText())
 
     def _update_ae_zakl_date_display(self):
@@ -1061,6 +1255,17 @@ class MainWindow(QMainWindow):
         после правки даты в Приложении 8 тут держалась старая дата (по
         умолчанию 01.01.2000) до следующего переключения вкладки."""
         self.ae_zakl_date_display.setPlainText(self.pnevmo_date.date().toString("dd.MM.yyyy"))
+
+    def _update_ae_zakl_report_date_display(self):
+        """Зеркалит report_date (титульный лист, "Дата отчёта") в
+        read-only ae_zakl_report_date_display (Приложение 9, "Дата
+        отчёта (к «УТВЕРЖДАЮ»)") сразу при изменении даты -- тот же
+        баг и тот же приём, что и в _update_ae_zakl_date_display(): без
+        прямой подписки на dateChanged поле держало дату по умолчанию
+        (01.01.2000) до переключения вкладки, из-за чего дата отчёта в
+        Приложении 9 расходилась с титульным листом, хотя оба места
+        рендерятся из одного и того же report_date в шаблоне .docx."""
+        self.ae_zakl_report_date_display.setPlainText(self.report_date.date().toString("dd.MM.yyyy"))
 
     def _update_pnevmo_obj_naznach_display(self):
         """Подсказка pnevmo_obj_naznach (Приложение 8, п.3 "Трубопровод
@@ -1103,16 +1308,32 @@ class MainWindow(QMainWindow):
         return ""
 
     def fill_segments_table(self):
-        """Заполнение таблицы участков трассы. STEP_ORDER: 'segments'."""
+        """Заполнение таблицы участков трассы. STEP_ORDER: 'segments'.
+
+        Идемпотентно: повторное нажатие (например, чтобы заново отметить
+        шаг выполненным после открытия сохранённого проекта -- см.
+        FileHandler) не затирает уже введённые тип элемента и типоразмер
+        существующих строк значениями по умолчанию, только достраивает
+        новые строки при увеличении segments_count."""
         count = self.segments_count.value()
-        size = self._first_pipe_material_value(3) or "-"
+        default_size = self._first_pipe_material_value(3) or "-"
         table = self.table_segments
+        existing_rows = table.rowCount()
         table.setRowCount(count)
         for row in range(count):
             table.setItem(row, 0, QTableWidgetItem(str(row + 1)))
-            self._install_segment_type_combo(table, row)
-            table.setItem(row, 2, QTableWidgetItem(size))
+            if row < existing_rows:
+                type_combo = table.cellWidget(row, 1)
+                current_type = type_combo.currentText() if type_combo else SEGMENT_TYPES[0]
+                size_item = table.item(row, 2)
+                current_size = size_item.text() if size_item and size_item.text() else default_size
+            else:
+                current_type = SEGMENT_TYPES[0]
+                current_size = default_size
+            self._install_segment_type_combo(table, row, current_type)
+            table.setItem(row, 2, QTableWidgetItem(current_size))
         self._completed_steps.add("segments")
+        self._update_toc_progress()
 
     def _read_segments(self):
         """Читает участки трассы из table_segments в список SegmentSpec."""
@@ -1167,6 +1388,7 @@ class MainWindow(QMainWindow):
             self.calc_sf.setPlainText(format_ru_fixed(s_fact_min, 2))
 
             self._completed_steps.add("thickness")
+            self._update_toc_progress()
 
         except ValueError as e:
             print(f"Ошибка ввода данных: {e}")
@@ -1190,13 +1412,23 @@ class MainWindow(QMainWindow):
                 )
             self.calc_steel_grade.setPlainText(steel_grade)
 
-            allowable_stress = get_allowable_stress(steel_grade, temp)
+            try:
+                allowable_stress = get_allowable_stress(steel_grade, temp)
+                self.calc_sigma_allow.setPlainText(format_ru(allowable_stress))
+            except (KeyError, ValueError) as e:
+                manual_value = self.calc_sigma_allow.toPlainText().strip()
+                if not manual_value:
+                    raise ValueError(
+                        f"{e} Введите [σ] вручную в поле «Допускаемое "
+                        "напряжение [σ], МПа»."
+                    )
+                allowable_stress = parse_ru(manual_value)
+
             result = calculate_pipeline_strength(
                 p_working=p_working, d_outer=d_outer, allowable_stress=allowable_stress,
                 s_actual=s_actual, c2=c2, phi=phi,
             )
 
-            self.calc_sigma_allow.setPlainText(format_ru(allowable_stress))
             self.calc_sr.setPlainText(format_ru(result.s_calc))
             self.calc_s_reject.setPlainText(format_ru(result.s_reject))
             self.calc_p_allow.setPlainText(format_ru(result.p_allow))
@@ -1205,6 +1437,7 @@ class MainWindow(QMainWindow):
                 else "Условие прочности не выполняется"
             )
             self._completed_steps.add("strength")
+            self._update_toc_progress()
 
         except (ValueError, KeyError) as e:
             print(f"Ошибка ввода данных: {e}")
@@ -1249,6 +1482,7 @@ class MainWindow(QMainWindow):
                 self.final_years_allowed.setPlainText(str(int(result.remaining_years)))
 
             self._completed_steps.add("residual_life")
+            self._update_toc_progress()
 
         except ValueError as e:
             print(f"Ошибка ввода данных: {e}")
@@ -1306,16 +1540,112 @@ class MainWindow(QMainWindow):
         table.setCellWidget(row, col, combo)
 
     def _add_specialist_row(self):
-        """Добавляет строку в table_specialists и сразу устанавливает в неё
-        4 редактируемых комбобокса (Должность, ФИО, Удостоверение,
-        Удостоверение (кратко)) -- см. _install_growable_combo(). Короткая
-        форма ("удостоверение № ... от ...") идёт в подписи после каждого
-        из 9 приложений, полная -- только в Таблицу 2 (1.3), см. calculate()."""
+        """Добавляет строку в table_specialists -- специалиста выбирают из
+        справочника «Сотрудники» (EmployeesTabController), а не вводят
+        текстом: так подтвердил пользователь, весь состав специалистов
+        отчёта должен идти через справочник (иначе для строки не с кем
+        связать клише -- см. _specialist_kleishe_image()). Если нужного
+        человека нет в справочнике -- его сначала заводят на вкладке
+        «Сотрудники».
+
+        4 ячейки по-прежнему QComboBox (редактируемый, как и раньше --
+        _cell_text()/_table_to_dicts() рассчитаны именно на этот тип), но
+        предзаполненные из Employee, а не пустые."""
+        employees = load_employees()
+        if not employees:
+            self.show_message(
+                "Справочник пуст",
+                "Сначала добавьте сотрудников на вкладке «Сотрудники» -- "
+                "специалисты отчёта выбираются оттуда.",
+                QMessageBox.Icon.Warning,
+            )
+            return
+
+        labels = [f"{e.position} — {e.full_name}" for e in employees]
+        label, ok = QInputDialog.getItem(
+            self, "Выбор специалиста", "Сотрудник:", labels, editable=False
+        )
+        if not ok:
+            return
+        employee = employees[labels.index(label)]
+
+        cert_full = ""
+        cert_short = ""
+        if employee.certificates:
+            cert_full = employee.certificates[0]
+            if len(employee.certificates) > 1:
+                cert_full, ok = QInputDialog.getItem(
+                    self, "Выбор удостоверения", "Удостоверение:",
+                    employee.certificates, editable=False,
+                )
+                if not ok:
+                    cert_full = employee.certificates[0]
+            match = re.search(r"№\s*\S+", cert_full)
+            cert_short = match.group(0) if match else cert_full
+
         table = self.table_specialists
         row = table.rowCount()
         table.insertRow(row)
-        for col in range(4):
-            self._install_growable_combo(table, row, col)
+        for col, text in enumerate((employee.position, employee.full_name, cert_full, cert_short)):
+            self._install_growable_combo(table, row, col, text)
+        self._specialist_employee_ids.append(employee.id)
+        self._refresh_program_specialist_combo()
+
+    def _remove_specialist_row(self):
+        """Удаляет выбранную строку table_specialists, синхронно убирает её
+        employee_id из _specialist_employee_ids (см. _add_specialist_row()) и
+        обновляет комбобоксы выбора специалиста (program_specialist и
+        т.п.) -- раньше эти комбобоксы обновлялись только при переключении
+        вкладки, теперь вкладок нет, обновление дергается прямо из точек,
+        где меняется table_specialists, см. _refresh_program_specialist_combo()."""
+        row = self.table_specialists.currentRow()
+        if row >= 0 and row < len(self._specialist_employee_ids):
+            self._specialist_employee_ids.pop(row)
+        self._remove_table_row(self.table_specialists)
+        self._refresh_program_specialist_combo()
+
+    def _specialist_kleishe_image(self, doc, employees, employee_id, used_paths):
+        """InlineImage клише сотрудника для подстановки в form_data (см.
+        calculate(), KLEISHE_ROLE_PREFIXES) -- тот же приём, что и
+        nk_scheme_image/pnevmo_graph_image: пустая строка, если клише нет
+        (сотрудник не выбран, не привязан к справочнику или не загрузил
+        клише), без ошибки рендера. Путь к файлу резолвит
+        resolve_kleishe_path() (src/services/employees_store.py).
+
+        used_paths -- set, куда добавляется путь картинки, если она
+        подставлена -- после doc.render() по нему находим rId вставленных
+        картинок для _float_kleishe_drawings_behind_text() (картинка клише
+        должна плавать "за текстом", а не как схема НК/график нагружения,
+        см. calculate()).
+
+        width/height не заданы намеренно -- InlineImage тогда берёт
+        реальный размер картинки (пиксели + DPI из самого файла, см.
+        docx.image.image.Image.width/height), а не произвольно
+        подогнанный -- раньше здесь стоял фиксированный width=Mm(30),
+        из-за чего клише в документе не совпадало по размеру с исходным
+        файлом."""
+        path = resolve_kleishe_path(employees, employee_id)
+        if not path:
+            return ""
+        used_paths.add(path)
+        return InlineImage(doc, str(path))
+
+    def _float_kleishe_drawings_behind_text(self, doc, used_paths):
+        """После doc.render() переводит уже вставленные картинки клише из
+        обычного инлайн-положения в плавающее "за текстом" (Word:
+        Обтекание текстом -> За текстом) -- без изменения размера. Только
+        клише -- схема НК/график нагружения (тоже InlineImage) не
+        затрагиваются, т.к. их rId в used_paths не попадают.
+
+        rId картинок определяем через get_or_add_image() -- она дедуплицирует
+        по содержимому так же, как это уже сделал docxtpl при рендере (см.
+        docx.parts.story.StoryPart.get_or_add_image()), поэтому для уже
+        вставленной картинки метод просто возвращает тот же rId, без
+        побочных эффектов."""
+        if not used_paths:
+            return
+        target_rids = {doc.part.get_or_add_image(str(path))[0] for path in used_paths}
+        float_drawings_behind_text(doc.docx, target_rids)
 
     def _add_pipe_material_row(self):
         """Добавляет строку в table_pipe_materials (Таблица 6 -- Сведения о
@@ -1412,7 +1742,7 @@ class MainWindow(QMainWindow):
                 sub += 1
                 item.setText(f"{top}.{sub}.")
 
-    def _refresh_program_specialist_combo(self):
+    def _refresh_program_specialist_combo(self, saved_indices=None):
         """Обновляет списки в program_specialist (поле "Программу составил",
         Приложение 1), act2_specialist (поле "Анализ документации провёл",
         Приложение 2), vik_specialist (поле "Контроль провёл", Приложение 3),
@@ -1420,33 +1750,42 @@ class MainWindow(QMainWindow):
         uzk_specialist (поле "Измерение провёл", Приложение 5),
         calc_specialist (поле "Расчёт выполнил", Приложение 6),
         pnevmo_specialist (поле "Контроль выполнил", Приложение 8) и
-        ae_zakl_specialist (поле "Заключение составил", Приложение 9) при
-        переключении на вкладку "Приложения" или "Расчёты" -- источник
-        вариантов для всех один и тот же: table_specialists (1.3 Сведения о
-        специалистах, Таблица 2). Ни один из комбобоксов не входит ни в один
+        ae_zakl_specialist (поле "Заключение составил", Приложение 9).
+        Источник вариантов для всех один и тот же: table_specialists (1.3
+        Сведения о специалистах, Таблица 2) -- вызывается прямо из точек,
+        где меняется эта таблица (_add_specialist_row/_remove_specialist_row),
+        плюс после загрузки проекта (см. file_handler.py) -- раньше
+        обновление держалось на переключении вкладки "Приложения"/"Расчёты",
+        вкладок больше нет. Ни один из комбобоксов не входит ни в один
         список widget_names_pipeline.py (как pnevmo_pressure_hint) -- каждый
         даёт индекс строки специалиста, а не текст для .docx напрямую,
         итоговые плейсхолдеры собирает calculate(). Заодно обновляет
-        read-only зеркала пункта 3 Приложения 8, см. _update_pnevmo_mirrors()."""
-        current_tab = self.tabWidget.widget(self.tabWidget.currentIndex())
-        if current_tab not in (self.tab_acts, self.tab_calc):
-            return
-        self._refresh_specialist_combo(self.program_specialist)
-        self._refresh_specialist_combo(self.act2_specialist)
-        self._refresh_specialist_combo(self.vik_specialist)
-        self._refresh_specialist_combo(self.thick_specialist)
-        self._refresh_specialist_combo(self.uzk_specialist)
-        self._refresh_specialist_combo(self.calc_specialist)
-        self._refresh_specialist_combo(self.pnevmo_specialist)
-        self._refresh_specialist_combo(self.ae_zakl_specialist)
+        read-only зеркала пункта 3 Приложения 8, см. _update_pnevmo_mirrors().
+
+        saved_indices -- необязательный dict {имя_комбобокса: индекс},
+        восстановленный из report_data при загрузке проекта (см.
+        FileHandler.open_project_json()/MainWindow._open_document()).
+        Перекрывает обычную логику "сохранить текущий выбор" в
+        _refresh_specialist_combo() -- для только что открытого документа
+        combo.currentData() всегда None (комбобоксы ещё не заполнены),
+        без этого выбор специалиста откатывался на первую строку."""
+        saved_indices = saved_indices or {}
+        for name in self.SPECIALIST_COMBO_NAMES:
+            self._refresh_specialist_combo(getattr(self, name), saved_indices.get(name))
         self._update_pnevmo_mirrors()
 
-    def _refresh_specialist_combo(self, combo):
+    def _refresh_specialist_combo(self, combo, desired=None):
         """Перезаполняет один комбобокс-выбор специалиста вариантами из
-        table_specialists, сохраняя текущий выбор (по индексу строки), если
-        он всё ещё существует -- общая логика для program_specialist и
-        act2_specialist, см. _refresh_program_specialist_combo()."""
-        previous = combo.currentData()
+        table_specialists, сохраняя выбор (по индексу строки), если он
+        всё ещё существует -- общая логика для program_specialist и
+        act2_specialist, см. _refresh_program_specialist_combo().
+
+        desired -- индекс строки, который нужно выставить явно (при
+        загрузке проекта, когда живого текущего выбора в ещё не
+        заполненном комбобоксе нет); по умолчанию берётся
+        combo.currentData() -- обычный случай live-редактирования
+        таблицы специалистов, когда выбор уже стоит в комбобоксе."""
+        previous = desired if desired is not None else combo.currentData()
         combo.blockSignals(True)
         combo.clear()
         for row in range(self.table_specialists.rowCount()):
@@ -1460,15 +1799,737 @@ class MainWindow(QMainWindow):
                 combo.setCurrentIndex(index)
         combo.blockSignals(False)
 
+    def _switch_view(self, view):
+        """Переключает viewStack между документом и общими справочниками
+        (Сотрудники/Приборы/Документы)."""
+        page = {
+            "document": self.tab_document,
+            "employees": self.tab_employees,
+            "instruments": self.tab_instruments,
+            "orgdocs": self.tab_orgdocs,
+        }[view]
+        self.viewStack.setCurrentWidget(page)
+        self._current_view = view
+        self._update_report_buttons_visibility()
+
+    def _reset_form(self):
+        """Очищает форму под новый/другой документ -- обратная операция к
+        get_form_data()/_fill_ui_from_project(), проходит по тем же
+        спискам виджетов (widget_names_pipeline.py и т.п.), только очищая
+        вместо чтения. Раньше такой возможности не было вообще -- "начать
+        заново" означало перезапустить приложение; нужна для переключения
+        между документами дерева объектов без перезапуска.
+
+        Комбобоксы намеренно НЕ .clear() -- это стёрло бы предзаполненные
+        варианты (у work_medium это единственный источник выбора: азот/
+        воздух/кислород/гелий/аргон, не растится вводом). setCurrentIndex(0)
+        воспроизводит тот же вид, что при самом первом запуске окна (ни у
+        одного из комбобоксов currentIndex в .ui не выставлен явно, Qt по
+        умолчанию показывает первый пункт).
+
+        _current_document_path обнуляется ДО очистки виджетов, а не после
+        -- сама очистка (setPlainText(""), setCurrentIndex(0) и т.п.)
+        дёргает те же сигналы, что и правки оператора, и без этого
+        _mark_dirty() успел бы ложно пометить грязным только что
+        сохранённый документ, который мы покидаем (см. Фаза 5.4)."""
+        self._current_document_path = None
+        for name in self.PLAIN_TEXT_EDIT_NAMES:
+            getattr(self, name).setPlainText("")
+        for name in self.COMBO_BOX_NAMES:
+            getattr(self, name).setCurrentIndex(0)
+        for name in self.DATE_EDIT_NAMES:
+            getattr(self, name).setDate(QDate.currentDate())
+        for name in self.SPIN_BOX_NAMES:
+            widget = getattr(self, name)
+            widget.setValue(widget.minimum())
+        for name in self.TABLE_WIDGET:
+            getattr(self, name).setRowCount(0)
+
+        self.data = {}
+        self._completed_steps = set()
+
+        if self.equipment_type.id == "pipeline":
+            self._seed_program_table_defaults()
+            self._specialist_employee_ids = []
+            self._current_toc_items = []
+            self._current_toc_active_item = None
+            self._update_breadcrumb()
+
+    def _refresh_objects_tree(self):
+        """Перестраивает objectsTree с нуля из файловой системы (см.
+        src/services/workspace.py) -- объекты как раскрывающиеся строки
+        верхнего уровня, документы внутри как дочерние, путь к файлу
+        документа лежит в Qt.ItemDataRole.UserRole. Вызывается при
+        старте и сразу после создания объекта/документа -- построение
+        дешёвое (десятки папок/файлов, не тысячи), отдельный кэш не
+        заводится."""
+        self.objectsTree.clear()
+        for object_name in workspace.list_objects():
+            object_item = QTreeWidgetItem([object_name])
+            self.objectsTree.addTopLevelItem(object_item)
+            object_dir = workspace.OUTPUT_DIR / object_name
+            for path, label in workspace.list_documents(object_dir, self.equipment_type.id):
+                doc_item = QTreeWidgetItem([label])
+                doc_item.setData(0, Qt.ItemDataRole.UserRole, path)
+                object_item.addChild(doc_item)
+            object_item.setExpanded(True)
+
+        # objectsTree.clear() выше уничтожает и дочерние строки
+        # оглавления под строкой текущего документа (см.
+        # _populate_document_toc()), а _current_toc_items/
+        # _current_toc_active_item эти QTreeWidgetItem не сбрасывает --
+        # без восстановления это висячие ссылки на удалённые C++
+        # объекты (падение "wrapped C/C++ object of type QTreeWidgetItem
+        # has been deleted" при следующем _update_breadcrumb()/
+        # _on_document_scrolled()). Отстраиваем TOC текущего документа
+        # заново, если он есть в новом дереве.
+        if self._current_document_path is not None:
+            doc_item = self._find_document_tree_item(self._current_document_path)
+            if doc_item is not None:
+                self._populate_document_toc(doc_item)
+
+    def _filter_objects_tree(self, text):
+        """Фильтр по вводу в sidebarSearchBox. Документ виден, если текст
+        совпал с ним самим ИЛИ с именем его объекта-папки (иначе поиск по
+        имени объекта прятал бы все документы внутри). Пустая строка --
+        показывает всё."""
+        text = text.strip().lower()
+        for i in range(self.objectsTree.topLevelItemCount()):
+            object_item = self.objectsTree.topLevelItem(i)
+            object_match = text in object_item.text(0).lower()
+            any_child_match = False
+            for j in range(object_item.childCount()):
+                doc_item = object_item.child(j)
+                doc_match = text in doc_item.text(0).lower()
+                doc_item.setHidden(bool(text) and not object_match and not doc_match)
+                any_child_match = any_child_match or doc_match
+            object_item.setHidden(bool(text) and not object_match and not any_child_match)
+
+    def _toggle_sidebar(self):
+        """Сворачивает/разворачивает сайдбар (Фаза 7, как в референсе) --
+        весь sidebar прячется целиком, вместо него показывается узкая
+        полоса revealStrip (22px) с одной кнопкой разворота. Оба виджета
+        -- постоянные дети mainSplitter (Фаза 4.3), переключается только
+        видимость -- QSplitter сам схлопывает скрытого ребёнка до 0 при
+        пересчёте раскладки, отдельно двигать min/maxWidth не нужно.
+        childrenCollapsible=false защищает только от случайного
+        схлопывания перетаскиванием мышью, программному setVisible() не
+        мешает."""
+        self._sidebar_collapsed = not self._sidebar_collapsed
+        self.sidebar.setVisible(not self._sidebar_collapsed)
+        self.revealStrip.setVisible(self._sidebar_collapsed)
+        if self._sidebar_collapsed:
+            self._sidebar_expanded_sizes = self.mainSplitter.sizes()
+        else:
+            self.mainSplitter.setSizes(self._sidebar_expanded_sizes)
+            self._switch_view(self._current_view)
+
+    def _on_objects_tree_item_clicked(self, item, column):
+        """Клик по строке objectsTree -- три вида строк, различаются
+        глубиной вложенности. Объект (папка, верхний уровень,
+        item.parent() is None) -- ничего не делаем, QTreeWidget сам
+        разворачивает/сворачивает. Документ (2-й уровень, UserRole --
+        путь к файлу) -- открываем его, см. _open_document(). Раздел
+        оглавления (3-й уровень, дочерний у документа, UserRole -- сам
+        groupbox, см. Фаза 6) -- скроллим к разделу, см.
+        _scroll_to_toc_item()."""
+        parent = item.parent()
+        if parent is None:
+            return
+        if parent.parent() is None:
+            path = item.data(0, Qt.ItemDataRole.UserRole)
+            self._open_document(path)
+        else:
+            self._scroll_to_toc_item(item)
+
+    def _show_objects_tree_context_menu(self, pos):
+        """ПКМ по objectsTree (Фаза 8) -- вид меню зависит от глубины
+        строки под курсором, как и в _on_objects_tree_item_clicked():
+        объект -> _show_folder_context_menu(), документ ->
+        _show_document_context_menu(), раздел TOC -- меню нет, там
+        нечем управлять."""
+        item = self.objectsTree.itemAt(pos)
+        if item is None:
+            return
+        parent = item.parent()
+        if parent is None:
+            self._show_folder_context_menu(item, pos)
+        elif parent.parent() is None:
+            self._show_document_context_menu(item, pos)
+
+    def _show_document_context_menu(self, item, pos):
+        """ПКМ по строке документа. «Переименовать» из референсного
+        мокапа (docs/design/pipeline_sidebar_mockup.html) отдельным
+        пунктом меню не реализовано -- ярлык документа это имя файла
+        (path.stem, см. workspace.list_documents()), а переименование
+        уже доступно через «Сохранить проект»: диалог всегда просит имя
+        файла (FileHandler._prompt_document_path()), и при вводе
+        другого имени старый файл удаляется, а не остаётся сиротой
+        (см. FileHandler.save_project_json())."""
+        path = item.data(0, Qt.ItemDataRole.UserRole)
+        menu = QMenu(self)
+        menu.addAction("Дублировать", lambda: self._duplicate_document(path))
+        menu.addAction("Показать в Finder", lambda: self._reveal_in_finder(path))
+        menu.addSeparator()
+        menu.addAction("Удалить", lambda: self._delete_document(path))
+        menu.exec(self.objectsTree.mapToGlobal(pos))
+
+    def _show_folder_context_menu(self, item, pos):
+        """ПКМ по строке объекта (папки)."""
+        object_dir = workspace.OUTPUT_DIR / item.text(0)
+        menu = QMenu(self)
+        menu.addAction("Создать документ здесь", lambda: self._create_document_in_object(object_dir.name))
+        menu.addSeparator()
+        menu.addAction("Переименовать объект", lambda: self._rename_object_dialog(object_dir))
+        menu.addAction("Показать в Finder", lambda: self._reveal_in_finder(object_dir))
+        menu.addSeparator()
+        menu.addAction("Удалить объект", lambda: self._delete_object_dialog(object_dir))
+        menu.exec(self.objectsTree.mapToGlobal(pos))
+
+    def _reveal_in_finder(self, path):
+        """Открывает Finder с выделенным файлом/папкой -- macOS-
+        специфично (`open -R`), как и сам пункт меню в референсе
+        ("Показать в Finder"): приложение не претендует на
+        кроссплатформенность."""
+        subprocess.run(["open", "-R", str(path)])
+
+    def _duplicate_document(self, path):
+        """«Дублировать» -- копирует .json документа в той же папке
+        под новым именем (см. workspace.duplicate_document())."""
+        workspace.duplicate_document(path)
+        self._refresh_objects_tree()
+
+    def _delete_document(self, path):
+        """«Удалить» документ -- необратимо, с подтверждением. Если
+        удаляется текущий открытый документ, форма сбрасывается
+        (как при старте, документов больше нет для показа)."""
+        reply = QMessageBox.question(
+            self, "Удалить документ",
+            f"Удалить документ «{path.stem}»? Это необратимо.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        if path == self._current_document_path:
+            self._reset_form()
+            self._switch_view("document")
+        path.unlink(missing_ok=True)
+        self._refresh_objects_tree()
+        self._update_breadcrumb()
+
+    def _create_document_in_object(self, object_name):
+        """«Создать документ здесь» из меню папки -- то же самое, что
+        обычное «Создать документ», но без диалога выбора объекта: он
+        уже известен из того, по какой строке кликнули ПКМ."""
+        object_dir = workspace.create_object(object_name)
+        doc_path = workspace.create_document(object_dir, self.equipment_type.id)
+        self._refresh_objects_tree()
+        self._open_document(doc_path)
+
+    def _rename_object_dialog(self, object_dir):
+        """«Переименовать объект» -- в отличие от документа, у объекта
+        реальное имя ровно совпадает с именем папки на диске, так что
+        переименование осмысленно и видно в дереве сразу."""
+        new_name, ok = QInputDialog.getText(
+            self, "Переименовать объект", "Новое название:", text=object_dir.name,
+        )
+        if not ok or not new_name.strip():
+            return
+        new_dir = workspace.rename_object(object_dir, new_name)
+        if self._current_document_path is not None and self._current_document_path.parent == object_dir:
+            self._current_document_path = new_dir / self._current_document_path.name
+        self._refresh_objects_tree()
+        self._update_breadcrumb()
+
+    def _delete_object_dialog(self, object_dir):
+        """«Удалить объект» -- необратимо, удаляет папку целиком со
+        всеми документами внутри, число которых показывается в
+        подтверждении, чтобы не удалить что-то по ошибке."""
+        doc_count = len(list(object_dir.glob("*.json")))
+        reply = QMessageBox.question(
+            self, "Удалить объект",
+            f"Удалить объект «{object_dir.name}» и все документы внутри ({doc_count})? Это необратимо.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        if self._current_document_path is not None and self._current_document_path.parent == object_dir:
+            self._reset_form()
+            self._switch_view("document")
+        workspace.delete_object(object_dir)
+        self._refresh_objects_tree()
+        self._update_breadcrumb()
+
+    def _open_document(self, path):
+        """Открывает документ дерева. Если это уже открытый документ --
+        просто переключает вид, не трогая форму (иначе несохранённые
+        правки терялись бы). Иначе: тихо сохраняет текущий документ (если
+        он был), сбрасывает форму и наполняет данными выбранного —
+        порядок как в _reset_form()/_fill_ui_from_project(), см. план
+        Фазы 2."""
+        if path == self._current_document_path:
+            self._switch_view("document")
+            return
+
+        if self._current_document_path is not None:
+            try:
+                self.file_handler._save_current_project()
+            except Exception as e:
+                print(f"Не удалось автосохранить текущий документ: {e}")
+            # Оглавление уходящего документа -- дочерние строки под его
+            # строкой в дереве -- снимается: статус разделов считается
+            # по живым виджетам формы, а они сейчас переиспользуются под
+            # другой документ (см. _reset_form()).
+            old_item = self._find_document_tree_item(self._current_document_path)
+            if old_item is not None:
+                old_item.takeChildren()
+
+        self._reset_form()
+        project = Project.load_from_file(path)
+        self.file_handler._fill_ui_from_project(project)
+        self._current_document_path = path
+        self._document_dirty = False
+        self._update_dirty_indicator()
+        saved_indices = {
+            name: project.report_data.get(name) for name in self.SPECIALIST_COMBO_NAMES
+        }
+        self._refresh_program_specialist_combo(saved_indices)
+        self._switch_view("document")
+        doc_item = self._find_document_tree_item(path)
+        if doc_item is not None:
+            self._populate_document_toc(doc_item)
+        self._update_breadcrumb()
+
+    def _find_document_tree_item(self, path):
+        """Ищет строку objectsTree, чей UserRole -- искомый путь к
+        файлу. Дерево небольшое (десятки строк), полный обход на каждый
+        вызов дешевле, чем держать отдельный кэш path->item в
+        синхронизации с _refresh_objects_tree()."""
+        for i in range(self.objectsTree.topLevelItemCount()):
+            object_item = self.objectsTree.topLevelItem(i)
+            for j in range(object_item.childCount()):
+                doc_item = object_item.child(j)
+                if doc_item.data(0, Qt.ItemDataRole.UserRole) == path:
+                    return doc_item
+        return None
+
+    def _update_breadcrumb(self):
+        """Обновляет breadcrumbLabel над лентой документа: объект /
+        документ / текущий раздел оглавления. Ярлык документа берётся
+        готовым из строки дерева (там уже имя файла из
+        workspace.list_documents()), а не пересчитывается заново.
+
+        Объект и документ -- кликабельные ссылки (Фаза 11, как revealFolder()/
+        revealDoc() в референсе, docs/design/pipeline_sidebar_mockup.html)
+        через встроенную поддержку rich-text гиперссылок в QLabel
+        (setOpenExternalLinks(False) + сигнал linkActivated, см.
+        _on_breadcrumb_link_activated()) -- три отдельных виджета под
+        три сегмента заводить не пришлось. Раздел -- не ссылка, как и в
+        референсе (там у него нет своего reveal-обработчика)."""
+        if self._current_document_path is None:
+            self.breadcrumbLabel.setText("")
+            self.breadcrumbLabel.setVisible(False)
+            return
+        object_name = Path(self._current_document_path).parent.name
+        doc_item = self._find_document_tree_item(self._current_document_path)
+        doc_label = doc_item.text(0) if doc_item is not None else ""
+        section = self._current_toc_active_item.text(0) if self._current_toc_active_item is not None else ""
+        parts = []
+        if object_name:
+            parts.append(f'<a href="object" style="color:inherit; text-decoration:none;">{html.escape(object_name)}</a>')
+        if doc_label:
+            parts.append(f'<a href="document" style="color:inherit; text-decoration:none;">{html.escape(doc_label)}</a>')
+        if section:
+            parts.append(html.escape(section))
+        self.breadcrumbLabel.setText(" / ".join(parts))
+        self.breadcrumbLabel.setVisible(True)
+
+    def _on_breadcrumb_link_activated(self, href):
+        """Клик по сегменту breadcrumb -- разворачивает сайдбар (если
+        свёрнут), раскрывает нужную строку дерева и на мгновение
+        подсвечивает её (см. revealFolder()/revealDoc() в референсе)."""
+        if self._sidebar_collapsed:
+            self._toggle_sidebar()
+        if href == "document":
+            item = self._find_document_tree_item(self._current_document_path)
+        else:
+            object_name = Path(self._current_document_path).parent.name
+            item = None
+            for i in range(self.objectsTree.topLevelItemCount()):
+                top_item = self.objectsTree.topLevelItem(i)
+                if top_item.text(0) == object_name:
+                    item = top_item
+                    break
+        if item is None:
+            return
+        if item.parent() is not None:
+            item.parent().setExpanded(True)
+        item.setExpanded(True)
+        self.objectsTree.scrollToItem(item)
+        self._flash_tree_item(item)
+
+    def _flash_tree_item(self, item):
+        """Кратковременная подсветка строки дерева (700ms, как
+        folder-flash/doc-flash в референсе) -- в отличие от
+        _set_toc_active_item(), это одноразовая вспышка (взгляду
+        помочь найти строку после клика по breadcrumb), а не постоянная
+        подсветка "текущий раздел"."""
+        flash_color = QColor("#0a84ff")
+        flash_color.setAlpha(38)
+        item.setBackground(0, flash_color)
+        QTimer.singleShot(700, lambda: item.setData(0, Qt.ItemDataRole.BackgroundRole, None))
+
+    def _make_dot_icon(self, color):
+        """Рисует маленький закрашенный кружок как QIcon -- в проекте нет
+        инфраструктуры иконок-ресурсов (.qrc), проще нарисовать пиксмап
+        на лету (см. также _make_check_icon()/_make_circle_icon()/
+        _make_lock_icon() -- тот же приём для иконок TOC, Фаза 6)."""
+        pixmap = QPixmap(10, 10)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setBrush(QColor(color))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawEllipse(1, 1, 8, 8)
+        painter.end()
+        return QIcon(pixmap)
+
+    def _connect_dirty_tracking(self):
+        """Подключает _mark_dirty к сигналу изменения на каждом виджете
+        формы -- по тем же спискам, что _reset_form()/get_form_data(),
+        так что набор отслеживаемых полей не может разойтись с реальным
+        составом документа."""
+        for name in self.PLAIN_TEXT_EDIT_NAMES:
+            getattr(self, name).textChanged.connect(self._mark_dirty)
+        for name in self.COMBO_BOX_NAMES:
+            getattr(self, name).currentIndexChanged.connect(self._mark_dirty)
+        for name in self.DATE_EDIT_NAMES:
+            getattr(self, name).dateChanged.connect(self._mark_dirty)
+        for name in self.SPIN_BOX_NAMES:
+            getattr(self, name).valueChanged.connect(self._mark_dirty)
+        for name in self.TABLE_WIDGET:
+            getattr(self, name).itemChanged.connect(self._mark_dirty)
+
+    def _mark_dirty(self, *args):
+        """Слот на любое изменение поля формы. Срабатывает и во время
+        программного заполнения формы при открытии документа
+        (_fill_ui_from_project() дёргает те же сигналы) -- в этот момент
+        _current_document_path ещё None (сбрасывается в _reset_form() до
+        заполнения), поэтому ложных срабатываний нет.
+
+        Помимо самого факта "документ изменён" (once-флаг, дальше не
+        трогается до сохранения/переоткрытия), пересчитывает иконки
+        ✓/○/🔒 у TOC текущего документа на КАЖДОЕ изменение, не только
+        первое -- для 18 из 20 разделов (не завязанных на кнопку шага
+        STEP_ORDER) статус "готово" определяется именно заполненностью
+        полей (см. _groupbox_done()), а значит должен обновляться
+        живьём по мере ввода, а не только по клику кнопки расчёта."""
+        if self._current_document_path is None:
+            return
+        if not self._document_dirty:
+            self._document_dirty = True
+            self._update_dirty_indicator()
+        self._update_toc_progress()
+
+    def _update_dirty_indicator(self):
+        """Ставит/снимает точку-иконку у строки текущего документа в
+        objectsTree."""
+        item = self._find_document_tree_item(self._current_document_path)
+        if item is None:
+            return
+        item.setIcon(0, self._dirty_icon if self._document_dirty else QIcon())
+
+    def _create_object_dialog(self):
+        """«Создать объект»: спрашивает название, создаёт папку, сразу
+        обновляет дерево, чтобы новый объект стало видно."""
+        name, ok = QInputDialog.getText(self, "Новый объект", "Название объекта:")
+        if not ok or not name.strip():
+            return
+        workspace.create_object(name)
+        self._refresh_objects_tree()
+
+    def _create_document_dialog(self):
+        """«Создать документ» -- всплывающее меню от кнопки: список
+        существующих объектов + «Новый объект…» снизу (соответствует
+        шагу 1 референсного мокапа, docs/design/pipeline_sidebar_mockup.html,
+        #stepObject). Шаг 2 референса ("Использовать шаблон"/"Создать
+        новый шаблон") сознательно не реализован -- реальной
+        инфраструктуры нескольких шаблонов на equipment_type нет
+        (find_template() захардкожен на один файл в config.py), а
+        generate_template() -- разовая операция подготовки заготовки
+        под ручную правку в Word (см. template_generator.py), не
+        предназначенная запускаться при каждом создании документа.
+        Фиктивный шаг выбора шаблона, который ничего не переключает,
+        хуже, чем его отсутствие."""
+        menu = QMenu(self)
+        for object_name in workspace.list_objects():
+            menu.addAction(object_name, lambda name=object_name: self._create_document_in_object(name))
+        if menu.actions():
+            menu.addSeparator()
+        menu.addAction("Новый объект…", self._create_document_in_new_object)
+        button = self.sidebarBtn_createDocument
+        menu.exec(button.mapToGlobal(button.rect().bottomLeft()))
+
+    def _create_document_in_new_object(self):
+        """«Новый объект…» в меню «Создать документ» -- спрашивает имя,
+        создаёт объект и сразу документ внутри него за один шаг (в
+        отличие от отдельной кнопки «Создать объект», после которой
+        пришлось бы ещё раз открывать это же меню)."""
+        name, ok = QInputDialog.getText(self, "Новый объект", "Название объекта:")
+        if not ok or not name.strip():
+            return
+        self._create_document_in_object(name)
+
+    def _show_templates_menu(self):
+        """«Мои шаблоны» -- показывает реально существующий шаблон
+        (find_template() поддерживает ровно один файл на equipment_type,
+        см. TEMPLATE_PATHS_BY_TYPE в config.py -- инфраструктуры выбора
+        между несколькими шаблонами в проекте нет). Пункт
+        информационный, недоступен для клика -- переключать нечего,
+        пока шаблон один; помечать его "по умолч." было бы обманчиво,
+        раз альтернативы не существует."""
+        from ..config import find_template
+        menu = QMenu(self)
+        try:
+            template_path = find_template(self.equipment_type.id)
+            action = menu.addAction(template_path.stem)
+        except FileNotFoundError:
+            action = menu.addAction("Шаблон не найден")
+        action.setEnabled(False)
+        button = self.sidebarBtn_templates
+        menu.exec(button.mapToGlobal(button.rect().bottomLeft()))
+
+    def _collect_toc_groupboxes(self):
+        """Собирает top-level QGroupBox'ы ленты tab_document в порядке
+        компоновки -- статический список, форма всегда одна и та же
+        независимо от того, какой документ открыт (в отличие от
+        _current_toc_items, дочерних строк дерева, которые заново
+        строятся под каждым открываемым документом, см.
+        _populate_document_toc())."""
+        layout = self.tab_document_scrollContent.layout()
+        groupboxes = []
+        for i in range(layout.count()):
+            widget = layout.itemAt(i).widget()
+            if isinstance(widget, QGroupBox):
+                groupboxes.append(widget)
+        return groupboxes
+
+    def _populate_document_toc(self, doc_item):
+        """Строит оглавление как дочерние строки под строкой документа в
+        objectsTree (Фаза 6) -- по одной на каждый groupbox из
+        _toc_groupboxes, в том же порядке. Только для ТЕКУЩЕГО открытого
+        документа: статус разделов считается по живым виджетам формы
+        (см. _groupbox_done()), а данные другого документа в них не
+        загружены. Вызывается из _open_document() после заполнения
+        формы; TOC уходящего документа снимается там же через
+        item.takeChildren()."""
+        self._current_toc_items = []
+        for groupbox in self._toc_groupboxes:
+            item = QTreeWidgetItem([groupbox.title()])
+            item.setData(0, Qt.ItemDataRole.UserRole, groupbox)
+            doc_item.addChild(item)
+            self._current_toc_items.append(item)
+        doc_item.setExpanded(True)
+        self._current_toc_active_item = None
+        self._update_toc_progress()
+
+    def _scroll_to_toc_item(self, item):
+        """Клик по строке оглавления в дереве -- скроллит
+        tab_document_scroll так, чтобы верх выбранного раздела оказался
+        у верха видимой области (не ensureWidgetVisible(): для разделов
+        выше высоты вьюпорта он подтянул бы минимальным движением, а не
+        встык к началу раздела). Заблокированные строки (см.
+        _toc_lock_reason()) не скроллят -- у них уже снят
+        Qt.ItemFlag.ItemIsEnabled в _update_toc_item_style(), но клик
+        может дойти и до отключённого item'а, проверка дублируется."""
+        groupbox = item.data(0, Qt.ItemDataRole.UserRole)
+        if self._toc_lock_reason(groupbox) is not None:
+            return
+        self._suppress_toc_spy = True
+        self.tab_document_scroll.verticalScrollBar().setValue(groupbox.y())
+        self._set_toc_active_item(item)
+        self._suppress_toc_spy = False
+        self._update_breadcrumb()
+
+    def _on_document_scrolled(self, value):
+        """Скролл-спай: при ручной прокрутке ленты подсвечивает строку
+        последнего раздела, чей верх уже проскроллен (groupbox.y() <=
+        value), в оглавлении текущего открытого документа. Отключается
+        на время программного скролла по клику (_suppress_toc_spy),
+        иначе клик спорил бы сам с собой."""
+        if self._suppress_toc_spy or not self._current_toc_items:
+            return
+        current = 0
+        for i, groupbox in enumerate(self._toc_groupboxes):
+            if groupbox.y() <= value:
+                current = i
+        self._set_toc_active_item(self._current_toc_items[current])
+        self._update_breadcrumb()
+
+    def _set_toc_active_item(self, item):
+        """Полная заливка активной строки TOC синим, как в референсе
+        (docs/design/pipeline_sidebar_mockup.html, .toc-active) -- через
+        setBackground()/setForeground() напрямую на item, а не через
+        нативное выделение QTreeWidget: нативная подсветка платформенно
+        по-разному ведёт себя в фокусе/без фокуса окна, а тут нужна
+        подсветка "текущий раздел", не зависящая от фокуса. Сброс роли в
+        None (не просто прозрачный цвет) возвращает предыдущему item'у
+        подлинный вид по умолчанию."""
+        if self._current_toc_active_item is not None:
+            self._current_toc_active_item.setData(0, Qt.ItemDataRole.BackgroundRole, None)
+            self._current_toc_active_item.setData(0, Qt.ItemDataRole.ForegroundRole, None)
+        item.setBackground(0, QColor("#0a84ff"))
+        item.setForeground(0, QColor("#ffffff"))
+        self._current_toc_active_item = item
+
+    # Пункты оглавления, у которых есть осмысленное понятие "выполнено" из
+    # реальной кнопки-расчёта -- только эти два groupbox'а физически
+    # содержат кнопки шагов из equipment_types.py STEP_ORDER
+    # (segments/thickness -> thick_group, strength/residual_life ->
+    # calc_appendix_group). У остальных 18 разделов такой кнопки нет --
+    # для них статус считает _groupbox_done() по заполненности полей.
+    TOC_PROGRESS_GROUPS = {
+        "thick_group": {"segments", "thickness"},
+        "calc_appendix_group": {"strength", "residual_life"},
+    }
+
+    def _groupbox_done(self, groupbox):
+        """"Готово" для раздела оглавления. Для thick_group/
+        calc_appendix_group -- точная семантика STEP_ORDER (см.
+        TOC_PROGRESS_GROUPS): у них есть настоящая кнопка-расчёт, это
+        строго более надёжный сигнал, чем заполненность полей, трогать
+        не нужно. Для остальных 18 разделов, где такой кнопки нет --
+        обобщённая проверка: все виджеты формы внутри groupbox'а (те же
+        типы, что в _reset_form()/get_form_data()) заполнены.
+
+        QDateEdit и QComboBox намеренно не проверяются. У даты всегда
+        есть значение (по умолчанию сегодняшнее) -- "пустой" даты, в
+        отличие от текстового поля, не бывает. У комбобоксов currentIndex()
+        == 0 НЕ значит "не заполнено": report_title -- редактируемый
+        комбобокс ровно с одним пунктом (реальный дефолтный текст, не
+        плейсхолдер-заглушка), work_medium -- 5 реальных веществ без
+        пустого варианта; для обоих индекс 0 -- уже осмысленный выбор,
+        который оператор имеет полное право оставить как есть (проверено
+        headless-тестом: report_title.count() == 1 в свежесозданном
+        документе -- проверка "index == 0 -> пусто" там попросту неверна)."""
+        steps = self.TOC_PROGRESS_GROUPS.get(groupbox.objectName())
+        if steps is not None:
+            return steps <= self._completed_steps
+        for edit in groupbox.findChildren(QPlainTextEdit):
+            if not edit.toPlainText().strip():
+                return False
+        for spin in groupbox.findChildren(QSpinBox):
+            if spin.value() == spin.minimum():
+                return False
+        for table in groupbox.findChildren(QTableWidget):
+            if table.rowCount() == 0:
+                return False
+        return True
+
+    def _toc_lock_reason(self, groupbox):
+        """Возвращает заголовок блокирующего раздела, если groupbox
+        заблокирован (🔒), иначе None. Единственная реальная зависимость
+        в данных этого приложения: calc_appendix_group (шаги
+        strength/residual_life) требует thick_group (шаги
+        segments/thickness) выполненным целиком -- тот же порядок, что
+        и в _check_prerequisite(). Другие 18 разделов никогда не
+        блокируются -- в реальной модели STEP_ORDER больше зависимостей
+        нет; выдумывать их ради сходства с иллюстрацией в референсе не
+        нужно (референсный "Приложение 8 заблокировано Приложением 6" --
+        условный пример для мокапа, не основанный на реальных данных
+        этого приложения)."""
+        if groupbox.objectName() == "calc_appendix_group" and not self._groupbox_done(self.thick_group):
+            return self.thick_group.title()
+        return None
+
+    def _update_toc_item_style(self, item, groupbox):
+        """Ставит иконку ✓/○/🔒 и тултип у одной строки TOC."""
+        lock_reason = self._toc_lock_reason(groupbox)
+        if lock_reason:
+            item.setIcon(0, self._toc_lock_icon)
+            item.setToolTip(0, f"Сначала завершите «{lock_reason}»")
+            item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEnabled)
+        else:
+            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEnabled)
+            item.setToolTip(0, "")
+            item.setIcon(0, self._toc_check_icon if self._groupbox_done(groupbox) else self._toc_circle_icon)
+
+    def _update_toc_progress(self):
+        """Обновляет иконки ✓/○/🔒 у всех строк TOC текущего открытого
+        документа. Единая точка входа после любого изменения, влияющего
+        на статус разделов -- клика по кнопке шага STEP_ORDER (см. 4
+        вызова ниже) или правки любого поля формы (см. _mark_dirty()).
+        Безопасно вызывать и когда документ не открыт -- _current_toc_items
+        тогда пуст, zip() ничего не делает."""
+        for item, groupbox in zip(self._current_toc_items, self._toc_groupboxes):
+            self._update_toc_item_style(item, groupbox)
+
+    def _make_check_icon(self):
+        """✓ готово -- зелёный кружок с белой галочкой (аналог
+        ti-circle-check из референса). Рисуется на лету тем же приёмом,
+        что и _make_dot_icon()."""
+        pixmap = QPixmap(14, 14)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setBrush(QColor("#30d158"))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawEllipse(1, 1, 12, 12)
+        pen = QPen(QColor("#ffffff"))
+        pen.setWidthF(1.6)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        painter.setPen(pen)
+        painter.drawLine(QPointF(4, 7.2), QPointF(6.2, 9.5))
+        painter.drawLine(QPointF(6.2, 9.5), QPointF(10, 4.7))
+        painter.end()
+        return QIcon(pixmap)
+
+    def _make_circle_icon(self):
+        """○ не готово -- серый контур кружка (аналог ti-circle)."""
+        pixmap = QPixmap(14, 14)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        pen = QPen(QColor("#8e8e93"))
+        pen.setWidthF(1.2)
+        painter.setPen(pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawEllipse(2, 2, 10, 10)
+        painter.end()
+        return QIcon(pixmap)
+
+    def _make_lock_icon(self):
+        """🔒 заблокировано -- серый замок, тело + дужка (аналог
+        ti-lock)."""
+        pixmap = QPixmap(14, 14)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        color = QColor("#8e8e93")
+        pen = QPen(color)
+        pen.setWidthF(1.6)
+        painter.setPen(pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawArc(3, 1, 8, 8, 0, 180 * 16)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(color)
+        painter.drawRoundedRect(2, 6, 10, 7, 2, 2)
+        painter.end()
+        return QIcon(pixmap)
+
     def _update_report_buttons_visibility(self):
         """Скрывает кнопки "Выгрузить в Word"/"Сохранить проект"/"Открыть
-        проект" на вкладках "Сотрудники" и "Приборы" -- это общие справочники
-        компании, не часть текущего отчёта (см. EmployeesTabController,
-        InstrumentsTabController), эти действия к ним не относятся."""
-        is_directory_tab = self.tabWidget.currentWidget() in (self.tab_employees, self.tab_instruments)
-        self.pushButt_generateWord.setVisible(not is_directory_tab)
-        self.pushButton_saveProject.setVisible(not is_directory_tab)
-        self.pushButton_openProject.setVisible(not is_directory_tab)
+        проект", пока открыты "Сотрудники"/"Приборы"/"Документы" -- это
+        общие справочники компании, не часть текущего отчёта (см.
+        EmployeesTabController, InstrumentsTabController,
+        OrgDocsTabController), эти действия к ним не относятся."""
+        is_directory_view = self._current_view in ("employees", "instruments", "orgdocs")
+        self.pushButt_generateWord.setVisible(not is_directory_view)
+        self.pushButton_saveProject.setVisible(not is_directory_view)
+        self.pushButton_openProject.setVisible(not is_directory_view)
 
     def _cell_text(self, table, row, col):
         """Текст ячейки (row, col) независимо от того, обычный это
@@ -1508,6 +2569,72 @@ class MainWindow(QMainWindow):
             return
         target.setPlainText(source_text)
         setattr(self, state_attr, source_text)
+
+    # Пары (target, source, state_attr) для _sync_mirror_field() -- вынесены
+    # сюда одним списком, чтобы завести его один раз и переиспользовать и в
+    # сигналах __init__ (через свои _update_*_display()), и в
+    # _seed_mirror_states_after_load() ниже.
+    MIRROR_FIELD_PAIRS = (
+        ("calc_temp", "work_temp", "_calc_temp_auto_value"),
+        ("pnevmo_obj_naznach", "obj_naznach", "_pnevmo_obj_naznach_auto_value"),
+        ("ae_zakl_obj_control", "pnevmo_obj_naznach", "_ae_zakl_obj_control_auto_value"),
+        ("calc_years_operation", "years_of_operation", "_calc_years_operation_auto_value"),
+    )
+
+    def _seed_mirror_states_after_load(self):
+        """Восстанавливает state_attr у "зеркал, пока не тронутых"
+        (_sync_mirror_field(): calc_temp/pnevmo_obj_naznach/
+        ae_zakl_obj_control/calc_years_operation) сразу после загрузки
+        проекта (FileHandler._fill_ui_from_project()) -- единственный
+        признак "не тронуто" там -- current-текст target совпадает с
+        state_attr, а на свежем окне state_attr всегда None. Без этого
+        восстановленное из JSON непустое значение target (даже если оно
+        никогда не редактировалось вручную и просто совпадает с source)
+        навсегда воспринималось бы как "оператор его трогал" -- дальше
+        правки в source-поле (например years_of_operation, раздел 6)
+        переставали подхватываться в target (calc_years_operation,
+        Приложение 6), хотя раньше, до сохранения/открытия проекта,
+        подхватывались нормально.
+
+        Сеем состояние только когда target совпадает с source -- если они
+        разошлись (оператор реально переопределил target перед
+        сохранением), это и есть корректное "тронуто", трогать не нужно."""
+        for target_name, source_name, state_attr in self.MIRROR_FIELD_PAIRS:
+            target = getattr(self, target_name)
+            source = getattr(self, source_name)
+            if target.toPlainText() == source.toPlainText():
+                setattr(self, state_attr, target.toPlainText())
+
+        # years_of_operation -- отдельный случай: источник не одно
+        # текстовое поле, а вычисление report_year - year_start, см.
+        # _update_years_of_operation_display(). Та же логика "seed только
+        # если совпадает с вычисленным значением".
+        try:
+            computed = str(
+                int(parse_ru(self.report_year.toPlainText()))
+                - int(parse_ru(self.year_start.toPlainText()))
+            )
+        except ValueError:
+            computed = None
+        if computed is not None and self.years_of_operation.toPlainText() == computed:
+            self._years_of_operation_auto_value = computed
+
+    def _update_years_of_operation_display(self):
+        """Подсказка years_of_operation (раздел 6, "Срок эксплуатации,
+        лет") -- по умолчанию год составления отчёта (report_year,
+        раздел 1) минус год ввода в эксплуатацию (year_start, раздел 6),
+        но поле редактируемое: инженер может исправить вручную (например,
+        если объект фактически простаивал часть срока), см.
+        _sync_mirror_field()."""
+        try:
+            report_year = int(parse_ru(self.report_year.toPlainText()))
+            year_start = int(parse_ru(self.year_start.toPlainText()))
+        except ValueError:
+            return
+        self._sync_mirror_field(
+            self.years_of_operation, str(report_year - year_start),
+            "_years_of_operation_auto_value",
+        )
 
     def _update_calc_temp_display(self):
         """Подсказка calc_temp (Приложение 6) значением work_temp (1. Общие

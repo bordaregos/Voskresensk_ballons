@@ -6,18 +6,74 @@
   <property name="windowTitle"><string>MainWindow</string></property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout_main">
-<item><widget class="QTabWidget" name="tabWidget">
- <property name="currentIndex"><number>0</number></property>
- <widget class="QWidget" name="tab_general">
- <attribute name="title"><string>Общие данные</string></attribute>
- <layout class="QVBoxLayout" name="tab_general_outerLayout">
-  <item>
-   <widget class="QScrollArea" name="tab_general_scroll">
-    <property name="widgetResizable"><bool>true</bool></property>
-    <widget class="QWidget" name="tab_general_scrollContent">
-     <property name="geometry"><rect><x>0</x><y>0</y><width>960</width><height>1700</height></rect></property>
-     <layout class="QVBoxLayout" name="vlayout_32">
-<item><widget class="QGroupBox" name="title_group">
+<item><widget class="QSplitter" name="mainSplitter">
+ <property name="orientation"><enum>Qt::Horizontal</enum></property>
+ <property name="childrenCollapsible"><bool>false</bool></property>
+<widget class="QWidget" name="revealStrip">
+ <property name="visible"><bool>false</bool></property>
+ <property name="minimumSize"><size><width>22</width><height>0</height></size></property>
+ <property name="maximumSize"><size><width>22</width><height>16777215</height></size></property>
+ <layout class="QVBoxLayout" name="revealStripLayout">
+  <property name="leftMargin"><number>0</number></property>
+  <property name="topMargin"><number>4</number></property>
+  <property name="rightMargin"><number>0</number></property>
+  <property name="bottomMargin"><number>0</number></property>
+  <item><widget class="QPushButton" name="sidebarBtn_expand">
+   <property name="maximumSize"><size><width>22</width><height>16777215</height></size></property>
+   <property name="text"><string>▶</string></property>
+  </widget></item>
+  <item><spacer name="revealStripSpacer">
+   <property name="orientation"><enum>Qt::Vertical</enum></property>
+   <property name="sizeHint" stdset="0"><size><width>20</width><height>40</height></size></property>
+  </spacer></item>
+ </layout>
+</widget>
+<widget class="QWidget" name="sidebar">
+ <property name="minimumSize"><size><width>180</width><height>0</height></size></property>
+ <property name="maximumSize"><size><width>400</width><height>16777215</height></size></property>
+ <layout class="QVBoxLayout" name="sidebarLayout">
+  <item><widget class="QWidget" name="sidebarHeaderRowWidget">
+   <layout class="QHBoxLayout" name="sidebarHeaderRow">
+    <property name="leftMargin"><number>0</number></property>
+    <property name="topMargin"><number>0</number></property>
+    <property name="rightMargin"><number>0</number></property>
+    <property name="bottomMargin"><number>0</number></property>
+    <item><widget class="QLabel" name="sidebarHeader_objects">
+     <property name="styleSheet"><string>font-weight: bold; font-size: 11px; color: palette(mid);</string></property>
+     <property name="text"><string>ДОКУМЕНТЫ</string></property>
+    </widget></item>
+    <item><widget class="QPushButton" name="sidebarBtn_pin">
+     <property name="maximumSize"><size><width>22</width><height>16777215</height></size></property>
+     <property name="checkable"><bool>true</bool></property>
+     <property name="styleSheet"><string>QPushButton:checked { color: #0a84ff; font-weight: bold; }</string></property>
+     <property name="text"><string>📌</string></property>
+     <property name="toolTip"><string>Закрепить панель</string></property>
+    </widget></item>
+    <item><widget class="QPushButton" name="sidebarBtn_collapse">
+     <property name="maximumSize"><size><width>28</width><height>16777215</height></size></property>
+     <property name="text"><string>◀</string></property>
+     <property name="toolTip"><string>Скрыть панель</string></property>
+    </widget></item>
+   </layout>
+  </widget></item>
+  <item><widget class="QLineEdit" name="sidebarSearchBox">
+   <property name="placeholderText"><string>Поиск по объектам и документам</string></property>
+  </widget></item>
+  <item><widget class="QPushButton" name="sidebarBtn_createObject"><property name="text"><string>Создать объект</string></property></widget></item>
+  <item><widget class="QPushButton" name="sidebarBtn_createDocument"><property name="text"><string>Создать документ</string></property></widget></item>
+  <item><widget class="QFrame" name="navDivider">
+   <property name="frameShape"><enum>QFrame::HLine</enum></property>
+   <property name="frameShadow"><enum>QFrame::Sunken</enum></property>
+  </widget></item>
+  <item><widget class="QPushButton" name="sidebarBtn_templates"><property name="text"><string>Мои шаблоны</string></property></widget></item>
+  <item><widget class="QPushButton" name="sidebarBtn_employees"><property name="text"><string>Сотрудники</string></property></widget></item>
+  <item><widget class="QPushButton" name="sidebarBtn_instruments"><property name="text"><string>Приборы</string></property></widget></item>
+  <item><widget class="QPushButton" name="sidebarBtn_orgdocs"><property name="text"><string>Документы</string></property></widget></item>
+  <item><widget class="QTreeWidget" name="objectsTree"><column><property name="text"><string>Документы</string></property></column></widget></item>
+ </layout>
+</widget>
+<widget class="QStackedWidget" name="viewStack">
+<widget class="QWidget" name="tab_document"><layout class="QVBoxLayout" name="tab_document_outerLayout"><item><widget class="QLabel" name="breadcrumbLabel"><property name="styleSheet"><string>color: palette(mid);</string></property><property name="wordWrap"><bool>true</bool></property></widget></item><item><widget class="QScrollArea" name="tab_document_scroll"><property name="widgetResizable"><bool>true</bool></property><widget class="QWidget" name="tab_document_scrollContent"><layout class="QVBoxLayout" name="vlayout_document"><item><widget class="QGroupBox" name="title_group">
  <property name="title"><string>Титульный лист</string></property>
 <layout class="QFormLayout" name="formLayout_0">
 <item row="0" column="0">
@@ -276,7 +332,7 @@
  <widget class="QPlainTextEdit" name="obj_naznach_intro">
  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="5" column="0">
@@ -286,7 +342,7 @@
  <widget class="QPlainTextEdit" name="obj_street_address">
  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 </layout>
@@ -301,7 +357,7 @@
  <widget class="QPlainTextEdit" name="customer_name">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="1" column="0">
@@ -311,7 +367,7 @@
  <widget class="QPlainTextEdit" name="customer_short_name">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="2" column="0">
@@ -321,7 +377,7 @@
  <widget class="QPlainTextEdit" name="customer_legal_form">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="3" column="0">
@@ -331,7 +387,7 @@
  <widget class="QPlainTextEdit" name="customer_address">
  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="4" column="0">
@@ -341,7 +397,7 @@
  <widget class="QPlainTextEdit" name="customer_actual_address">
  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="5" column="0">
@@ -351,7 +407,7 @@
  <widget class="QPlainTextEdit" name="customer_head">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="6" column="0">
@@ -361,7 +417,7 @@
  <widget class="QPlainTextEdit" name="customer_phone">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="7" column="0">
@@ -371,7 +427,7 @@
  <widget class="QPlainTextEdit" name="customer_inn">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 </layout>
@@ -413,7 +469,7 @@
  <widget class="QPlainTextEdit" name="obj_name_section6">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="1" column="0">
@@ -423,7 +479,7 @@
  <widget class="QPlainTextEdit" name="obj_purpose">
  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="2" column="0">
@@ -433,7 +489,7 @@
  <widget class="QPlainTextEdit" name="year_made">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="3" column="0">
@@ -443,7 +499,7 @@
  <widget class="QPlainTextEdit" name="year_start">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="4" column="0">
@@ -453,7 +509,7 @@
  <widget class="QPlainTextEdit" name="years_of_operation">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="5" column="0">
@@ -475,7 +531,7 @@
  <widget class="QPlainTextEdit" name="project_docs">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="7" column="0">
@@ -485,7 +541,7 @@
  <widget class="QPlainTextEdit" name="p_rab_mpa">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="8" column="0">
@@ -506,7 +562,7 @@
  <widget class="QPlainTextEdit" name="work_temp">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="10" column="0">
@@ -516,7 +572,7 @@
  <widget class="QPlainTextEdit" name="length_m">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="11" column="0">
@@ -526,7 +582,7 @@
  <widget class="QPlainTextEdit" name="construction_desc">
  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="12" column="0">
@@ -536,7 +592,7 @@
  <widget class="QPlainTextEdit" name="work_temp_range">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 </layout></item>
@@ -681,7 +737,7 @@
  <widget class="QPlainTextEdit" name="final_condition">
  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="1" column="0">
@@ -691,7 +747,7 @@
  <widget class="QPlainTextEdit" name="final_years_allowed">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="2" column="0">
@@ -705,21 +761,6 @@
 </item>
 </layout>
 </widget></item>
-</layout>
-    </widget>
-   </widget>
-  </item>
- </layout>
-</widget>
- <widget class="QWidget" name="tab_acts">
- <attribute name="title"><string>Приложения</string></attribute>
- <layout class="QVBoxLayout" name="tab_acts_outerLayout">
-  <item>
-   <widget class="QScrollArea" name="tab_acts_scroll">
-    <property name="widgetResizable"><bool>true</bool></property>
-    <widget class="QWidget" name="tab_acts_scrollContent">
-     <property name="geometry"><rect><x>0</x><y>0</y><width>960</width><height>1700</height></rect></property>
-     <layout class="QVBoxLayout" name="vlayout_42">
 <item><widget class="QGroupBox" name="program_group">
  <property name="title"><string>Приложение 1 — Программа технического диагностирования</string></property>
  <layout class="QVBoxLayout" name="program_vlayout">
@@ -737,7 +778,7 @@
 </layout></item>
   <item><layout class="QFormLayout" name="program_signer_form">
    <item row="0" column="0"><widget class="QLabel" name="label_program_specialist"><property name="text"><string>Программу составил</string></property></widget></item>
-   <item row="0" column="1"><widget class="QComboBox" name="program_specialist"/></item>
+   <item row="0" column="1"><widget class="QComboBox" name="program_specialist" /></item>
   </layout></item>
  </layout>
 </widget></item>
@@ -807,14 +848,14 @@
  <widget class="QPlainTextEdit" name="act2_conclusion">
  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="1" column="0">
  <widget class="QLabel" name="label_act2_specialist"><property name="text"><string>Анализ документации провёл</string></property></widget>
 </item>
 <item row="1" column="1">
- <widget class="QComboBox" name="act2_specialist"/>
+ <widget class="QComboBox" name="act2_specialist" />
 </item>
 </layout></item>
 </layout>
@@ -890,10 +931,10 @@
    <item row="0" column="1"><widget class="QPlainTextEdit" name="vik_conclusion">
  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget></item>
    <item row="1" column="0"><widget class="QLabel" name="label_vik_specialist"><property name="text"><string>Контроль провёл</string></property></widget></item>
-   <item row="1" column="1"><widget class="QComboBox" name="vik_specialist"/></item>
+   <item row="1" column="1"><widget class="QComboBox" name="vik_specialist" /></item>
   </layout></item>
  </layout>
 </widget></item>
@@ -960,7 +1001,7 @@
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
 <property name="plainText"><string>Приложение 7</string></property>
-<property name="placeholderText"><string></string></property>
+<property name="placeholderText"><string /></property>
 </widget>
 </item>
 </layout></item>
@@ -977,7 +1018,7 @@
  <property name="minimumSize"><size><width>0</width><height>140</height></size></property>
  <property name="rowCount"><number>1</number></property>
  <property name="columnCount"><number>3</number></property>
-<row/>
+<row />
 <column><property name="text"><string>№</string></property></column>
 <column><property name="text"><string>Тип элемента</string></property></column>
 <column><property name="text"><string>Типоразмер</string></property></column>
@@ -987,7 +1028,7 @@
  <property name="minimumSize"><size><width>0</width><height>140</height></size></property>
  <property name="rowCount"><number>1</number></property>
  <property name="columnCount"><number>4</number></property>
-<row/>
+<row />
 <column><property name="text"><string>№</string></property></column>
 <column><property name="text"><string>Тип элемента</string></property></column>
 <column><property name="text"><string>Типоразмер</string></property></column>
@@ -998,10 +1039,10 @@
    <item row="0" column="1"><widget class="QPlainTextEdit" name="thick_conclusion">
  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget></item>
    <item row="1" column="0"><widget class="QLabel" name="label_thick_specialist"><property name="text"><string>Измерение провёл</string></property></widget></item>
-   <item row="1" column="1"><widget class="QComboBox" name="thick_specialist"/></item>
+   <item row="1" column="1"><widget class="QComboBox" name="thick_specialist" /></item>
   </layout></item>
  </layout>
 </widget></item>
@@ -1056,7 +1097,7 @@
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
 <property name="plainText"><string>Приложение 7</string></property>
-<property name="placeholderText"><string></string></property>
+<property name="placeholderText"><string /></property>
 </widget>
 </item>
 </layout></item>
@@ -1103,12 +1144,276 @@ n и n0 - измеренное количество несплошностей �
    <item row="0" column="1"><widget class="QPlainTextEdit" name="uzk_conclusion">
  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget></item>
    <item row="1" column="0"><widget class="QLabel" name="label_uzk_specialist"><property name="text"><string>Измерение провёл</string></property></widget></item>
-   <item row="1" column="1"><widget class="QComboBox" name="uzk_specialist"/></item>
+   <item row="1" column="1"><widget class="QComboBox" name="uzk_specialist" /></item>
   </layout></item>
  </layout>
+</widget></item>
+<item><widget class="QGroupBox" name="calc_appendix_group">
+ <property name="title"><string>Приложение 6 — Расчёт на прочность и остаточный ресурс</string></property>
+<layout class="QVBoxLayout" name="calc_appendix_vlayout">
+<item><widget class="QLabel" name="label_calc_gost_basis"><property name="text"><string>Основание для расчёта</string></property></widget></item>
+<item><widget class="QPlainTextEdit" name="calc_gost_basis">
+ <property name="minimumSize"><size><width>0</width><height>50</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>70</height></size></property>
+ <property name="plainText"><string>Расчёт на прочность и расчёт остаточного ресурса по скорости коррозии элементов трубопровода выполнен в соответствии с ГОСТ 32388-2013 «Межгосударственный стандарт, трубопроводы технологические. Нормы и методы расчета на прочность, вибрацию и сейсмические воздействия».</string></property>
+</widget></item>
+<item><widget class="QLabel" name="label_calc_results_heading">
+ <property name="styleSheet"><string notr="true">font-weight:bold;</string></property>
+ <property name="text"><string>Результаты расчётов</string></property>
+</widget></item>
+<item><widget class="QGroupBox" name="strength_inputs_group">
+ <property name="title"><string>Исходные данные для расчёта</string></property>
+<layout class="QFormLayout" name="formLayout_43">
+<item row="0" column="0">
+ <widget class="QLabel" name="label_calc_steel_grade"><property name="text"><string>Марка стали</string></property></widget>
+</item>
+<item row="0" column="1">
+ <widget class="QPlainTextEdit" name="calc_steel_grade">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="readOnly"><bool>true</bool></property>
+ <property name="placeholderText"><string>появится после расчёта на прочность (из Таблицы 6)</string></property>
+</widget>
+</item>
+<item row="1" column="0">
+ <widget class="QLabel" name="label_calc_p_rab_display"><property name="text"><string>Давление Pр, МПа</string></property></widget>
+</item>
+<item row="1" column="1">
+ <widget class="QPlainTextEdit" name="calc_p_rab_display">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="readOnly"><bool>true</bool></property>
+ <property name="placeholderText"><string /></property>
+</widget>
+</item>
+<item row="2" column="0">
+ <widget class="QLabel" name="label_44"><property name="text"><string>Температура стенки tст, °C</string></property></widget>
+</item>
+<item row="2" column="1">
+ <widget class="QPlainTextEdit" name="calc_temp">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string>20</string></property>
+</widget>
+</item>
+<item row="3" column="0">
+ <widget class="QLabel" name="label_45"><property name="text"><string>Коэффициент прочности шва φw</string></property></widget>
+</item>
+<item row="3" column="1">
+ <widget class="QPlainTextEdit" name="calc_phi">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string>1,0</string></property>
+</widget>
+</item>
+<item row="4" column="0">
+ <widget class="QLabel" name="label_46"><property name="text"><string>Номинальный диаметр Da, мм</string></property></widget>
+</item>
+<item row="4" column="1">
+ <widget class="QPlainTextEdit" name="calc_da">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string /></property>
+</widget>
+</item>
+<item row="5" column="0">
+ <widget class="QLabel" name="label_47"><property name="text"><string>Номинальная толщина Sн, мм</string></property></widget>
+</item>
+<item row="5" column="1">
+ <widget class="QPlainTextEdit" name="calc_sn">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string /></property>
+</widget>
+</item>
+<item row="6" column="0">
+ <widget class="QLabel" name="label_48"><property name="text"><string>Эксплуатационная прибавка C2, мм</string></property></widget>
+</item>
+<item row="6" column="1">
+ <widget class="QPlainTextEdit" name="calc_c2">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string /></property>
+</widget>
+</item>
+<item row="7" column="0">
+ <widget class="QLabel" name="label_49"><property name="text"><string>Фактическая мин. толщина Sф, мм</string></property></widget>
+</item>
+<item row="7" column="1">
+ <widget class="QPlainTextEdit" name="calc_sf">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="readOnly"><bool>true</bool></property>
+ <property name="placeholderText"><string>появится после «Расчитать толщины»</string></property>
+</widget>
+</item>
+</layout>
+</widget></item>
+<item><layout class="QHBoxLayout" name="calc_buttons">
+<item><widget class="QPushButton" name="pushButton_calcStrength">
+ <property name="text"><string>Расчёт на прочность</string></property>
+</widget></item>
+<item><widget class="QPushButton" name="pushButton_calcResidualLife">
+ <property name="text"><string>Остаточный ресурс</string></property>
+</widget></item>
+</layout></item>
+<item><widget class="QGroupBox" name="strength_outputs_group">
+ <property name="title"><string>Результаты расчёта на прочность</string></property>
+<layout class="QFormLayout" name="formLayout_50">
+<item row="0" column="0">
+ <widget class="QLabel" name="label_51"><property name="text"><string>Допускаемое напряжение [σ], МПа</string></property></widget>
+</item>
+<item row="0" column="1">
+ <widget class="QPlainTextEdit" name="calc_sigma_allow">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string /></property>
+</widget>
+</item>
+<item row="1" column="0">
+ <widget class="QLabel" name="label_52"><property name="text"><string>Расчётная толщина Sr, мм</string></property></widget>
+</item>
+<item row="1" column="1">
+ <widget class="QPlainTextEdit" name="calc_sr">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string /></property>
+</widget>
+</item>
+<item row="2" column="0">
+ <widget class="QLabel" name="label_53"><property name="text"><string>Минимально допустимая [S], мм</string></property></widget>
+</item>
+<item row="2" column="1">
+ <widget class="QPlainTextEdit" name="calc_s_reject">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string /></property>
+</widget>
+</item>
+<item row="3" column="0">
+ <widget class="QLabel" name="label_54"><property name="text"><string>Допускаемое давление [P], МПа</string></property></widget>
+</item>
+<item row="3" column="1">
+ <widget class="QPlainTextEdit" name="calc_p_allow">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string /></property>
+</widget>
+</item>
+<item row="4" column="0">
+ <widget class="QLabel" name="label_55"><property name="text"><string>Условие прочности</string></property></widget>
+</item>
+<item row="4" column="1">
+ <widget class="QPlainTextEdit" name="calc_strength_conclusion">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string /></property>
+</widget>
+</item>
+</layout>
+</widget></item>
+<item><widget class="QGroupBox" name="residual_inputs_group">
+ <property name="title"><string>Остаточный ресурс — исходные данные</string></property>
+<layout class="QFormLayout" name="formLayout_56">
+<item row="0" column="0">
+ <widget class="QLabel" name="label_57"><property name="text"><string>Срок эксплуатации t, лет</string></property></widget>
+</item>
+<item row="0" column="1">
+ <widget class="QPlainTextEdit" name="calc_years_operation">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string /></property>
+</widget>
+</item>
+<item row="1" column="0">
+ <widget class="QLabel" name="label_58"><property name="text"><string>Коэффициент K</string></property></widget>
+</item>
+<item row="1" column="1">
+ <widget class="QPlainTextEdit" name="calc_k">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="plainText"><string>1,0</string></property>
+</widget>
+</item>
+</layout>
+</widget></item>
+<item><widget class="QGroupBox" name="residual_outputs_group">
+ <property name="title"><string>Остаточный ресурс — результат</string></property>
+<layout class="QFormLayout" name="formLayout_59">
+<item row="0" column="0">
+ <widget class="QLabel" name="label_60"><property name="text"><string>Скорость коррозии Аф, мм/год</string></property></widget>
+</item>
+<item row="0" column="1">
+ <widget class="QPlainTextEdit" name="calc_corrosion_rate">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="placeholderText"><string /></property>
+</widget>
+</item>
+<item row="1" column="0">
+ <widget class="QLabel" name="label_61"><property name="text"><string>Остаточный ресурс Тост, лет</string></property></widget>
+</item>
+<item row="1" column="1">
+ <widget class="QPlainTextEdit" name="calc_remaining_years">
+ <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+ <property name="readOnly"><bool>true</bool></property>
+ <property name="placeholderText"><string /></property>
+</widget>
+</item>
+</layout>
+</widget></item>
+<item><widget class="QLabel" name="label_calc_residual_methodology_note"><property name="text"><string>Обоснование методики оценки остаточного ресурса</string></property></widget></item>
+<item><widget class="QPlainTextEdit" name="calc_residual_methodology_note">
+ <property name="minimumSize"><size><width>0</width><height>60</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>80</height></size></property>
+ <property name="plainText"><string>Прогнозирование остаточного ресурса основных элементов технологического трубопровода проводилось в соответствии с требованиями «Методики оценки остаточного ресурса технологических трубопроводов». Согласовано с Госгортехнадзором РФ письмом № 02-35/327 от 24.07.1996 г.</string></property>
+</widget></item>
+<item><widget class="QLabel" name="label_calc_residual_formula_text"><property name="text"><string>Формула остаточного ресурса</string></property></widget></item>
+<item><widget class="QPlainTextEdit" name="calc_residual_formula_text">
+ <property name="minimumSize"><size><width>0</width><height>140</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>180</height></size></property>
+ <property name="plainText"><string>Прогнозирование остаточного ресурса трубопровода базируется на результатах обследования технического состояния, оценки фактической нагруженности основных элементов трубопровода.
+Оценка остаточного ресурса основных несущих элементов трубопровода, повреждающим фактором для которого является общая коррозия, производится по формуле:
+Тост=К(Sф–Sотб)/Аф,
+где Тост - остаточный ресурс элемента, годы;
+Sф - фактическая толщина элемента, мм (Акт по результатам измерения толщины стенки элементов технологического трубопровода представленный в настоящем Заключении ЭПБ);
+Soтб - отбраковочная толщина элемента, мм (минимальная расчётная);
+К - коэффициент, зависящий от категории и срока службы трубопровода без замены;
+Аф - фактическая скорость коррозионного и эрозионного износа, мм/год;</string></property>
+</widget></item>
+<item><widget class="QLabel" name="label_calc_corrosion_formula_text"><property name="text"><string>Формула скорости коррозии</string></property></widget></item>
+<item><widget class="QPlainTextEdit" name="calc_corrosion_formula_text">
+ <property name="minimumSize"><size><width>0</width><height>90</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>110</height></size></property>
+ <property name="plainText"><string>где Sи - исполнительная толщина стенки элемента (паспорт трубопровода), мм;
+С0- плюсовой допуск на толщину стенки, мм; Со=0,4* Sи
+t- время от момента начала эксплуатации до момента обследования (паспорт трубопровода), лет.</string></property>
+</widget></item>
+<item><widget class="QLabel" name="label_calc_worked_example_note"><property name="text"><string>Пояснение к расчётному примеру</string></property></widget></item>
+<item><widget class="QPlainTextEdit" name="calc_worked_example_note">
+ <property name="minimumSize"><size><width>0</width><height>45</height></size></property>
+ <property name="maximumSize"><size><width>16777215</width><height>60</height></size></property>
+ <property name="plainText"><string>Остаточный ресурс прямолинейных элементов трубопровода составляет:</string></property>
+</widget></item>
+<item><layout class="QFormLayout" name="calc_specialist_form">
+ <item row="0" column="0">
+  <widget class="QLabel" name="label_62"><property name="text"><string>Вывод</string></property></widget>
+ </item>
+ <item row="0" column="1">
+  <widget class="QPlainTextEdit" name="calc_residual_comment">
+  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
+  <property name="maximumSize"><size><width>16777215</width><height>70</height></size></property>
+  <property name="plainText"><string>Результаты расчета по прогнозированию остаточного ресурса технологического трубопровода позволяют продолжить его дальнейшую эксплуатацию до следующего технического диагностирования и освидетельствования.</string></property>
+ </widget>
+ </item>
+ <item row="1" column="0"><widget class="QLabel" name="label_calc_specialist"><property name="text"><string>Расчёт выполнил</string></property></widget></item>
+ <item row="1" column="1"><widget class="QComboBox" name="calc_specialist" /></item>
+</layout></item>
+</layout>
 </widget></item>
 <item><widget class="QGroupBox" name="nk_scheme_group">
  <property name="title"><string>Приложение 7 — Схема НК</string></property>
@@ -1144,7 +1449,7 @@ n и n0 - измеренное количество несплошностей �
  <widget class="QPlainTextEdit" name="pnevmo_pressure">
  <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget>
 </item>
 <item row="2" column="0">
@@ -1384,12 +1689,12 @@ n и n0 - измеренное количество несплошностей �
  <property name="plainText"><string>Размещение ПАЭ и их количество определено конфигурацией трубопровода и оптимальностью расстановки на контролируемых участках. Расстановки ПАЭ соответствует схеме технологии контроля</string></property>
 </widget></item>
 <item row="1" column="0"><widget class="QLabel" name="label_pnevmo_specialist"><property name="text"><string>Контроль выполнил</string></property></widget></item>
-<item row="1" column="1"><widget class="QComboBox" name="pnevmo_specialist"/></item>
+<item row="1" column="1"><widget class="QComboBox" name="pnevmo_specialist" /></item>
 <item row="2" column="0"><widget class="QLabel" name="label_41"><property name="text"><string>Вывод</string></property></widget></item>
 <item row="2" column="1"><widget class="QPlainTextEdit" name="pnevmo_conclusion">
  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
  <property name="maximumSize"><size><width>16777215</width><height>54</height></size></property>
- <property name="placeholderText"><string></string></property>
+ <property name="placeholderText"><string /></property>
 </widget></item>
 </layout></item>
 </layout>
@@ -1442,297 +1747,12 @@ n и n0 - измеренное количество несплошностей �
 </widget></item>
 <item><layout class="QFormLayout" name="ae_zakl_specialist_form">
 <item row="0" column="0"><widget class="QLabel" name="label_ae_zakl_specialist"><property name="text"><string>Заключение составил</string></property></widget></item>
-<item row="0" column="1"><widget class="QComboBox" name="ae_zakl_specialist"/></item>
+<item row="0" column="1"><widget class="QComboBox" name="ae_zakl_specialist" /></item>
 </layout></item>
 </layout>
 </widget></item>
-</layout>
-    </widget>
-   </widget>
-  </item>
- </layout>
-</widget>
- <widget class="QWidget" name="tab_calc">
- <attribute name="title"><string>Расчёты</string></attribute>
- <layout class="QVBoxLayout" name="tab_calc_outerLayout">
-  <item>
-   <widget class="QScrollArea" name="tab_calc_scroll">
-    <property name="widgetResizable"><bool>true</bool></property>
-    <widget class="QWidget" name="tab_calc_scrollContent">
-     <property name="geometry"><rect><x>0</x><y>0</y><width>960</width><height>1700</height></rect></property>
-     <layout class="QVBoxLayout" name="vlayout_67">
-<item><widget class="QGroupBox" name="calc_appendix_group">
- <property name="title"><string>Приложение 6 — Расчёт на прочность и остаточный ресурс</string></property>
-<layout class="QVBoxLayout" name="calc_appendix_vlayout">
-<item><widget class="QLabel" name="label_calc_gost_basis"><property name="text"><string>Основание для расчёта</string></property></widget></item>
-<item><widget class="QPlainTextEdit" name="calc_gost_basis">
- <property name="minimumSize"><size><width>0</width><height>50</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>70</height></size></property>
- <property name="plainText"><string>Расчёт на прочность и расчёт остаточного ресурса по скорости коррозии элементов трубопровода выполнен в соответствии с ГОСТ 32388-2013 «Межгосударственный стандарт, трубопроводы технологические. Нормы и методы расчета на прочность, вибрацию и сейсмические воздействия».</string></property>
-</widget></item>
-<item><widget class="QLabel" name="label_calc_results_heading">
- <property name="styleSheet"><string notr="true">font-weight:bold;</string></property>
- <property name="text"><string>Результаты расчётов</string></property>
-</widget></item>
-<item><widget class="QGroupBox" name="strength_inputs_group">
- <property name="title"><string>Исходные данные для расчёта</string></property>
-<layout class="QFormLayout" name="formLayout_43">
-<item row="0" column="0">
- <widget class="QLabel" name="label_calc_steel_grade"><property name="text"><string>Марка стали</string></property></widget>
-</item>
-<item row="0" column="1">
- <widget class="QPlainTextEdit" name="calc_steel_grade">
- <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="readOnly"><bool>true</bool></property>
- <property name="placeholderText"><string>появится после расчёта на прочность (из Таблицы 6)</string></property>
-</widget>
-</item>
-<item row="1" column="0">
- <widget class="QLabel" name="label_calc_p_rab_display"><property name="text"><string>Давление Pр, МПа</string></property></widget>
-</item>
-<item row="1" column="1">
- <widget class="QPlainTextEdit" name="calc_p_rab_display">
- <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="readOnly"><bool>true</bool></property>
- <property name="placeholderText"><string></string></property>
-</widget>
-</item>
-<item row="2" column="0">
- <widget class="QLabel" name="label_44"><property name="text"><string>Температура стенки tст, °C</string></property></widget>
-</item>
-<item row="2" column="1">
- <widget class="QPlainTextEdit" name="calc_temp">
- <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string>20</string></property>
-</widget>
-</item>
-<item row="3" column="0">
- <widget class="QLabel" name="label_45"><property name="text"><string>Коэффициент прочности шва φw</string></property></widget>
-</item>
-<item row="3" column="1">
- <widget class="QPlainTextEdit" name="calc_phi">
- <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string>1,0</string></property>
-</widget>
-</item>
-<item row="4" column="0">
- <widget class="QLabel" name="label_46"><property name="text"><string>Номинальный диаметр Da, мм</string></property></widget>
-</item>
-<item row="4" column="1">
- <widget class="QPlainTextEdit" name="calc_da">
- <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
-</widget>
-</item>
-<item row="5" column="0">
- <widget class="QLabel" name="label_47"><property name="text"><string>Номинальная толщина Sн, мм</string></property></widget>
-</item>
-<item row="5" column="1">
- <widget class="QPlainTextEdit" name="calc_sn">
- <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
-</widget>
-</item>
-<item row="6" column="0">
- <widget class="QLabel" name="label_48"><property name="text"><string>Эксплуатационная прибавка C2, мм</string></property></widget>
-</item>
-<item row="6" column="1">
- <widget class="QPlainTextEdit" name="calc_c2">
- <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
-</widget>
-</item>
-<item row="7" column="0">
- <widget class="QLabel" name="label_49"><property name="text"><string>Фактическая мин. толщина Sф, мм</string></property></widget>
-</item>
-<item row="7" column="1">
- <widget class="QPlainTextEdit" name="calc_sf">
- <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="readOnly"><bool>true</bool></property>
- <property name="placeholderText"><string>появится после «Расчитать толщины»</string></property>
-</widget>
-</item>
-</layout>
-</widget></item>
-<item><layout class="QHBoxLayout" name="calc_buttons">
-<item><widget class="QPushButton" name="pushButton_calcStrength">
- <property name="text"><string>Расчёт на прочность</string></property>
-</widget></item>
-<item><widget class="QPushButton" name="pushButton_calcResidualLife">
- <property name="text"><string>Остаточный ресурс</string></property>
-</widget></item>
-</layout></item>
-<item><widget class="QGroupBox" name="strength_outputs_group">
- <property name="title"><string>Результаты расчёта на прочность</string></property>
-<layout class="QFormLayout" name="formLayout_50">
-<item row="0" column="0">
- <widget class="QLabel" name="label_51"><property name="text"><string>Допускаемое напряжение [σ], МПа</string></property></widget>
-</item>
-<item row="0" column="1">
- <widget class="QPlainTextEdit" name="calc_sigma_allow">
- <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
-</widget>
-</item>
-<item row="1" column="0">
- <widget class="QLabel" name="label_52"><property name="text"><string>Расчётная толщина Sr, мм</string></property></widget>
-</item>
-<item row="1" column="1">
- <widget class="QPlainTextEdit" name="calc_sr">
- <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
-</widget>
-</item>
-<item row="2" column="0">
- <widget class="QLabel" name="label_53"><property name="text"><string>Минимально допустимая [S], мм</string></property></widget>
-</item>
-<item row="2" column="1">
- <widget class="QPlainTextEdit" name="calc_s_reject">
- <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
-</widget>
-</item>
-<item row="3" column="0">
- <widget class="QLabel" name="label_54"><property name="text"><string>Допускаемое давление [P], МПа</string></property></widget>
-</item>
-<item row="3" column="1">
- <widget class="QPlainTextEdit" name="calc_p_allow">
- <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
-</widget>
-</item>
-<item row="4" column="0">
- <widget class="QLabel" name="label_55"><property name="text"><string>Условие прочности</string></property></widget>
-</item>
-<item row="4" column="1">
- <widget class="QPlainTextEdit" name="calc_strength_conclusion">
- <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
-</widget>
-</item>
-</layout>
-</widget></item>
-<item><widget class="QGroupBox" name="residual_inputs_group">
- <property name="title"><string>Остаточный ресурс — исходные данные</string></property>
-<layout class="QFormLayout" name="formLayout_56">
-<item row="0" column="0">
- <widget class="QLabel" name="label_57"><property name="text"><string>Срок эксплуатации t, лет</string></property></widget>
-</item>
-<item row="0" column="1">
- <widget class="QPlainTextEdit" name="calc_years_operation">
- <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
-</widget>
-</item>
-<item row="1" column="0">
- <widget class="QLabel" name="label_58"><property name="text"><string>Коэффициент K</string></property></widget>
-</item>
-<item row="1" column="1">
- <widget class="QPlainTextEdit" name="calc_k">
- <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="plainText"><string>1,0</string></property>
-</widget>
-</item>
-</layout>
-</widget></item>
-<item><widget class="QGroupBox" name="residual_outputs_group">
- <property name="title"><string>Остаточный ресурс — результат</string></property>
-<layout class="QFormLayout" name="formLayout_59">
-<item row="0" column="0">
- <widget class="QLabel" name="label_60"><property name="text"><string>Скорость коррозии Аф, мм/год</string></property></widget>
-</item>
-<item row="0" column="1">
- <widget class="QPlainTextEdit" name="calc_corrosion_rate">
- <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="placeholderText"><string></string></property>
-</widget>
-</item>
-<item row="1" column="0">
- <widget class="QLabel" name="label_61"><property name="text"><string>Остаточный ресурс Тост, лет</string></property></widget>
-</item>
-<item row="1" column="1">
- <widget class="QPlainTextEdit" name="calc_remaining_years">
- <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
- <property name="readOnly"><bool>true</bool></property>
- <property name="placeholderText"><string></string></property>
-</widget>
-</item>
-</layout>
-</widget></item>
-<item><widget class="QLabel" name="label_calc_residual_methodology_note"><property name="text"><string>Обоснование методики оценки остаточного ресурса</string></property></widget></item>
-<item><widget class="QPlainTextEdit" name="calc_residual_methodology_note">
- <property name="minimumSize"><size><width>0</width><height>60</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>80</height></size></property>
- <property name="plainText"><string>Прогнозирование остаточного ресурса основных элементов технологического трубопровода проводилось в соответствии с требованиями «Методики оценки остаточного ресурса технологических трубопроводов». Согласовано с Госгортехнадзором РФ письмом № 02-35/327 от 24.07.1996 г.</string></property>
-</widget></item>
-<item><widget class="QLabel" name="label_calc_residual_formula_text"><property name="text"><string>Формула остаточного ресурса</string></property></widget></item>
-<item><widget class="QPlainTextEdit" name="calc_residual_formula_text">
- <property name="minimumSize"><size><width>0</width><height>140</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>180</height></size></property>
- <property name="plainText"><string>Прогнозирование остаточного ресурса трубопровода базируется на результатах обследования технического состояния, оценки фактической нагруженности основных элементов трубопровода.
-Оценка остаточного ресурса основных несущих элементов трубопровода, повреждающим фактором для которого является общая коррозия, производится по формуле:
-Тост=К(Sф–Sотб)/Аф,
-где Тост - остаточный ресурс элемента, годы;
-Sф - фактическая толщина элемента, мм (Акт по результатам измерения толщины стенки элементов технологического трубопровода представленный в настоящем Заключении ЭПБ);
-Soтб - отбраковочная толщина элемента, мм (минимальная расчётная);
-К - коэффициент, зависящий от категории и срока службы трубопровода без замены;
-Аф - фактическая скорость коррозионного и эрозионного износа, мм/год;</string></property>
-</widget></item>
-<item><widget class="QLabel" name="label_calc_corrosion_formula_text"><property name="text"><string>Формула скорости коррозии</string></property></widget></item>
-<item><widget class="QPlainTextEdit" name="calc_corrosion_formula_text">
- <property name="minimumSize"><size><width>0</width><height>90</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>110</height></size></property>
- <property name="plainText"><string>где Sи - исполнительная толщина стенки элемента (паспорт трубопровода), мм;
-С0- плюсовой допуск на толщину стенки, мм; Со=0,4* Sи
-t- время от момента начала эксплуатации до момента обследования (паспорт трубопровода), лет.</string></property>
-</widget></item>
-<item><widget class="QLabel" name="label_calc_worked_example_note"><property name="text"><string>Пояснение к расчётному примеру</string></property></widget></item>
-<item><widget class="QPlainTextEdit" name="calc_worked_example_note">
- <property name="minimumSize"><size><width>0</width><height>45</height></size></property>
- <property name="maximumSize"><size><width>16777215</width><height>60</height></size></property>
- <property name="plainText"><string>Остаточный ресурс прямолинейных элементов трубопровода составляет:</string></property>
-</widget></item>
-<item><layout class="QFormLayout" name="calc_specialist_form">
- <item row="0" column="0">
-  <widget class="QLabel" name="label_62"><property name="text"><string>Вывод</string></property></widget>
- </item>
- <item row="0" column="1">
-  <widget class="QPlainTextEdit" name="calc_residual_comment">
-  <property name="minimumSize"><size><width>0</width><height>54</height></size></property>
-  <property name="maximumSize"><size><width>16777215</width><height>70</height></size></property>
-  <property name="plainText"><string>Результаты расчета по прогнозированию остаточного ресурса технологического трубопровода позволяют продолжить его дальнейшую эксплуатацию до следующего технического диагностирования и освидетельствования.</string></property>
- </widget>
- </item>
- <item row="1" column="0"><widget class="QLabel" name="label_calc_specialist"><property name="text"><string>Расчёт выполнил</string></property></widget></item>
- <item row="1" column="1"><widget class="QComboBox" name="calc_specialist"/></item>
-</layout></item>
-</layout>
-</widget></item>
-</layout>
-    </widget>
-   </widget>
-  </item>
- </layout>
-</widget>
+</layout></widget></widget></item></layout></widget>
  <widget class="QWidget" name="tab_employees">
- <attribute name="title"><string>Сотрудники</string></attribute>
  <layout class="QVBoxLayout" name="tab_employees_outerLayout">
   <item>
    <widget class="QScrollArea" name="tab_employees_scroll">
@@ -1817,7 +1837,6 @@ t- время от момента начала эксплуатации до м�
  </layout>
 </widget>
  <widget class="QWidget" name="tab_instruments">
- <attribute name="title"><string>Приборы</string></attribute>
  <layout class="QVBoxLayout" name="tab_instruments_outerLayout">
   <item>
    <widget class="QScrollArea" name="tab_instruments_scroll">
@@ -1896,7 +1915,28 @@ t- время от момента начала эксплуатации до м�
   </item>
  </layout>
 </widget>
-</widget></item>
+ <widget class="QWidget" name="tab_orgdocs">
+ <layout class="QVBoxLayout" name="tab_orgdocs_outerLayout">
+  <item><widget class="QGroupBox" name="org_docs_group">
+   <property name="title"><string>Документы организации</string></property>
+   <layout class="QVBoxLayout" name="org_docs_vlayout">
+    <item><widget class="QTableWidget" name="table_org_docs">
+     <property name="minimumSize"><size><width>0</width><height>200</height></size></property>
+     <property name="rowCount"><number>0</number></property>
+     <property name="columnCount"><number>3</number></property>
+     <column><property name="text"><string>Название</string></property></column>
+     <column><property name="text"><string>Тип</string></property></column>
+     <column><property name="text"><string>Дата</string></property></column>
+    </widget></item>
+    <item><layout class="QHBoxLayout" name="org_docs_buttons">
+     <item><widget class="QPushButton" name="pushButt_addOrgDoc"><property name="text"><string>+ Загрузить документ</string></property></widget></item>
+     <item><widget class="QPushButton" name="pushButt_removeOrgDoc"><property name="text"><string>− Удалить</string></property></widget></item>
+    </layout></item>
+   </layout>
+  </widget></item>
+ </layout>
+</widget>
+</widget></widget></item>
 <item><layout class="QHBoxLayout" name="bottom_buttons">
 <item><widget class="QPushButton" name="pushButt_generateWord">
  <property name="text"><string>Выгрузить в Word</string></property>

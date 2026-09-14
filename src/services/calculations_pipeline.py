@@ -24,6 +24,7 @@ from typing import Dict, List, Optional
 # сюда по мере появления новых объектов трубопроводов.
 ALLOWABLE_STRESS_TABLE: Dict[str, Dict[float, float]] = {
     "12Х18Н10Т": {20.0: 147.0},
+    "Сталь 20": {20.0: 147.0, 100.0: 143.0},
 }
 
 

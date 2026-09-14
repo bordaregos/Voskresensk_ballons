@@ -1,0 +1,502 @@
+<title>Мокап редизайна: сайдбар трубопровода</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<h2 style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);">Мокап редизайна интерфейса трубопровода: дерево объектов и документов слева, оглавление документа со скролл-спаем справа</h2>
+<div style="background:#eeeeef;min-height:100vh;box-sizing:border-box;padding:32px 20px;display:flex;align-items:flex-start;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,sans-serif;">
+<div style="width:100%;max-width:720px;">
+<p style="margin:0 0 14px;font-size:13px;color:#6b6b70;text-align:center;">Кликабельный мокап — сайдбар, дерево объектов/документов, оглавление документа</p>
+<div style="max-width:680px;margin:0 auto;background:#1c1c1e;border-radius:10px;overflow:hidden;border:0.5px solid #38383a;position:relative;box-shadow:0 12px 32px rgba(0,0,0,.18);">
+  <div style="display:flex;align-items:center;padding:10px 14px;background:#2c2c2e;border-bottom:0.5px solid #38383a;position:relative;">
+    <span style="width:11px;height:11px;border-radius:50%;background:#ff5f57;margin-right:6px;"></span>
+    <span style="width:11px;height:11px;border-radius:50%;background:#febc2e;margin-right:6px;"></span>
+    <span style="width:11px;height:11px;border-radius:50%;background:#28c840;"></span>
+    <span style="position:absolute;left:50%;transform:translateX(-50%);font-size:12px;color:#8e8e93;">Трубопровод — MainWindow</span>
+  </div>
+
+  <div style="display:flex;height:540px;">
+    <div id="sidebar" style="width:220px;background:#242426;border-right:0.5px solid #38383a;flex-shrink:0;overflow-y:auto;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:0.5px solid #38383a;">
+        <span style="font-size:11px;font-weight:500;color:#8e8e93;text-transform:uppercase;letter-spacing:.03em;">Документы</span>
+        <div style="display:flex;gap:4px;">
+          <button onclick="togglePin()" id="pinBtn" aria-label="Закрепить панель" style="background:transparent;border:none;color:#8e8e93;width:22px;height:22px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ti ti-pin" style="font-size:14px;" aria-hidden="true"></i></button>
+          <button onclick="hideSidebar()" aria-label="Скрыть панель" style="background:transparent;border:none;color:#8e8e93;width:22px;height:22px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ti ti-layout-sidebar-left-collapse" style="font-size:14px;" aria-hidden="true"></i></button>
+        </div>
+      </div>
+
+      <div style="padding:8px 8px 4px;">
+        <div style="position:relative;">
+          <i class="ti ti-search" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:12px;color:#8e8e93;" aria-hidden="true"></i>
+          <input id="searchInput" type="text" placeholder="Поиск по объектам и документам" oninput="filterTree()" style="width:100%;box-sizing:border-box;background:#1c1c1e;border:0.5px solid #38383a;border-radius:6px;padding:6px 8px 6px 26px;font-size:11px;color:#e5e5e7;" />
+        </div>
+      </div>
+
+      <div style="padding:4px 8px 8px;display:flex;flex-direction:column;gap:4px;position:relative;">
+        <button onclick="openObjectModal()" style="width:100%;display:flex;align-items:center;gap:6px;background:transparent;border:0.5px solid #38383a;color:#e5e5e7;font-size:12px;font-weight:500;padding:7px 10px;border-radius:6px;cursor:pointer;">
+          <i class="ti ti-folder-plus" style="font-size:14px;color:#8e8e93;" aria-hidden="true"></i>Создать объект
+        </button>
+        <button onclick="toggleCreate()" style="width:100%;display:flex;align-items:center;gap:6px;background:#0a84ff;border:none;color:#fff;font-size:12px;font-weight:500;padding:7px 10px;border-radius:6px;cursor:pointer;">
+          <i class="ti ti-plus" style="font-size:14px;" aria-hidden="true"></i>Создать документ
+        </button>
+
+        <div id="createMenu" style="display:none;background:#2c2c2e;border:0.5px solid #38383a;border-radius:6px;overflow:hidden;">
+          <div id="stepObject">
+            <div style="padding:8px 10px 4px;font-size:10px;color:#8e8e93;text-transform:uppercase;letter-spacing:.03em;">Шаг 1 — выберите объект</div>
+            <div class="menu-row" onclick="selectObjectForDoc(1,'КБ ХИММАШ')"><i class="ti ti-folder" style="font-size:14px;color:#e8b04b;" aria-hidden="true"></i>КБ ХИММАШ</div>
+            <div class="menu-row" onclick="selectObjectForDoc(2,'КАМПО')"><i class="ti ti-folder" style="font-size:14px;color:#e8b04b;" aria-hidden="true"></i>КАМПО</div>
+            <div style="height:0.5px;background:#38383a;"></div>
+            <div id="inlineNewObjectRow" class="menu-row" onclick="showInlineNewObject()"><i class="ti ti-folder-plus" style="font-size:14px;color:#8e8e93;" aria-hidden="true"></i>Новый объект</div>
+            <div id="inlineNewObjectForm" style="display:none;padding:8px 10px;gap:6px;flex-direction:column;">
+              <input id="inlineObjectName" type="text" placeholder="Название объекта" style="width:100%;box-sizing:border-box;background:#1c1c1e;border:0.5px solid #48484a;border-radius:6px;padding:6px 8px;font-size:12px;color:#e5e5e7;" />
+              <button onclick="confirmInlineNewObject()" style="background:#0a84ff;border:none;color:#fff;font-size:11px;font-weight:500;padding:6px 10px;border-radius:6px;cursor:pointer;">Создать и продолжить</button>
+            </div>
+          </div>
+          <div id="stepTemplate" style="display:none;">
+            <div class="menu-row" onclick="backToObjectStep()" style="color:#8e8e93;"><i class="ti ti-arrow-left" style="font-size:14px;" aria-hidden="true"></i>Объект: <span id="selectedObjLabel" style="color:#e5e5e7;margin-left:2px;"></span></div>
+            <div style="height:0.5px;background:#38383a;"></div>
+            <div class="menu-row" onclick="finishCreateDocument('template')"><i class="ti ti-file" style="font-size:14px;color:#8e8e93;" aria-hidden="true"></i>Использовать шаблон</div>
+            <div style="height:0.5px;background:#38383a;"></div>
+            <div class="menu-row" onclick="finishCreateDocument('new')"><i class="ti ti-file-plus" style="font-size:14px;color:#8e8e93;" aria-hidden="true"></i>Создать новый шаблон</div>
+          </div>
+        </div>
+
+        <div style="height:0.5px;background:#38383a;margin:2px 0;"></div>
+
+        <button onclick="toggleMenu('templatesMenu')" style="width:100%;display:flex;align-items:center;gap:6px;background:#2c2c2e;border:0.5px solid #38383a;color:#e5e5e7;font-size:12px;font-weight:500;padding:7px 10px;border-radius:6px;cursor:pointer;">
+          <i class="ti ti-stack-2" style="font-size:14px;color:#8e8e93;" aria-hidden="true"></i>Мои шаблоны
+        </button>
+        <div id="templatesMenu" class="global-dropdown" style="display:none;background:#2c2c2e;border:0.5px solid #38383a;border-radius:6px;overflow:hidden;">
+          <div class="menu-row"><i class="ti ti-file-text" style="font-size:14px;color:#0a84ff;" aria-hidden="true"></i>Шаблон трубопровод<span class="badge">по умолч.</span></div>
+          <div style="height:0.5px;background:#38383a;"></div>
+          <div class="menu-row"><i class="ti ti-file-text" style="font-size:14px;color:#8e8e93;" aria-hidden="true"></i>Шаблон баллоны</div>
+        </div>
+
+        <button id="btnStaff" onclick="openGlobalPanel('staff')" class="side-nav-btn">
+          <i class="ti ti-users" style="font-size:14px;color:#8e8e93;" aria-hidden="true"></i>Сотрудники
+        </button>
+        <button id="btnDevices" onclick="openGlobalPanel('devices')" class="side-nav-btn">
+          <i class="ti ti-device-analytics" style="font-size:14px;color:#8e8e93;" aria-hidden="true"></i>Приборы
+        </button>
+        <button id="btnOrgdocs" onclick="openGlobalPanel('orgdocs')" class="side-nav-btn">
+          <i class="ti ti-files" style="font-size:14px;color:#8e8e93;" aria-hidden="true"></i>Документы
+        </button>
+      </div>
+
+      <div id="foldersList" style="padding:0 8px;margin-top:2px;">
+        <div class="folder-item" data-name="кб химмаш" id="folderItem1">
+          <div class="folder-row" onclick="toggleFolder(1)" oncontextmenu="return openFolderMenu(event,1,'КБ ХИММАШ')">
+            <i id="fchev1" class="ti ti-chevron-down" style="font-size:13px;color:#8e8e93;" aria-hidden="true"></i>
+            <i id="ficon1" class="ti ti-folder-open" style="font-size:13px;color:#e8b04b;" aria-hidden="true"></i>
+            <span>КБ ХИММАШ</span>
+          </div>
+          <div id="folder1" style="padding-left:14px;">
+            <div class="doc-item" data-name="трубопровод рег.720291" id="docItem1">
+              <div class="doc-row" onclick="openDocument(1)" oncontextmenu="return openDocMenu(event,'Трубопровод, рег.720291')">
+                <i id="chev1" class="ti ti-chevron-down" style="font-size:13px;color:#8e8e93;" aria-hidden="true"></i>
+                <i class="ti ti-file-text" style="font-size:13px;color:#0a84ff;" aria-hidden="true"></i>
+                <span style="flex:1;">Трубопровод, рег.720291</span>
+                <span id="unsavedDot1" class="unsaved-dot" style="display:none;" title="Есть несохранённые изменения">●</span>
+                <span class="status-dot status-progress" title="В работе"></span>
+              </div>
+              <div id="tree1" style="padding-left:22px;">
+                <div class="toc-row toc-active" data-sec="1" onclick="scrollToSection(1)"><i class="ti ti-circle-check" style="color:#30d158;font-size:12px;margin-right:4px;" aria-hidden="true"></i>Титульный лист</div>
+                <div class="toc-row" data-sec="2" onclick="scrollToSection(2)"><i class="ti ti-circle-check" style="color:#30d158;font-size:12px;margin-right:4px;" aria-hidden="true"></i>Вводная часть</div>
+                <div class="toc-row" data-sec="3" onclick="scrollToSection(3)"><i class="ti ti-circle-check" style="color:#30d158;font-size:12px;margin-right:4px;" aria-hidden="true"></i>2. Наименование объекта</div>
+                <div class="toc-row" data-sec="4" onclick="scrollToSection(4)"><i class="ti ti-circle-check" style="color:#30d158;font-size:12px;margin-right:4px;" aria-hidden="true"></i>Приложение 1 — Программа</div>
+                <div class="toc-row" data-sec="5" onclick="scrollToSection(5)"><i class="ti ti-circle" style="color:#6b6b6d;font-size:11px;margin-right:4px;" aria-hidden="true"></i>Приложение 6 — Расчёты</div>
+                <div class="toc-row toc-locked" title="Сначала завершите Приложение 6"><i class="ti ti-lock" style="color:#5a5a5c;font-size:11px;margin-right:4px;" aria-hidden="true"></i>Приложение 8 — Приборы</div>
+              </div>
+            </div>
+            <div class="doc-item" data-name="баллон рег.41172">
+              <div class="doc-row" onclick="openDocument(2)" oncontextmenu="return openDocMenu(event,'Баллон, рег.41172')">
+                <i id="chev2" class="ti ti-chevron-right" style="font-size:13px;color:#8e8e93;" aria-hidden="true"></i>
+                <i class="ti ti-file-text" style="font-size:13px;color:#8e8e93;" aria-hidden="true"></i>
+                <span style="flex:1;">Баллон, рег.41172</span>
+                <span class="status-dot status-done" title="Готов"></span>
+              </div>
+              <div id="tree2" style="display:none;padding-left:22px;">
+                <div class="toc-row"><i class="ti ti-circle-check" style="color:#30d158;font-size:12px;margin-right:4px;" aria-hidden="true"></i>Титульный лист</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="folder-item" data-name="кампо">
+          <div class="folder-row" onclick="toggleFolder(2)" oncontextmenu="return openFolderMenu(event,2,'КАМПО')">
+            <i id="fchev2" class="ti ti-chevron-right" style="font-size:13px;color:#8e8e93;" aria-hidden="true"></i>
+            <i id="ficon2" class="ti ti-folder" style="font-size:13px;color:#e8b04b;" aria-hidden="true"></i>
+            <span>КАМПО</span>
+          </div>
+          <div id="folder2" style="display:none;padding-left:14px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="revealStrip" style="display:none;width:22px;flex-shrink:0;background:#242426;border-right:0.5px solid #38383a;align-items:flex-start;justify-content:center;padding-top:10px;cursor:pointer;" onclick="showSidebar()">
+      <i class="ti ti-layout-sidebar-left-expand" style="font-size:14px;color:#8e8e93;" aria-hidden="true"></i>
+    </div>
+
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;">
+
+      <div id="breadcrumb" style="padding:8px 18px;background:#202022;border-bottom:0.5px solid #2c2c2e;font-size:11px;color:#8e8e93;flex-shrink:0;">
+        <span class="crumb" onclick="revealFolder(1)">КБ ХИММАШ</span>
+        <span style="margin:0 4px;color:#5a5a5c;">/</span>
+        <span class="crumb" onclick="revealDoc(1)">Трубопровод, рег.720291</span>
+        <span id="unsavedCrumbDot" class="unsaved-dot" style="display:none;">●</span>
+        <span style="margin:0 4px;color:#5a5a5c;">/</span>
+        <span id="crumbSection" style="color:#e5e5e7;">Титульный лист</span>
+      </div>
+
+      <div id="mainArea" style="flex:1;overflow-y:auto;position:relative;">
+
+        <div id="formPanel" style="padding:16px 18px;">
+          <div class="sec" id="sec-1">
+            <div class="sec-title">Титульный лист</div>
+            <div class="field-grid"><span class="lbl">Заголовок отчёта</span><input class="fld" value="Отчёт по результатам технического диагностирования" oninput="markDirty()" /><span class="lbl">№ отчёта</span><input class="fld" style="width:100px;" value="681/24" oninput="markDirty()" /></div>
+          </div>
+          <div class="sec" id="sec-2">
+            <div class="sec-title">Вводная часть</div>
+            <div class="field-grid"><span class="lbl">1.2 Организация</span><input class="fld" value="ООО «ЭДЦ ИМПУЛЬС»" oninput="markDirty()" /></div>
+          </div>
+          <div class="sec" id="sec-5">
+            <div class="sec-title">Приложение 6 — Расчёты</div>
+            <div class="field-grid"><span class="lbl">Наружный диаметр</span><input class="fld" style="width:100px;" value="8,0" oninput="markDirty()" /></div>
+          </div>
+          <div class="sec" id="sec-6" style="margin-bottom:0;">
+            <div class="sec-title">Приложение 8 — Приборы</div>
+            <div class="field-grid"><span class="lbl">Аппаратура АЭ</span><input class="fld" value="акустико-эмиссионное «Поиск-2М»" oninput="markDirty()" /></div>
+          </div>
+        </div>
+
+        <div id="panel-staff" class="global-panel" style="display:none;padding:16px 18px;">
+          <div class="panel-title">Сотрудники</div>
+          <div class="data-table">
+            <div class="dt-head"><span>Должность</span><span>ФИО</span><span>Удостоверение</span><span></span></div>
+            <div class="dt-row"><span>Специалист НК II ур.</span><span>Грищенко С.В.</span><span>№ 0010-6557 от 02.09.2022</span><i class="ti ti-trash dt-del" aria-hidden="true"></i></div>
+          </div>
+          <button class="add-row-btn"><i class="ti ti-plus" style="font-size:13px;" aria-hidden="true"></i>Добавить сотрудника</button>
+        </div>
+
+        <div id="panel-devices" class="global-panel" style="display:none;padding:16px 18px;">
+          <div class="panel-title">Приборы</div>
+          <div class="data-table">
+            <div class="dt-head"><span>Прибор</span><span>Зав. №</span><span>Свидетельство поверки</span><span></span></div>
+            <div class="dt-row"><span>Толщиномер A1209</span><span>2093118</span><span>№С-АКЗ/02-02-2024/314335381</span><i class="ti ti-trash dt-del" aria-hidden="true"></i></div>
+            <div class="dt-row"><span>Дефектоскоп A1211 Mini</span><span>2140536</span><span>№С-АКЗ/02-02-2024/314335382</span><i class="ti ti-trash dt-del" aria-hidden="true"></i></div>
+            <div class="dt-row"><span>Поиск-2М</span><span>124</span><span>№П2-24 от 27.02.2024</span><i class="ti ti-trash dt-del" aria-hidden="true"></i></div>
+          </div>
+          <button class="add-row-btn"><i class="ti ti-plus" style="font-size:13px;" aria-hidden="true"></i>Добавить прибор</button>
+        </div>
+
+        <div id="panel-orgdocs" class="global-panel" style="display:none;padding:16px 18px;">
+          <div class="panel-title">Документы организации</div>
+          <div class="data-table">
+            <div class="dt-head"><span>Название</span><span>Тип</span><span>Дата</span><span></span></div>
+            <div class="dt-row"><span>Лицензия № ДЭ-00-007889</span><span>Лицензия</span><span>04.10.2007</span><i class="ti ti-trash dt-del" aria-hidden="true"></i></div>
+            <div class="dt-row"><span>Приказ о назначении специалистов НК</span><span>Приказ</span><span>15.01.2024</span><i class="ti ti-trash dt-del" aria-hidden="true"></i></div>
+            <div class="dt-row"><span>Свидетельство об аккредитации ЭДЦ ИМПУЛЬС</span><span>Свидетельство</span><span>20.03.2023</span><i class="ti ti-trash dt-del" aria-hidden="true"></i></div>
+          </div>
+          <button class="add-row-btn"><i class="ti ti-upload" style="font-size:13px;" aria-hidden="true"></i>Загрузить документ</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;border-top:0.5px solid #38383a;">
+    <div style="flex:1;text-align:center;padding:9px;font-size:12px;color:#c7c7cc;border-right:0.5px solid #38383a;">Выгрузить в Word</div>
+    <div onclick="saveProject()" style="flex:1;text-align:center;padding:9px;font-size:12px;color:#c7c7cc;border-right:0.5px solid #38383a;cursor:pointer;">Сохранить проект</div>
+    <div style="flex:1;text-align:center;padding:9px;font-size:12px;color:#c7c7cc;">Открыть проект</div>
+  </div>
+
+  <div id="objectModal" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.55);align-items:center;justify-content:center;z-index:10;">
+    <div style="background:#2c2c2e;border:0.5px solid #48484a;border-radius:10px;padding:18px;width:260px;">
+      <div style="font-size:13px;font-weight:500;color:#e5e5e7;margin-bottom:10px;">Новый объект</div>
+      <input id="newObjectName" type="text" placeholder="Например, КАМПО" style="width:100%;box-sizing:border-box;background:#1c1c1e;border:0.5px solid #48484a;border-radius:6px;padding:7px 8px;font-size:12px;color:#e5e5e7;margin-bottom:14px;" />
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button onclick="closeObjectModal()" style="background:transparent;border:0.5px solid #48484a;color:#c7c7cc;font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;">Отмена</button>
+        <button onclick="createObject()" style="background:#0a84ff;border:none;color:#fff;font-size:12px;font-weight:500;padding:6px 12px;border-radius:6px;cursor:pointer;">Создать</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="docMenu" style="display:none;position:absolute;z-index:20;background:#2c2c2e;border:0.5px solid #48484a;border-radius:8px;overflow:hidden;min-width:170px;box-shadow:0 8px 24px rgba(0,0,0,.4);">
+    <div class="menu-row" onclick="closeDocMenu()"><i class="ti ti-copy" style="font-size:14px;color:#8e8e93;" aria-hidden="true"></i>Дублировать</div>
+    <div class="menu-row" onclick="closeDocMenu()"><i class="ti ti-edit" style="font-size:14px;color:#8e8e93;" aria-hidden="true"></i>Переименовать</div>
+    <div class="menu-row" onclick="closeDocMenu()"><i class="ti ti-folder" style="font-size:14px;color:#8e8e93;" aria-hidden="true"></i>Показать в Finder</div>
+    <div style="height:0.5px;background:#38383a;"></div>
+    <div class="menu-row" onclick="closeDocMenu()" style="color:#ff453a;"><i class="ti ti-trash" style="font-size:14px;color:#ff453a;" aria-hidden="true"></i>Удалить</div>
+  </div>
+
+  <div id="folderMenu" style="display:none;position:absolute;z-index:20;background:#2c2c2e;border:0.5px solid #48484a;border-radius:8px;overflow:hidden;min-width:190px;box-shadow:0 8px 24px rgba(0,0,0,.4);">
+    <div class="menu-row" onclick="createHereFromMenu()"><i class="ti ti-file-plus" style="font-size:14px;color:#8e8e93;" aria-hidden="true"></i>Создать документ здесь</div>
+    <div style="height:0.5px;background:#38383a;"></div>
+    <div class="menu-row" onclick="closeFolderMenu()"><i class="ti ti-edit" style="font-size:14px;color:#8e8e93;" aria-hidden="true"></i>Переименовать объект</div>
+    <div class="menu-row" onclick="closeFolderMenu()"><i class="ti ti-folder" style="font-size:14px;color:#8e8e93;" aria-hidden="true"></i>Показать в Finder</div>
+    <div style="height:0.5px;background:#38383a;"></div>
+    <div class="menu-row" onclick="closeFolderMenu()" style="color:#ff453a;"><i class="ti ti-trash" style="font-size:14px;color:#ff453a;" aria-hidden="true"></i>Удалить объект</div>
+  </div>
+</div>
+</div>
+</div>
+
+<style>
+body{background:#eeeeef;}
+.folder-row{display:flex;align-items:center;gap:6px;padding:6px 6px;border-radius:5px;cursor:pointer;font-size:12px;color:#e5e5e7;font-weight:500;}
+.folder-row:hover{background:#2c2c2e;}
+.folder-item{margin-bottom:2px;border-radius:6px;}
+.folder-flash{background:rgba(10,132,255,.15);}
+.doc-row{display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:5px;cursor:pointer;font-size:12px;color:#c7c7cc;}
+.doc-row:hover{background:#2c2c2e;color:#e5e5e7;}
+.doc-item{margin-bottom:1px;border-radius:5px;}
+.doc-flash{background:rgba(10,132,255,.15);}
+.toc-row{display:flex;align-items:center;font-size:11px;color:#8e8e93;padding:5px 6px;border-radius:4px;cursor:pointer;}
+.toc-row:hover{background:#2c2c2e;color:#e5e5e7;}
+.toc-active{background:#0a84ff;color:#fff !important;}
+.toc-active i{color:#fff !important;}
+.toc-locked{cursor:not-allowed;color:#5a5a5c;}
+.toc-locked:hover{background:transparent;color:#5a5a5c;}
+.menu-row{padding:8px 10px;font-size:12px;color:#e5e5e7;cursor:pointer;display:flex;align-items:center;gap:6px;}
+.menu-row:hover{background:#3a3a3c;}
+.badge{margin-left:auto;font-size:9px;color:#0a84ff;background:rgba(10,132,255,.15);padding:1px 5px;border-radius:4px;}
+.sec{margin-bottom:24px;padding-bottom:20px;border-bottom:0.5px solid #2c2c2e;}
+.sec-title{font-size:11px;color:#8e8e93;margin-bottom:10px;text-transform:uppercase;letter-spacing:.03em;}
+.field-grid{display:grid;grid-template-columns:120px 1fr;row-gap:8px;column-gap:10px;align-items:center;font-size:12px;}
+.lbl{color:#c7c7cc;}
+input.fld{background:#2c2c2e;border:0.5px solid #38383a;border-radius:5px;padding:6px 8px;color:#e5e5e7;font-family:inherit;font-size:12px;box-sizing:border-box;width:100%;}
+input.fld:focus{outline:none;border-color:#0a84ff;}
+.status-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;display:inline-block;margin-right:4px;}
+.status-done{background:#30d158;}
+.status-progress{background:#febc2e;}
+.status-draft{background:#6b6b6d;}
+.unsaved-dot{color:#0a84ff;font-size:8px;margin-right:4px;}
+.side-nav-btn{width:100%;display:flex;align-items:center;gap:6px;background:#2c2c2e;border:0.5px solid #38383a;color:#e5e5e7;font-size:12px;font-weight:500;padding:7px 10px;border-radius:6px;cursor:pointer;}
+.side-nav-btn.active{background:#0a84ff;border-color:#0a84ff;color:#fff;}
+.side-nav-btn.active i{color:#fff !important;}
+.panel-title{font-size:15px;font-weight:500;color:#e5e5e7;margin-bottom:14px;}
+.data-table{border:0.5px solid #38383a;border-radius:8px;overflow:hidden;margin-bottom:12px;}
+.dt-head{display:grid;grid-template-columns:1.4fr 0.8fr 0.9fr 20px;padding:8px 10px;background:#2c2c2e;font-size:10px;color:#8e8e93;text-transform:uppercase;letter-spacing:.03em;}
+.dt-row{display:grid;grid-template-columns:1.4fr 0.8fr 0.9fr 20px;padding:9px 10px;font-size:12px;color:#e5e5e7;border-top:0.5px solid #2c2c2e;align-items:center;}
+.dt-row span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:8px;}
+.dt-del{color:#5a5a5c;font-size:14px;cursor:pointer;}
+.dt-del:hover{color:#ff453a;}
+.add-row-btn{display:flex;align-items:center;gap:6px;background:transparent;border:0.5px dashed #48484a;color:#8e8e93;font-size:12px;padding:7px 10px;border-radius:6px;cursor:pointer;}
+.crumb{cursor:pointer;}
+.crumb:hover{color:#e5e5e7;text-decoration:underline;}
+</style>
+
+<script>
+var sectionLabels = {1:'Титульный лист',2:'Вводная часть',5:'Приложение 6 — Расчёты',6:'Приложение 8 — Приборы'};
+function toggleMenu(id){
+  document.querySelectorAll('.global-dropdown').forEach(function(m){ if (m.id !== id) m.style.display = 'none'; });
+  var m = document.getElementById(id);
+  m.style.display = m.style.display === 'none' ? 'block' : 'none';
+}
+function openGlobalPanel(name){
+  document.getElementById('formPanel').style.display = 'none';
+  document.getElementById('breadcrumb').style.display = 'none';
+  document.querySelectorAll('.global-panel').forEach(function(p){ p.style.display = 'none'; });
+  document.getElementById('panel-'+name).style.display = 'block';
+  document.querySelectorAll('.side-nav-btn').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('btn'+name.charAt(0).toUpperCase()+name.slice(1)).classList.add('active');
+}
+function openDocument(n){
+  document.querySelectorAll('.global-panel').forEach(function(p){ p.style.display = 'none'; });
+  document.querySelectorAll('.side-nav-btn').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('formPanel').style.display = 'block';
+  document.getElementById('breadcrumb').style.display = 'block';
+  var tree = document.getElementById('tree'+n);
+  var chev = document.getElementById('chev'+n);
+  tree.style.display = 'block';
+  chev.className = 'ti ti-chevron-down';
+}
+function toggleFolder(n){
+  var body = document.getElementById('folder'+n);
+  var chev = document.getElementById('fchev'+n);
+  var icon = document.getElementById('ficon'+n);
+  var open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  chev.className = open ? 'ti ti-chevron-right' : 'ti ti-chevron-down';
+  icon.className = open ? 'ti ti-folder' : 'ti ti-folder-open';
+}
+function hideSidebar(){
+  document.getElementById('sidebar').style.display = 'none';
+  document.getElementById('revealStrip').style.display = 'flex';
+}
+function showSidebar(){
+  document.getElementById('sidebar').style.display = 'block';
+  document.getElementById('revealStrip').style.display = 'none';
+}
+function ensureFolderOpen(id){
+  var body = document.getElementById('folder'+id);
+  if (body.style.display === 'none') { toggleFolder(id); }
+}
+function revealFolder(id){
+  showSidebar();
+  ensureFolderOpen(id);
+  var item = document.getElementById('folderItem'+id);
+  item.classList.add('folder-flash');
+  setTimeout(function(){ item.classList.remove('folder-flash'); }, 700);
+}
+function revealDoc(id){
+  showSidebar();
+  ensureFolderOpen(1);
+  var tree = document.getElementById('tree'+id);
+  if (tree.style.display === 'none') { openDocument(id); }
+  var docItem = document.getElementById('docItem'+id);
+  docItem.classList.add('doc-flash');
+  setTimeout(function(){ docItem.classList.remove('doc-flash'); }, 700);
+}
+var pinned = false;
+function togglePin(){
+  pinned = !pinned;
+  document.getElementById('pinBtn').style.color = pinned ? '#0a84ff' : '#8e8e93';
+}
+var suppressSpy = false;
+function scrollToSection(n){
+  suppressSpy = true;
+  setActive(n);
+  var panel = document.getElementById('mainArea');
+  var target = document.getElementById('sec-'+n);
+  panel.scrollTo({top: target.offsetTop - panel.offsetTop, behavior:'smooth'});
+  setTimeout(function(){ suppressSpy = false; }, 500);
+}
+function setActive(n){
+  var rows = document.querySelectorAll('.toc-row[data-sec]');
+  rows.forEach(function(r){ r.classList.toggle('toc-active', r.getAttribute('data-sec') == n); });
+  document.getElementById('crumbSection').textContent = sectionLabels[n] || '';
+}
+document.getElementById('mainArea').addEventListener('scroll', function(){
+  if (suppressSpy) return;
+  var panel = this;
+  if (document.getElementById('formPanel').style.display === 'none') return;
+  var secs = document.querySelectorAll('#formPanel .sec');
+  var current = 1;
+  secs.forEach(function(s){
+    if (s.offsetTop - panel.offsetTop <= panel.scrollTop + 30) { current = s.id.replace('sec-',''); }
+  });
+  setActive(current);
+});
+function markDirty(){
+  document.getElementById('unsavedDot1').style.display = 'inline';
+  document.getElementById('unsavedCrumbDot').style.display = 'inline';
+}
+function saveProject(){
+  document.getElementById('unsavedDot1').style.display = 'none';
+  document.getElementById('unsavedCrumbDot').style.display = 'none';
+}
+function openObjectModal(){ document.getElementById('objectModal').style.display = 'flex'; document.getElementById('newObjectName').focus(); }
+function closeObjectModal(){ document.getElementById('objectModal').style.display = 'none'; document.getElementById('newObjectName').value = ''; }
+var nextFolderId = 3, selectedObjId = null;
+function addFolder(name){
+  var id = nextFolderId++;
+  var wrap = document.createElement('div');
+  wrap.className = 'folder-item';
+  wrap.setAttribute('data-name', name.toLowerCase());
+  wrap.innerHTML = '<div class="folder-row" onclick="toggleFolder('+id+')" oncontextmenu="return openFolderMenu(event,'+id+',\''+name+'\')"><i id="fchev'+id+'" class="ti ti-chevron-right" style="font-size:13px;color:#8e8e93;" aria-hidden="true"></i><i id="ficon'+id+'" class="ti ti-folder" style="font-size:13px;color:#e8b04b;" aria-hidden="true"></i><span>'+name+'</span></div><div id="folder'+id+'" style="display:none;padding-left:14px;"></div>';
+  document.getElementById('foldersList').insertBefore(wrap, document.getElementById('foldersList').firstChild);
+  return id;
+}
+function createObject(){
+  var input = document.getElementById('newObjectName');
+  addFolder(input.value.trim() || 'Новый объект');
+  closeObjectModal();
+}
+function toggleCreate(){
+  var m = document.getElementById('createMenu');
+  var open = m.style.display !== 'none';
+  if (open) { m.style.display = 'none'; } else { m.style.display = 'block'; resetCreateFlow(); }
+}
+function resetCreateFlow(){
+  document.getElementById('stepObject').style.display = 'block';
+  document.getElementById('stepTemplate').style.display = 'none';
+  document.getElementById('inlineNewObjectForm').style.display = 'none';
+  document.getElementById('inlineNewObjectRow').style.display = 'flex';
+  document.getElementById('inlineObjectName').value = '';
+}
+function selectObjectForDoc(id, name){
+  selectedObjId = id;
+  document.getElementById('selectedObjLabel').textContent = name;
+  document.getElementById('stepObject').style.display = 'none';
+  document.getElementById('stepTemplate').style.display = 'block';
+}
+function backToObjectStep(){
+  document.getElementById('stepObject').style.display = 'block';
+  document.getElementById('stepTemplate').style.display = 'none';
+}
+function showInlineNewObject(){
+  document.getElementById('inlineNewObjectRow').style.display = 'none';
+  document.getElementById('inlineNewObjectForm').style.display = 'flex';
+  document.getElementById('inlineObjectName').focus();
+}
+function confirmInlineNewObject(){
+  var name = document.getElementById('inlineObjectName').value.trim() || 'Новый объект';
+  var id = addFolder(name);
+  selectObjectForDoc(id, name);
+}
+function finishCreateDocument(kind){
+  var folderBody = document.getElementById('folder'+selectedObjId);
+  var chev = document.getElementById('fchev'+selectedObjId);
+  var icon = document.getElementById('ficon'+selectedObjId);
+  folderBody.style.display = 'block';
+  if (chev) chev.className = 'ti ti-chevron-down';
+  if (icon) icon.className = 'ti ti-folder-open';
+  var row = document.createElement('div');
+  row.className = 'doc-item';
+  row.setAttribute('data-name', 'новый документ');
+  row.innerHTML = '<div class="doc-row"><i class="ti ti-file-text" style="font-size:13px;color:#8e8e93;" aria-hidden="true"></i><span style="flex:1;">Новый документ</span><span class="status-dot status-draft" title="Черновик"></span></div>';
+  folderBody.appendChild(row);
+  toggleCreate();
+}
+function filterTree(){
+  var q = document.getElementById('searchInput').value.trim().toLowerCase();
+  document.querySelectorAll('.folder-item').forEach(function(folder){
+    var folderMatch = folder.getAttribute('data-name').indexOf(q) !== -1;
+    var anyDocMatch = false;
+    folder.querySelectorAll('.doc-item').forEach(function(doc){
+      var m = q === '' || doc.getAttribute('data-name').indexOf(q) !== -1 || folderMatch;
+      doc.style.display = m ? '' : 'none';
+      if (m) anyDocMatch = true;
+    });
+    folder.style.display = (q === '' || folderMatch || anyDocMatch) ? '' : 'none';
+  });
+}
+var docMenuTarget = null;
+function openDocMenu(ev, docName){
+  ev.preventDefault();
+  ev.stopPropagation();
+  closeFolderMenu();
+  var menu = document.getElementById('docMenu');
+  var frame = menu.parentElement.getBoundingClientRect();
+  menu.style.left = (ev.clientX - frame.left) + 'px';
+  menu.style.top = (ev.clientY - frame.top) + 'px';
+  menu.style.display = 'block';
+  docMenuTarget = docName;
+  return false;
+}
+function closeDocMenu(){ document.getElementById('docMenu').style.display = 'none'; }
+var folderMenuTargetId = null, folderMenuTargetName = null;
+function openFolderMenu(ev, id, name){
+  ev.preventDefault();
+  ev.stopPropagation();
+  closeDocMenu();
+  var menu = document.getElementById('folderMenu');
+  var frame = menu.parentElement.getBoundingClientRect();
+  menu.style.left = (ev.clientX - frame.left) + 'px';
+  menu.style.top = (ev.clientY - frame.top) + 'px';
+  menu.style.display = 'block';
+  folderMenuTargetId = id;
+  folderMenuTargetName = name;
+  return false;
+}
+function closeFolderMenu(){ document.getElementById('folderMenu').style.display = 'none'; }
+function createHereFromMenu(){
+  closeFolderMenu();
+  document.getElementById('createMenu').style.display = 'block';
+  selectObjectForDoc(folderMenuTargetId, folderMenuTargetName);
+}
+document.addEventListener('click', function(ev){
+  var dm = document.getElementById('docMenu');
+  var fm = document.getElementById('folderMenu');
+  if (dm.style.display === 'block' && !dm.contains(ev.target)) { closeDocMenu(); }
+  if (fm.style.display === 'block' && !fm.contains(ev.target)) { closeFolderMenu(); }
+});
+</script>
