@@ -1156,13 +1156,18 @@ class MainWindow(QMainWindow):
         item = block_list.item(0)
         variant_id = item.data(Qt.ItemDataRole.UserRole)
         label_text = item.text()
-        # Текст item'а показывает не нативная отрисовка делегата, а сам row
-        # (QLabel ниже) -- иначе поверх setItemWidget() проступает
-        # оригинальный текст item'а вторым, наложенным слоем. sizeHint тоже
-        # сбрасываем -- Qt копирует роли (включая SizeHintRole) исходного
-        # item'а при перетаскивании, из-за чего сюда попадала многострочная
-        # высота карточки в availableBlocksList вместо компактной строки.
+        # Текст и иконку item'а показывает не нативная отрисовка делегата, а
+        # сам row (QLabel/QPixmap ниже) -- иначе поверх setItemWidget()
+        # проступают оригинальные текст и иконка item'а вторым, наложенным
+        # слоем (иконка -- та же самая file-text, что ставит
+        # _refresh_available_blocks_list() на карточку в availableBlocksList,
+        # и Qt копирует DecorationRole вместе с текстом при перетаскивании
+        # между списками, отсюда видимое задвоение). sizeHint тоже сбрасываем
+        # -- Qt копирует роли (включая SizeHintRole) исходного item'а при
+        # перетаскивании, из-за чего сюда попадала многострочная высота
+        # карточки в availableBlocksList вместо компактной строки.
         item.setText("")
+        item.setIcon(QIcon())
         item.setSizeHint(QSize(block_list.viewport().width() or 200, 42))
 
         row = QWidget()
