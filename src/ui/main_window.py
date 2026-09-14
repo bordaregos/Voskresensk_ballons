@@ -1121,14 +1121,29 @@ class MainWindow(QMainWindow):
         row = QWidget()
         row_layout = QHBoxLayout(row)
         row_layout.setContentsMargins(10, 8, 6, 8)
+        # WA_TransparentForMouseEvents -- клики по тексту должны доходить до
+        # row.mousePressEvent (сворачивание/разворачивание реквизитов, см.
+        # _toggle_fields_panel()), а не гаситься самим QLabel (мышиные
+        # события Qt не всплывают от ребёнка к родителю сами по себе, в
+        # отличие от event bubbling в DOM).
         text_label = QLabel(label_text)
         text_label.setWordWrap(True)
+        text_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         row_layout.addWidget(text_label, stretch=1)
+        self.includedBlockChevron = QLabel("▾")
+        self.includedBlockChevron.setStyleSheet("color: #8e8e93; font-size: 11px;")
+        self.includedBlockChevron.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        row_layout.addWidget(self.includedBlockChevron)
         remove_btn = QPushButton("×")
         remove_btn.setFixedSize(22, 22)
         remove_btn.setFlat(True)
         remove_btn.clicked.connect(self._clear_included_block)
         row_layout.addWidget(remove_btn)
+        # QPushButton остаётся обычным (не прозрачным для мыши) -- его
+        # собственный клик по-прежнему обрабатывается им самим, до row
+        # не долетает, поэтому отдельный stopPropagation тут не нужен.
+        row.setCursor(Qt.CursorShape.PointingHandCursor)
+        row.mousePressEvent = self._toggle_fields_panel
         block_list.setItemWidget(item, row)
         self._set_included_block_filled(True)
 
@@ -1178,6 +1193,17 @@ class MainWindow(QMainWindow):
         self.fieldsPanel.setVisible(False)
         self.crumbLabel.setText("Конструктор документов / без титульного листа")
         self.pushButt_generateWord.setEnabled(False)
+
+    def _toggle_fields_panel(self, event):
+        """Левый клик по перетащенному блоку в includedBlockList сворачивает/
+        разворачивает fieldsPanel (реквизиты титульного листа) -- см. мокап
+        docs/design/constructor_mockup.html, toggleFields(). Клик по
+        remove_btn ("×") сюда не долетает (см. _process_block_drop())."""
+        if event.button() != Qt.MouseButton.LeftButton:
+            return
+        visible = not self.fieldsPanel.isVisible()
+        self.fieldsPanel.setVisible(visible)
+        self.includedBlockChevron.setText("▾" if visible else "▸")
 
     def _render_title_fields(self, variant_id: str):
         """Перестраивает titleFieldsLayout под набор полей конкретного
