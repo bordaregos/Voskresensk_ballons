@@ -17,10 +17,10 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.config import TEMPLATES_DIR
+from src.config import FRAGMENTS_DIR, TEMPLATES_DIR
 from src.organization_config import DEFAULT_ORGANIZATION
 from src.services.template_generator import generate_template
-from src.services.template_schema import SCHEMAS
+from src.services.template_schema import SCHEMAS, TITLE_VARIANTS, ReportSchema
 from src.services.template_validator import ValidationReport, validate_template
 
 _DEFAULT_TEMPLATE_NAMES = {
@@ -69,6 +69,29 @@ def cmd_generate(args: argparse.Namespace) -> int:
     return 0 if report.ok else 1
 
 
+def cmd_generate_title(args: argparse.Namespace) -> int:
+    """Заготовка одного варианта титульного листа конструктора документов
+    (Phase 1, см. src/services/template_schema.py, TITLE_VARIANTS) --
+    маленький самостоятельный .docx-фрагмент, не целый отчёт. Переиспользует
+    generate_template() как есть, передавая ему пустую sections."""
+    if args.variant not in TITLE_VARIANTS:
+        print(
+            f"Неизвестный вариант: {args.variant!r}. Доступные: {', '.join(sorted(TITLE_VARIANTS))}",
+            file=sys.stderr,
+        )
+        return 1
+
+    schema = ReportSchema(equipment_type_id="constructor", title=TITLE_VARIANTS[args.variant], sections=())
+    out_path = Path(args.out) if args.out else FRAGMENTS_DIR / f"title_{args.variant}.docx"
+    path = generate_template("constructor", DEFAULT_ORGANIZATION, out_path, schema=schema)
+    print(f"Шаблон сохранён: {path}")
+    print("Это заготовка -- доработайте вёрстку/формулировки в Word, повторно не перегенерируется.\n")
+
+    report = validate_template(path, schema)
+    _print_report(report)
+    return 0 if report.ok else 1
+
+
 def cmd_validate(args: argparse.Namespace) -> int:
     if not _require_known_type(args.equipment_type):
         return 1
@@ -87,6 +110,13 @@ def main() -> None:
     gen.add_argument("--title", default=None, help="Переопределить заголовок титульного листа")
     gen.add_argument("--out", default=None, help="Путь сохранения (по умолчанию — templates/)")
     gen.set_defaults(func=cmd_generate)
+
+    gen_title = subparsers.add_parser(
+        "generate-title", help="Сгенерировать заготовку варианта титульного листа конструктора"
+    )
+    gen_title.add_argument("variant", help=f"Вариант титула ({', '.join(sorted(TITLE_VARIANTS))})")
+    gen_title.add_argument("--out", default=None, help="Путь сохранения (по умолчанию — templates/fragments/)")
+    gen_title.set_defaults(func=cmd_generate_title)
 
     val = subparsers.add_parser("validate", help="Проверить .docx на соответствие схеме")
     val.add_argument("docx_path", help="Путь к .docx-файлу")

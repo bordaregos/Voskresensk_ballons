@@ -11,7 +11,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import Dict, List
 
-from .ui import widget_names, widget_names_pipeline
+from .ui import widget_names, widget_names_constructor, widget_names_pipeline
 
 DESIGNER_DIR = Path(__file__).resolve().parent / "ui" / "designer"
 
@@ -63,4 +63,16 @@ PIPELINE = EquipmentType(
     required_fields=["report_number", "reg_number", "p_rab_mpa"],
 )
 
-REGISTRY: Dict[str, EquipmentType] = {"balloon": BALLOON, "pipeline": PIPELINE}
+CONSTRUCTOR = EquipmentType(
+    id="constructor",
+    label="Конструктор документов",
+    ui_path=DESIGNER_DIR / "constructor_window.ui",
+    widget_names=widget_names_constructor,
+    step_order=[],
+    step_labels={},
+    required_fields=[],  # валидация своя, внутри MainWindow._calculate_constructor()
+)
+
+REGISTRY: Dict[str, EquipmentType] = {
+    "balloon": BALLOON, "pipeline": PIPELINE, "constructor": CONSTRUCTOR,
+}

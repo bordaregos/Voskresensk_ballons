@@ -14,7 +14,9 @@ from src.services.template_schema import (
     ReportSchema,
     SCHEMAS,
     StaticFieldsTableSection,
+    TITLE_VARIANTS,
 )
+from src.services.template_validator import validate_template
 
 TAG_RE = re.compile(r"\{\{.*?\}\}|\{%.*?%\}")
 
@@ -171,6 +173,26 @@ def test_title_override_replaces_document_title(tmp_path):
     )
     doc = Document(str(path))
     assert doc.paragraphs[0].text == "Заключение экспертизы промышленной безопасности"
+
+
+@pytest.mark.parametrize("variant_id", sorted(TITLE_VARIANTS))
+def test_title_variant_fragment_is_valid_standalone_docx(tmp_path, variant_id):
+    """Конструктор документов (Phase 1): вариант титульного листа --
+    самостоятельный .docx-фрагмент с пустыми sections, без нового кода в
+    генераторе (см. scripts/template_tool.py cmd_generate_title())."""
+    schema = ReportSchema(
+        equipment_type_id="constructor", title=TITLE_VARIANTS[variant_id], sections=(),
+    )
+    path = generate_template("constructor", DEFAULT_ORGANIZATION, tmp_path / "out.docx", schema=schema)
+    doc = Document(str(path))
+
+    assert doc.paragraphs[0].text == TITLE_VARIANTS[variant_id].document_title
+    full_text = "\n".join(p.text for p in _all_paragraphs(doc))
+    for placeholder in TITLE_VARIANTS[variant_id].subtitle_fields:
+        assert "{{ " + placeholder + " }}" in full_text
+
+    report = validate_template(path, schema)
+    assert report.ok, report.issues
 
 
 def test_custom_minimal_schema_round_trips(tmp_path):

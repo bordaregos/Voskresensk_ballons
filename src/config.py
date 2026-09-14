@@ -23,6 +23,11 @@ KLEISHE_DIR = DATA_DIR / "kleishe"
 # src/services/instruments_store.py).
 INSTRUMENTS_FILE = DATA_DIR / "instruments.json"
 
+# Пользовательские варианты титульного листа конструктора документов — тот
+# же приём (см. src/services/title_variants_store.py). Встроенные варианты
+# (TITLE_VARIANTS) в этот файл не попадают.
+TITLE_VARIANTS_FILE = DATA_DIR / "title_variants.json"
+
 # Схемы НК (Приложение 7, трубопровод) — привязаны к конкретному отчёту
 # (хранятся в report_data проекта как имя файла), но физически лежат в
 # общей папке data/, как и клише — см. store_kleishe_image().
@@ -109,4 +114,30 @@ def find_template(equipment_type: str = "balloon"):
             return path
     raise FileNotFoundError(
         f"Не найден шаблон Word. Попробуйте поместить шаблон в: {TEMPLATES_DIR}"
+    )
+
+
+# Фрагменты-блоки конструктора документов (equipment_type == "constructor") --
+# в отличие от TEMPLATE_PATHS_BY_TYPE, каждый файл тут маленький,
+# самостоятельный кусок документа, а не целый отчёт. Phase 1: только
+# варианты титульного листа (см. TITLE_VARIANTS, src/services/template_schema.py);
+# Phase 2 добавит рядом такой же словарь под приложения.
+FRAGMENTS_DIR = TEMPLATES_DIR / "fragments"
+
+
+def find_title_template(variant_id: str):
+    """Найти .docx-заготовку варианта титульного листа конструктора."""
+    # Импорт внутри функции: services/__init__.py эагерно тянет
+    # calculations.py, а тот импортирует config.py -- импорт template_schema
+    # на верхнем уровне этого модуля дал бы циклический импорт.
+    from .services.template_schema import TITLE_VARIANTS
+
+    if variant_id not in TITLE_VARIANTS:
+        raise ValueError(f"Неизвестный вариант титульного листа: {variant_id}")
+    path = FRAGMENTS_DIR / f"title_{variant_id}.docx"
+    if path.exists():
+        return path
+    raise FileNotFoundError(
+        f"Не найдена заготовка титульного листа «{variant_id}». Сгенерируйте её: "
+        f"python scripts/template_tool.py generate-title {variant_id}"
     )
