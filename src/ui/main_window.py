@@ -82,7 +82,7 @@ QListWidget#availableBlocksList {
 }
 QListWidget#availableBlocksList::item {
     background: #2c2c2e; border: 0.5px solid #38383a; border-radius: 7px;
-    padding: 8px 9px; margin: 2px 0; color: #e5e5e7;
+    padding: 5px 8px; margin: 2px 0; color: #e5e5e7;
 }
 QListWidget#availableBlocksList::item:hover { border-color: #0a84ff; }
 QListWidget#availableBlocksList::item:selected { background: #2c2c2e; }
@@ -987,7 +987,12 @@ class MainWindow(QMainWindow):
         оставить «как есть» через -1, нужно явное значение."""
         width = self.availableBlocksList.viewport().width() or 200
         lines = max(1, math.ceil(len(item.text()) / self.ITEM_CHARS_PER_LINE))
-        item.setSizeHint(QSize(width, lines * 22 + 20))
+        # +14 -- запас под вертикальный padding item'а (QSS: 5px сверху и
+        # снизу + пара px буфера), уменьшен вместе с самим padding'ом (был
+        # 8px -> +20) -- иначе после уменьшения padding карточки остались
+        # бы той же высоты, с пустым местом снизу вместо более компактного
+        # вида.
+        item.setSizeHint(QSize(width, lines * 22 + 14))
 
     def _refresh_available_blocks_list(self):
         """Перестраивает availableBlocksList из get_all_title_variants()
