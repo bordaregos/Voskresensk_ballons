@@ -1184,6 +1184,12 @@ class MainWindow(QMainWindow):
         placeholder.setFlags(Qt.ItemFlag.NoItemFlags)
         placeholder.setForeground(QColor("#5a5a5c"))
         placeholder.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        # AlignCenter центрирует текст только внутри РЕАЛЬНОЙ высоты item'а
+        # (без явного sizeHint это естественная высота одной строки, ~20px),
+        # а не внутри всех 56px box'а -- без этого текст залипает у верхнего
+        # края с пустотой снизу. frameShape=NoFrame (.ui) -- inner-высота
+        # виджета совпадает с его maximumSize, поэтому 56 без поправок.
+        placeholder.setSizeHint(QSize(block_list.viewport().width() or 200, 56))
         block_list.addItem(placeholder)
         self._set_included_block_filled(False)
         block_list.setFixedHeight(56)
