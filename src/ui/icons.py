@@ -71,3 +71,23 @@ def render(name: str, color: str = "#8e8e93", size: int = 16) -> QPixmap:
 def icon(name: str, color: str = "#8e8e93", size: int = 16) -> QIcon:
     """QIcon-обёртка над render() -- для QPushButton/QListWidgetItem/QAction."""
     return QIcon(render(name, color, size))
+
+
+def combine(specs, size: int = 14, gap: int = 4) -> QIcon:
+    """Собирает несколько иконок бок о бок в один QIcon -- для мокапа
+    группы «Титульные листы» (шеврон + папка перед текстом), у которой в
+    .ui обычная QPushButton с одним слотом под icon().
+
+    specs -- список пар (name, color). Не кэшируется (в отличие от
+    render()) -- вызывается только на переключение группы, не на каждую
+    перерисовку списка."""
+    total_width = len(specs) * size + gap * max(0, len(specs) - 1)
+    pm = QPixmap(total_width, size)
+    pm.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pm)
+    x = 0
+    for name, color in specs:
+        painter.drawPixmap(x, 0, render(name, color, size))
+        x += size + gap
+    painter.end()
+    return QIcon(pm)

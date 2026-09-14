@@ -70,6 +70,12 @@ QMainWindow, #constructorCentral { background: #1c1c1e; }
     font-weight: 500; text-align: left; padding: 6px; border-radius: 5px;
 }
 #titleGroupToggle:hover { background: #2c2c2e; }
+#addTitleVariantBtn {
+    background: transparent; border: 0.5px dashed #48484a; border-radius: 7px;
+    color: #8e8e93; font-size: 11.5px; text-align: left; padding: 7px 9px;
+    margin: 2px 0;
+}
+#addTitleVariantBtn:hover { border-color: #0a84ff; color: #e5e5e7; }
 #appendicesSoonLabel { color: #5a5a5c; font-size: 11.5px; }
 QListWidget#availableBlocksList {
     background: transparent; border: none; outline: none; font-size: 11.5px;
@@ -367,18 +373,20 @@ class MainWindow(QMainWindow):
 
             self.availableBlocksList.setIconSize(QSize(15, 15))
             self._refresh_available_blocks_list()
-            self.availableBlocksList.itemClicked.connect(self._on_available_block_clicked)
             self.availableBlocksList.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
             self.availableBlocksList.customContextMenuRequested.connect(
                 self._show_available_block_context_menu
             )
+            self.addTitleVariantBtn.setIcon(icons.icon("plus", "#8e8e93", 13))
+            self.addTitleVariantBtn.setIconSize(QSize(13, 13))
+            self.addTitleVariantBtn.clicked.connect(self._open_add_title_variant_dialog)
 
             # "Приложения — скоро" -- статичная строка-заглушка (см. .ui,
             # appendicesSoonRow), иконки выставляются один раз и не меняются.
             self.appendicesSoonChevron.setPixmap(icons.render("chevron-right", "#5a5a5c", 13))
             self.appendicesSoonFiles.setPixmap(icons.render("files", "#5a5a5c", 14))
 
-            self.titleGroupToggle.setIconSize(QSize(13, 13))
+            self.titleGroupToggle.setIconSize(QSize(30, 13))
             self.titleGroupToggle.toggled.connect(self._toggle_title_group)
             self._toggle_title_group(self.titleGroupToggle.isChecked())
 
@@ -393,6 +401,7 @@ class MainWindow(QMainWindow):
             self.includedBlockList.model().rowsInserted.connect(self._on_block_dropped)
             self.pushButt_generateWord.setEnabled(False)
             self._show_included_block_placeholder()
+            self._set_crumb("без титульного листа")
 
     def init_file_handler(self):
         """Инициализация FileHandler для импорта/экспорта."""
@@ -943,16 +952,18 @@ class MainWindow(QMainWindow):
 
     # -- Конструктор документов: сайдбар «Титульные листы» -------------------
 
-    ADD_VARIANT_MARKER = "__add__"
     INCLUDED_BLOCK_PLACEHOLDER = "__empty__"
 
     def _toggle_title_group(self, expanded: bool):
         """Сворачивание/разворачивание группы «Титульные листы» -- сам
         QListWidget прячется/показывается, шеврон на кнопке-заголовке
-        меняет направление (см. icons.py)."""
+        меняет направление. QPushButton поддерживает только один icon() --
+        шеврон и папка (как в мокапе, см. docs/design/constructor_mockup.html)
+        собираются в один composite-пиксель через icons.combine()."""
         self.availableBlocksList.setVisible(expanded)
+        chevron = "chevron-down" if expanded else "chevron-right"
         self.titleGroupToggle.setIcon(
-            icons.icon("chevron-down" if expanded else "chevron-right", "#8e8e93", 13)
+            icons.combine([(chevron, "#8e8e93"), ("files", "#8e8e93")], size=13, gap=4)
         )
 
     ITEM_CHARS_PER_LINE = 18  # см. _set_wrapped_item_size_hint()
@@ -976,9 +987,12 @@ class MainWindow(QMainWindow):
 
     def _refresh_available_blocks_list(self):
         """Перестраивает availableBlocksList из get_all_title_variants()
-        (встроенные TITLE_VARIANTS + пользовательские из JSON) + сентинел
-        «+ Добавить» последним item'ом -- вызывается при старте и после
-        любой правки списка вариантов (добавление/удаление)."""
+        (встроенные TITLE_VARIANTS + пользовательские из JSON) -- вызывается
+        при старте и после любой правки списка вариантов (добавление/
+        удаление). Кнопка «Добавить» -- отдельный addTitleVariantBtn под
+        списком (.ui), не item в этом списке (см. мокап -- .add-block-row
+        с пунктирной рамкой и hover, недостижимо через QSS ::item на
+        отдельном item'е одного списка)."""
         from ..services.title_variants_store import get_all_title_variants
 
         self.availableBlocksList.clear()
@@ -987,13 +1001,6 @@ class MainWindow(QMainWindow):
             item.setIcon(icons.icon("file-text", "#0a84ff", 15))
             item.setData(Qt.ItemDataRole.UserRole, variant_id)
             self.availableBlocksList.addItem(item)
-
-        add_item = QListWidgetItem("Добавить")
-        add_item.setIcon(icons.icon("plus", "#0a84ff", 13))
-        add_item.setData(Qt.ItemDataRole.UserRole, self.ADD_VARIANT_MARKER)
-        add_item.setFlags(add_item.flags() & ~Qt.ItemFlag.ItemIsDragEnabled)
-        add_item.setForeground(QColor("#0a84ff"))
-        self.availableBlocksList.addItem(add_item)
 
         # Пересчёт высоты -- следующим тиком цикла событий: во время
         # заполнения (в т.ч. при старте, до первого show()) viewport() ещё
@@ -1013,13 +1020,6 @@ class MainWindow(QMainWindow):
             list_widget.item(i).sizeHint().height() for i in range(list_widget.count())
         )
         list_widget.setFixedHeight(total_height + 4)
-
-    def _on_available_block_clicked(self, item: QListWidgetItem):
-        """Клик по обычному варианту ничего не делает (выбор -- через
-        drag-and-drop, см. _on_block_dropped()); клик по сентинелу «+
-        Добавить» открывает модалку создания нового варианта."""
-        if item.data(Qt.ItemDataRole.UserRole) == self.ADD_VARIANT_MARKER:
-            self._open_add_title_variant_dialog()
 
     def _open_add_title_variant_dialog(self):
         """Модалка «Новый вариант титульного листа» -- сохраняет только
@@ -1067,7 +1067,7 @@ class MainWindow(QMainWindow):
         if item is None:
             return
         variant_id = item.data(Qt.ItemDataRole.UserRole)
-        if variant_id in (None, self.ADD_VARIANT_MARKER) or variant_id in TITLE_VARIANTS:
+        if variant_id is None or variant_id in TITLE_VARIANTS:
             return
 
         menu = QMenu(self)
@@ -1208,7 +1208,7 @@ class MainWindow(QMainWindow):
         )
 
         self._render_title_fields(variant_id)
-        self.crumbLabel.setText(f"Конструктор документов / {label_text}")
+        self._set_crumb(label_text)
         self.fieldsPanel.setVisible(True)
         self.pushButt_generateWord.setEnabled(True)
 
@@ -1264,8 +1264,19 @@ class MainWindow(QMainWindow):
     def _clear_included_block(self):
         self._show_included_block_placeholder()
         self.fieldsPanel.setVisible(False)
-        self.crumbLabel.setText("Конструктор документов / без титульного листа")
+        self._set_crumb("без титульного листа")
         self.pushButt_generateWord.setEnabled(False)
+
+    def _set_crumb(self, active_section: str):
+        """Обновляет crumbLabel -- «Конструктор документов / <активный
+        раздел>», где активная часть подсвечена ярче (#e5e5e7) на фоне
+        тусклого префикса (#8e8e93 из CONSTRUCTOR_QSS), как crumbBlock в
+        docs/design/constructor_mockup.html. html.escape() -- active_section
+        приходит из label_text (текст item'а сайдбара), не буквальный
+        константный литерал."""
+        self.crumbLabel.setText(
+            f'Конструктор документов / <span style="color:#e5e5e7;">{html.escape(active_section)}</span>'
+        )
 
     def _toggle_fields_panel(self, event):
         """Левый клик по перетащенному блоку в includedBlockList сворачивает/
