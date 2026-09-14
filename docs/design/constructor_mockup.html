@@ -1,6 +1,16 @@
 <title>Мокап: Конструктор документов</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 <h2 style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);">Мокап конструктора документов: доступные блоки слева, перетаскивание в основную область, форма реквизитов, сборка документа</h2>
+<svg style="position:absolute;width:0;height:0;overflow:hidden;" aria-hidden="true" focusable="false">
+<defs>
+<symbol id="i-chevron-right" viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></symbol>
+<symbol id="i-files" viewBox="0 0 24 24"><rect x="3" y="7" width="13" height="13" rx="2"/><path d="M8 7V4a1 1 0 0 1 1-1h11a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-3"/></symbol>
+<symbol id="i-file-text" viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><line x1="9" y1="9" x2="10" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+<symbol id="i-drag-drop" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" stroke-dasharray="4 3"/><path d="M12 9v6"/><path d="M9 12l3 3 3-3"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><line x1="4" y1="7" x2="20" y2="7"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/></symbol>
+</defs>
+</svg>
 <div style="background:#eeeeef;min-height:100vh;box-sizing:border-box;padding:32px 20px;display:flex;align-items:flex-start;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,sans-serif;">
 <div style="width:100%;max-width:720px;">
 <p style="margin:0 0 14px;font-size:13px;color:#6b6b70;text-align:center;">Кликабельный мокап — перетащите блок титульного листа из списка слева в основную область</p>
@@ -16,28 +26,28 @@
     <div id="sidebar" style="width:220px;background:#242426;border-right:0.5px solid #38383a;flex-shrink:0;overflow-y:auto;">
       <div style="padding:10px 10px 4px;">
         <div class="group-row" onclick="toggleGroup('titleGroup')">
-          <i id="titleGroupChev" class="ti ti-chevron-down" style="font-size:13px;color:#8e8e93;" aria-hidden="true"></i>
-          <i class="ti ti-files" style="font-size:14px;color:#8e8e93;" aria-hidden="true"></i>
+          <svg id="titleGroupChev" class="icon chevron chev-open" style="width:13px;height:13px;color:#8e8e93;" aria-hidden="true"><use href="#i-chevron-right"/></svg>
+          <svg class="icon" style="width:14px;height:14px;color:#8e8e93;" aria-hidden="true"><use href="#i-files"/></svg>
           <span>Титульные листы</span>
         </div>
         <div id="titleGroup" style="padding:4px 0 6px 14px;display:flex;flex-direction:column;gap:8px;">
           <div class="block-card" draggable="true" data-variant="otchet" oncontextmenu="return openBlockMenu(event,this,'otchet')" ondragstart="onDragStart(event)">
-            <i class="ti ti-file-text" style="font-size:15px;color:#0a84ff;flex-shrink:0;" aria-hidden="true"></i>
+            <svg class="icon" style="width:15px;height:15px;color:#0a84ff;" aria-hidden="true"><use href="#i-file-text"/></svg>
             <span>Отчёт по результатам технического диагностирования</span>
           </div>
           <div class="block-card" draggable="true" data-variant="zaklyuchenie" oncontextmenu="return openBlockMenu(event,this,'zaklyuchenie')" ondragstart="onDragStart(event)">
-            <i class="ti ti-file-text" style="font-size:15px;color:#0a84ff;flex-shrink:0;" aria-hidden="true"></i>
+            <svg class="icon" style="width:15px;height:15px;color:#0a84ff;" aria-hidden="true"><use href="#i-file-text"/></svg>
             <span>Заключение по техническому освидетельствованию</span>
           </div>
           <div class="add-block-row" onclick="openAddModal()">
-            <i class="ti ti-plus" style="font-size:13px;" aria-hidden="true"></i>
+            <svg class="icon" style="width:13px;height:13px;" aria-hidden="true"><use href="#i-plus"/></svg>
             <span>Добавить</span>
           </div>
         </div>
 
         <div class="group-row group-row-soon" title="Появится в Phase 2">
-          <i class="ti ti-chevron-right" style="font-size:13px;color:#5a5a5c;" aria-hidden="true"></i>
-          <i class="ti ti-files" style="font-size:14px;color:#5a5a5c;" aria-hidden="true"></i>
+          <svg class="icon" style="width:13px;height:13px;color:#5a5a5c;" aria-hidden="true"><use href="#i-chevron-right"/></svg>
+          <svg class="icon" style="width:14px;height:14px;color:#5a5a5c;" aria-hidden="true"><use href="#i-files"/></svg>
           <span>Приложения — скоро</span>
         </div>
       </div>
@@ -58,13 +68,14 @@
 
         <div id="dropZone" class="drop-zone" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
           <div id="dropEmpty" style="display:flex;flex-direction:column;align-items:center;gap:6px;color:#5a5a5c;font-size:12px;padding:18px 0;">
-            <i class="ti ti-drag-drop" style="font-size:22px;" aria-hidden="true"></i>
+            <svg class="icon" style="width:22px;height:22px;" aria-hidden="true"><use href="#i-drag-drop"/></svg>
             Перетащите титульный лист сюда
           </div>
-          <div id="dropFilled" style="display:none;align-items:center;gap:8px;width:100%;align-self:stretch;box-sizing:border-box;padding:10px 12px;background:#2c2c2e;border-radius:8px;">
-            <i class="ti ti-file-text" style="font-size:15px;color:#0a84ff;flex-shrink:0;" aria-hidden="true"></i>
+          <div id="dropFilled" onclick="toggleFields()" style="display:none;align-items:center;gap:8px;width:100%;align-self:stretch;box-sizing:border-box;padding:10px 12px;background:#2c2c2e;border-radius:8px;cursor:pointer;" title="Показать/скрыть реквизиты">
+            <svg class="icon" style="width:15px;height:15px;color:#0a84ff;" aria-hidden="true"><use href="#i-file-text"/></svg>
             <span id="droppedLabel" style="flex:1;font-size:12px;color:#e5e5e7;"></span>
-            <button class="remove-btn" onclick="clearBlock()" title="Убрать" aria-label="Убрать"><i class="ti ti-x" aria-hidden="true"></i></button>
+            <svg id="fieldsChev" class="icon chevron chev-open" style="width:13px;height:13px;color:#8e8e93;" aria-hidden="true"><use href="#i-chevron-right"/></svg>
+            <button class="remove-btn" onclick="event.stopPropagation();clearBlock()" title="Убрать" aria-label="Убрать"><svg class="icon" style="width:14px;height:14px;" aria-hidden="true"><use href="#i-x"/></svg></button>
           </div>
         </div>
 
@@ -84,7 +95,7 @@
   </div>
 
   <div id="blockMenu" style="display:none;position:absolute;z-index:20;background:#2c2c2e;border:0.5px solid #48484a;border-radius:8px;overflow:hidden;min-width:170px;box-shadow:0 8px 24px rgba(0,0,0,.4);">
-    <div class="menu-row" style="color:#ff453a;" onclick="deleteBlockFromMenu()"><i class="ti ti-trash" style="font-size:14px;color:#ff453a;" aria-hidden="true"></i>Удалить</div>
+    <div class="menu-row" style="color:#ff453a;" onclick="deleteBlockFromMenu()"><svg class="icon" style="width:14px;height:14px;color:#ff453a;" aria-hidden="true"><use href="#i-trash"/></svg>Удалить</div>
   </div>
 
   <div id="addModal" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.55);align-items:center;justify-content:center;z-index:10;">
@@ -103,6 +114,9 @@
 
 <style>
 body{background:#eeeeef;}
+.icon{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;}
+.chevron{transition:transform .15s ease;}
+.chevron.chev-open{transform:rotate(90deg);}
 .group-row{display:flex;align-items:center;gap:6px;padding:6px 6px;border-radius:5px;cursor:pointer;font-size:11.5px;color:#e5e5e7;font-weight:500;}
 .group-row:hover{background:#2c2c2e;}
 .group-row-soon{cursor:not-allowed;color:#5a5a5c;}
@@ -175,7 +189,7 @@ function toggleGroup(id){
   var chev = document.getElementById(id + 'Chev');
   var open = body.style.display !== 'none';
   body.style.display = open ? 'none' : 'flex';
-  chev.className = open ? 'ti ti-chevron-right' : 'ti ti-chevron-down';
+  chev.classList.toggle('chev-open', !open);
 }
 function onDragStart(ev){
   ev.dataTransfer.setData('text/plain', ev.currentTarget.getAttribute('data-variant'));
@@ -205,10 +219,19 @@ function setBlock(variant){
   document.getElementById('droppedLabel').textContent = labels[variant];
   renderFields(variant);
   document.getElementById('fieldsPanel').style.display = 'block';
+  document.getElementById('fieldsChev').classList.add('chev-open');
   document.getElementById('crumbBlock').textContent = labels[variant];
   var btn = document.getElementById('assembleBtn');
   btn.style.color = '#c7c7cc';
   btn.style.cursor = 'pointer';
+}
+function toggleFields(){
+  if (!currentVariant) return;
+  var panel = document.getElementById('fieldsPanel');
+  var chev = document.getElementById('fieldsChev');
+  var open = panel.style.display !== 'none';
+  panel.style.display = open ? 'none' : 'block';
+  chev.classList.toggle('chev-open', !open);
 }
 function clearBlock(){
   currentVariant = null;
@@ -249,7 +272,7 @@ function confirmAddVariant(){
   card.setAttribute('data-variant', variantId);
   card.setAttribute('ondragstart', 'onDragStart(event)');
   card.setAttribute('oncontextmenu', "return openBlockMenu(event,this,'" + variantId + "')");
-  card.innerHTML = '<i class="ti ti-file-text" style="font-size:15px;color:#0a84ff;flex-shrink:0;" aria-hidden="true"></i><span>' + text + '</span>';
+  card.innerHTML = '<svg class="icon" style="width:15px;height:15px;color:#0a84ff;" aria-hidden="true"><use href="#i-file-text"></use></svg><span>' + text + '</span>';
 
   var addRow = document.querySelector('#titleGroup .add-block-row');
   addRow.parentNode.insertBefore(card, addRow);
