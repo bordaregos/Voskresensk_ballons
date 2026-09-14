@@ -47,27 +47,38 @@
            </widget>
           </item>
           <item>
-           <widget class="QListWidget" name="availableBlocksList">
-            <property name="dragEnabled"><bool>true</bool></property>
-            <property name="frameShape"><enum>QFrame::Shape::NoFrame</enum></property>
-            <property name="wordWrap"><bool>true</bool></property>
-            <property name="textElideMode"><enum>Qt::TextElideMode::ElideNone</enum></property>
-            <property name="resizeMode"><enum>QListView::ResizeMode::Adjust</enum></property>
-            <property name="horizontalScrollBarPolicy">
-             <enum>Qt::ScrollBarPolicy::ScrollBarAlwaysOff</enum>
-            </property>
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
-              <horstretch>0</horstretch><verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="addTitleVariantBtn">
-            <property name="text"><string>  Добавить</string></property>
-            <property name="flat"><bool>true</bool></property>
-            <property name="cursor"><cursorShape>PointingHandCursor</cursorShape></property>
+           <widget class="QWidget" name="titleGroupContent">
+            <layout class="QVBoxLayout" name="titleGroupContentLayout">
+             <property name="spacing"><number>2</number></property>
+             <property name="leftMargin"><number>0</number></property>
+             <property name="topMargin"><number>0</number></property>
+             <property name="rightMargin"><number>0</number></property>
+             <property name="bottomMargin"><number>0</number></property>
+             <item>
+              <widget class="QListWidget" name="availableBlocksList">
+               <property name="dragEnabled"><bool>true</bool></property>
+               <property name="frameShape"><enum>QFrame::Shape::NoFrame</enum></property>
+               <property name="wordWrap"><bool>true</bool></property>
+               <property name="textElideMode"><enum>Qt::TextElideMode::ElideNone</enum></property>
+               <property name="resizeMode"><enum>QListView::ResizeMode::Adjust</enum></property>
+               <property name="horizontalScrollBarPolicy">
+                <enum>Qt::ScrollBarPolicy::ScrollBarAlwaysOff</enum>
+               </property>
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
+                 <horstretch>0</horstretch><verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="addTitleVariantBtn">
+               <property name="text"><string>  Добавить</string></property>
+               <property name="flat"><bool>true</bool></property>
+               <property name="cursor"><cursorShape>PointingHandCursor</cursorShape></property>
+              </widget>
+             </item>
+            </layout>
            </widget>
           </item>
           <item>
