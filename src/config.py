@@ -126,18 +126,37 @@ FRAGMENTS_DIR = TEMPLATES_DIR / "fragments"
 
 
 def find_title_template(variant_id: str):
-    """Найти .docx-заготовку варианта титульного листа конструктора."""
+    """Найти .docx-заготовку варианта титульного листа конструктора --
+    встроенного (TITLE_VARIANTS) или пользовательского (title_variants_store,
+    data/title_variants.json).
+
+    Пользовательские варианты с этой версии не бывают "осиротевшими": их
+    заготовка генерируется автоматически при создании («Добавить») и при
+    каждом сохранении в редакторе шаблона (src/ui/title_content_editor.py,
+    generate_title_fragment()), а не вручную через CLI. FileNotFoundError
+    здесь теперь означает реальную поломку (файл удалили с диска руками),
+    а не штатное "заготовку ещё не сгенерировали"."""
     # Импорт внутри функции: services/__init__.py эагерно тянет
     # calculations.py, а тот импортирует config.py -- импорт template_schema
     # на верхнем уровне этого модуля дал бы циклический импорт.
     from .services.template_schema import TITLE_VARIANTS
+    from .services.title_variants_store import load_title_variants
 
-    if variant_id not in TITLE_VARIANTS:
+    is_builtin = variant_id in TITLE_VARIANTS
+    is_custom = any(v.id == variant_id for v in load_title_variants())
+    if not is_builtin and not is_custom:
         raise ValueError(f"Неизвестный вариант титульного листа: {variant_id}")
+
     path = FRAGMENTS_DIR / f"title_{variant_id}.docx"
     if path.exists():
         return path
+    if is_builtin:
+        raise FileNotFoundError(
+            f"Не найдена заготовка титульного листа «{variant_id}». Сгенерируйте её: "
+            f"python scripts/template_tool.py generate-title {variant_id}"
+        )
     raise FileNotFoundError(
-        f"Не найдена заготовка титульного листа «{variant_id}». Сгенерируйте её: "
-        f"python scripts/template_tool.py generate-title {variant_id}"
+        f"Не найдена заготовка титульного листа «{variant_id}» -- похоже, файл "
+        f"{path} удалили вручную. Откройте вариант на редактирование и сохраните "
+        f"ещё раз, чтобы перегенерировать заготовку."
     )

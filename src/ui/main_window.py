@@ -1031,11 +1031,13 @@ class MainWindow(QMainWindow):
         list_widget.setFixedHeight(total_height + 4)
 
     def _open_add_title_variant_dialog(self):
-        """Модалка «Новый вариант титульного листа» -- сохраняет только
-        метаданные (id + текст заголовка) в JSON, как справочники
-        сотрудников/приборов; .docx-заготовку под новый id оператор
-        генерирует отдельно через CLI (find_title_template() уже подсказывает
-        точную команду, если заготовки ещё нет)."""
+        """Модалка «Новый вариант титульного листа» -- сохраняет метаданные
+        (id + заголовок + стартовый набор полей) в JSON, как справочники
+        сотрудников/приборов, И СРАЗУ генерирует .docx-заготовку
+        (generate_title_fragment()) -- раньше вариант оставался "сиротой"
+        без файла, пока оператор вручную не запускал CLI (см.
+        find_title_template() и historical note в src/config.py); теперь
+        find_title_template() у нового варианта не падает никогда."""
         dialog = QDialog(self)
         dialog.setWindowTitle("Новый вариант титульного листа")
         layout = QVBoxLayout(dialog)
@@ -1056,15 +1058,19 @@ class MainWindow(QMainWindow):
         if not text:
             return
 
+        from ..config import FRAGMENTS_DIR
         from ..models.title_variant import TitleVariant
+        from ..services.template_generator import generate_title_fragment
         from ..services.template_schema import DEFAULT_TITLE_SUBTITLE_FIELDS
         from ..services.title_variants_store import load_title_variants, save_title_variants
 
-        variants = load_title_variants()
-        variants.append(TitleVariant(
+        new_variant = TitleVariant(
             id=uuid4().hex[:8], document_title=text, subtitle_fields=DEFAULT_TITLE_SUBTITLE_FIELDS,
-        ))
+        )
+        variants = load_title_variants()
+        variants.append(new_variant)
         save_title_variants(variants)
+        generate_title_fragment(new_variant, FRAGMENTS_DIR / f"title_{new_variant.id}.docx")
         self._refresh_available_blocks_list()
 
     def _show_available_block_context_menu(self, pos):
@@ -1210,6 +1216,15 @@ class MainWindow(QMainWindow):
         # не долетает, поэтому отдельный stopPropagation тут не нужен.
         row.setCursor(Qt.CursorShape.PointingHandCursor)
         row.mousePressEvent = self._toggle_fields_panel
+        # ПКМ на уже вставленном блоке -- «Редактировать шаблон» (см.
+        # _show_included_block_context_menu()). Обсуждалось и обкатывалось
+        # сначала на мокапе (docs/design/constructor_mockup.html) -- решили
+        # НЕ дублировать этот пункт в availableBlocksList слева: там ПКМ
+        # остаётся только про «Удалить» вариант из палитры целиком.
+        row.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        row.customContextMenuRequested.connect(
+            lambda pos, vid=variant_id, r=row: self._show_included_block_context_menu(vid, r.mapToGlobal(pos))
+        )
         block_list.setItemWidget(item, row)
         self._set_included_block_filled(True)
 
@@ -1311,11 +1326,28 @@ class MainWindow(QMainWindow):
         поля разные у разных вариантов (напр. «Отчёт» -- 8 полей, остальные
         -- 4), поэтому строятся в рантайме, а не заранее в .ui.
 
+        Значения уже заполненных полей, которые остаются в новом наборе,
+        сохраняются при пересборке -- вызывается не только при первом дропе
+        блока в документ, но и повторно после правки содержимого варианта в
+        редакторе шаблона (_show_included_block_context_menu()), где набор
+        плейсхолдеров мог измениться, а уже введённые значения оставшихся
+        полей терять не нужно.
+
+        Подписи полей -- из общего каталога (встроенные + пользовательские,
+        см. get_all_field_labels()), а не только встроенного
+        TITLE_FIELD_LABELS -- иначе поле, заведённое через «+ Новое поле» в
+        редакторе шаблона, показывалось бы тут просто как голый id.
+
         Динамически созданные виджеты регистрируются в self.PLAIN_TEXT_EDIT_NAMES
         -- том же списке, что уже читают get_form_data()/init_widgets() --
         вместо отдельного пути сохранения/чтения данных для конструктора."""
-        from ..services.template_schema import TITLE_FIELD_LABELS
-        from ..services.title_variants_store import get_all_title_variants
+        from ..services.title_variants_store import get_all_field_labels, get_all_title_variants
+
+        previous_values = {
+            name: getattr(self, name).toPlainText()
+            for name in self._dynamic_field_names
+            if hasattr(self, name)
+        }
 
         for name in self._dynamic_field_names:
             if name in self.PLAIN_TEXT_EDIT_NAMES:
@@ -1326,16 +1358,72 @@ class MainWindow(QMainWindow):
         while layout.rowCount():
             layout.removeRow(0)
 
+        labels = get_all_field_labels()
         field_ids = get_all_title_variants()[variant_id].subtitle_fields
         for field_id in field_ids:
             widget = QPlainTextEdit()
             widget.setMaximumHeight(32)
             widget.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
             widget.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
-            layout.addRow(TITLE_FIELD_LABELS.get(field_id, field_id), widget)
+            if field_id in previous_values:
+                widget.setPlainText(previous_values[field_id])
+            layout.addRow(labels.get(field_id, field_id), widget)
             setattr(self, field_id, widget)
             self.PLAIN_TEXT_EDIT_NAMES.append(field_id)
             self._dynamic_field_names.append(field_id)
+
+    def _show_included_block_context_menu(self, variant_id: str, global_pos):
+        """ПКМ на уже вставленном в документ блоке -- «Редактировать
+        шаблон» (см. _process_block_drop(), где подключен сигнал). Только
+        для пользовательских вариантов: встроенные (TITLE_VARIANTS)
+        собраны в Word вручную, generate_title_fragment() их не
+        перезаписывает (см. её докстринг) -- пункт меню показывается
+        неактивным с пояснением, а не молча ничего не делает (иначе
+        непонятно, сработало ли вообще ПКМ)."""
+        from ..services.template_schema import TITLE_VARIANTS
+
+        menu = QMenu(self)
+        edit_action = menu.addAction(icons.icon("edit", "#8e8e93", 14), "Редактировать шаблон")
+        if variant_id in TITLE_VARIANTS:
+            edit_action.setEnabled(False)
+            edit_action.setToolTip("Встроенный вариант -- редактируется вручную в Word")
+
+        if menu.exec(global_pos) == edit_action:
+            self._open_title_content_editor(variant_id)
+
+    def _open_title_content_editor(self, variant_id: str):
+        """Открывает TitleContentEditorDialog для variant_id, сохраняет
+        результат: перезаписывает TitleVariant в title_variants_store,
+        перегенерирует .docx-фрагмент, обновляет форму реквизитов на
+        главном экране (набор плейсхолдеров мог измениться -- см.
+        _render_title_fields())."""
+        from ..config import FRAGMENTS_DIR
+        from ..services.template_generator import generate_title_fragment
+        from ..services.title_variants_store import load_title_variants, save_title_variants
+        from .title_content_editor import TitleContentEditorDialog
+
+        variants = load_title_variants()
+        variant = next((v for v in variants if v.id == variant_id), None)
+        if variant is None:
+            return  # встроенный вариант -- сюда не должны были попасть, см. вызывающий код
+
+        field_values = {
+            field_id: getattr(self, field_id).toPlainText()
+            for field_id in variant.subtitle_fields
+            if hasattr(self, field_id)
+        }
+        dialog = TitleContentEditorDialog(self, variant, field_values)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        variant.content = dialog.content()
+        variant.subtitle_fields = dialog.subtitle_fields()
+        save_title_variants(variants)
+        generate_title_fragment(variant, FRAGMENTS_DIR / f"title_{variant.id}.docx")
+
+        included = self.includedBlockList
+        if included.count() and included.item(0).data(Qt.ItemDataRole.UserRole) == variant_id:
+            self._render_title_fields(variant_id)
 
     def show_message(self, title, text, icon=QMessageBox.Icon.Information):
         """Универсальный метод показа сообщений"""

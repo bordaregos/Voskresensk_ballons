@@ -27,6 +27,7 @@ from typing import Union
 from docx import Document
 from docx.document import Document as DocumentObject
 
+from ..models.title_variant import TitleVariant
 from ..organization_config import OrganizationConfig
 from .template_schema import (
     FieldsTableSection,
@@ -58,6 +59,32 @@ def add_title(doc: DocumentObject, title: TitleConfig) -> None:
     for name in title.subtitle_fields:
         p = doc.add_paragraph()
         p.add_run("{{ " + name + " }}")
+
+
+def add_title_content(doc: DocumentObject, document_title: str, content) -> None:
+    """Титульный лист пользовательского варианта конструктора документов по
+    структурированному содержимому (см. src/models/title_variant.py,
+    TitleVariant.content) -- в отличие от add_title(), которая пишет только
+    заголовок и голые "{{ field }}" по одному на параграф, здесь параграф
+    может свободно смешивать обычный текст и плейсхолдеры в одной строке
+    (например "Рег./уч. номер: {{ reg_number }}" одним раном на кусок).
+
+    Ключевой инвариант генератора (см. модульный докстринг) соблюдён и
+    здесь: один плейсхолдер -- ровно один run (p.add_run("{{ " + id + " }}")
+    за один вызов, без последующей правки .text по частям).
+    """
+    heading = doc.add_heading(document_title, level=0)
+    heading.alignment = 1  # WD_ALIGN_PARAGRAPH.CENTER
+    for paragraph_runs in content:
+        p = doc.add_paragraph()
+        for run_spec in paragraph_runs:
+            placeholder = run_spec.get('placeholder')
+            if placeholder:
+                p.add_run("{{ " + placeholder + " }}")
+                continue
+            run = p.add_run(run_spec.get('text', ''))
+            run.bold = bool(run_spec.get('bold', False))
+            run.italic = bool(run_spec.get('italic', False))
 
 
 def add_static_text_section(doc: DocumentObject, section: StaticTextSection) -> None:
@@ -170,6 +197,45 @@ def generate_template(
     add_title(doc, title)
     for section in schema.sections:
         add_section(doc, section, org_config)
+
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    doc.save(str(output_path))
+    return output_path
+
+
+def generate_title_fragment(variant: TitleVariant, output_path: Union[str, Path]) -> Path:
+    """.docx-заготовка ОДНОГО пользовательского варианта титульного листа
+    конструктора документов (variant: TitleVariant) -- маленький
+    самостоятельный фрагмент, как add_title()/cmd_generate_title в
+    scripts/template_tool.py, но без обвязки в ReportSchema/OrganizationConfig
+    (они тут не нужны: у фрагмента-титульника нет ни разделов схемы, ни
+    реквизитов организации).
+
+    В отличие от generate_template()/cmd_generate_title -- это НЕ разовая
+    ручная операция: вызывается КАЖДЫЙ РАЗ при сохранении содержимого
+    варианта во встроенном редакторе конструктора (src/ui/title_content_editor.py)
+    и один раз при создании нового варианта («Добавить»), чтобы у варианта
+    сразу была рабочая заготовка вместо "осиротевшего" JSON-описания без
+    .docx (см. src/config.py, find_title_template()). Это осознанно
+    относится только к пользовательским вариантам -- встроенные
+    (TITLE_VARIANTS, template_schema.py) генерируются один раз через
+    scripts/template_tool.py и дальше правятся в Word вручную
+    (safe-regeneration для них сознательно не реализована, см. модульный
+    докстринг), перезаписывать их этой функцией нельзя.
+
+    Если у variant ещё нет content (старый вариант, созданный до этой
+    возможности, либо только что созданный через «Добавить» без единого
+    сохранения в редакторе) -- используется subtitle_fields через
+    add_title(), тот же голый построчный формат, что и раньше.
+    """
+    doc = Document()
+    if variant.content:
+        add_title_content(doc, variant.document_title, variant.content)
+    else:
+        add_title(doc, TitleConfig(
+            document_title=variant.document_title, subtitle_fields=variant.subtitle_fields,
+        ))
 
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
