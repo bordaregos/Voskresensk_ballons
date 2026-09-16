@@ -5,9 +5,9 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QPlainTextEdit, QComboBo
                              QMessageBox, QFileDialog, QGroupBox,
                              QTreeWidgetItem, QInputDialog, QMenu, QListWidgetItem,
                              QDialog, QLineEdit, QVBoxLayout, QHBoxLayout, QDialogButtonBox,
-                             QLabel, QWidget)
+                             QLabel, QWidget, QToolButton)
 from PyQt6.QtCore import QLocale, Qt, QDate, QPointF, QTimer, QSize
-from PyQt6.QtGui import QPixmap, QIcon, QPainter, QColor, QPen
+from PyQt6.QtGui import QPixmap, QIcon, QPainter, QColor, QPen, QGuiApplication
 from PyQt6.uic import loadUi
 from typing import Dict, Union
 from pathlib import Path
@@ -17,9 +17,11 @@ from docxtpl import DocxTemplate, InlineImage, RichText
 
 import os
 import re
+import shutil
 import subprocess
 import html
 import math
+import tempfile
 
 from ..equipment_types import EquipmentType, REGISTRY
 from ..services.calculations import (
@@ -49,6 +51,7 @@ from ..services.employees_store import (
 from ..services.docx_layout import float_drawings_behind_text
 from ..services import workspace
 from . import icons
+from .open_with import open_with_prompt
 from ..models.project import Project
 from ..config import NK_SCHEME_DIR, PNEVMO_GRAPH_DIR
 from .widget_names_pipeline import SEGMENT_TYPES, PROGRAM_DEFAULT_ITEMS, AE_CLASS_TYPES
@@ -98,18 +101,58 @@ QListWidget#includedBlockList[filled="false"] {
 QListWidget#includedBlockList[filled="true"]::item {
     background: #2c2c2e; border-radius: 8px; padding: 0; margin: 0;
 }
-QGroupBox#fieldsPanel {
-    border: none; margin-top: 14px; padding-top: 8px;
+QListWidget#includedBlockList[dragOver="true"] {
+    border: 1.5px dashed #0a84ff; border-radius: 8px; background: rgba(10, 132, 255, 24);
 }
-QGroupBox#fieldsPanel::title {
-    color: #8e8e93; font-size: 11px; subcontrol-origin: margin; left: 0; padding: 0;
+QGroupBox#fieldsPanel {
+    border: none; margin-top: 14px; padding-top: 0;
 }
 QGroupBox#fieldsPanel QLabel { color: #c7c7cc; font-size: 12px; }
+QGroupBox#fieldsPanel QLabel#titleFieldsSectionLabel {
+    color: #8e8e93; font-size: 11px; margin-top: 4px;
+}
 QGroupBox#fieldsPanel QPlainTextEdit {
     background: #2c2c2e; border: 0.5px solid #38383a; border-radius: 5px;
     color: #e5e5e7; font-size: 12px; padding: 6px 8px;
 }
 QGroupBox#fieldsPanel QPlainTextEdit:focus { border-color: #0a84ff; }
+QGroupBox#fieldsPanel QToolButton {
+    background: transparent; border: none; color: #c7c7cc; font-size: 11.5px;
+    padding: 4px 8px; border-radius: 5px;
+}
+QGroupBox#fieldsPanel QToolButton:hover { background: #3a3a3c; color: #e5e5e7; }
+QGroupBox#fieldsPanel QToolButton::menu-indicator {
+    width: 8px; height: 8px; subcontrol-position: right center;
+    subcontrol-origin: padding; right: 4px;
+}
+QGroupBox#fieldsPanel QLabel[titleChip="true"] {
+    background: rgba(10, 132, 255, 40); color: #5ab4ff;
+    border: 1px solid rgba(10, 132, 255, 110); border-radius: 6px;
+    padding: 4px 9px; font-size: 11.5px;
+}
+QGroupBox#fieldsPanel QLabel[titleChipCopied="true"] {
+    background: rgba(48, 209, 88, 40); color: #30d158;
+    border: 1px solid rgba(48, 209, 88, 140);
+}
+QWidget#titleTemplateDropHint {
+    border: 1.5px dashed #38383a; border-radius: 8px;
+}
+QWidget#titleTemplateDropZone[dragActive="true"] QWidget#titleTemplateDropHint {
+    border-color: #0a84ff; background: rgba(10, 132, 255, 24);
+}
+QWidget#titleTemplateLoadedCard {
+    background: #2c2c2e; border: 0.5px solid #38383a; border-radius: 7px;
+}
+QWidget#titleTemplateLoadedCard QLabel { color: #e5e5e7; font-size: 11.5px; }
+QWidget#titleTemplateLoadedCard QPushButton {
+    background: transparent; border: none; border-radius: 5px;
+}
+QWidget#titleTemplateLoadedCard QPushButton:hover { background: #3a3a3c; }
+QWidget#titlePreviewField {
+    background: #2c2c2e; border: 0.5px solid #38383a; border-radius: 7px;
+}
+QWidget#titlePreviewField QLabel { color: #8e8e93; font-size: 11.5px; }
+QWidget#titlePreviewField QLabel[titlePreviewFieldActive="true"] { color: #e5e5e7; }
 #constructorBottomBar { background: #1c1c1e; border-top: 0.5px solid #38383a; }
 #constructorBottomBar QPushButton {
     background: transparent; border: none; color: #c7c7cc; font-size: 12px;
@@ -370,6 +413,14 @@ class MainWindow(QMainWindow):
             # типов) -- она же и «Собрать документ» для конструктора.
             self.setStyleSheet(CONSTRUCTOR_QSS)
             self._dynamic_field_names = []
+            # id вариантов, для которых предпросмотр уже открывали хотя бы
+            # раз в текущем запуске приложения -- чисто в памяти, не
+            # персистится: сам предпросмотр рендерится во временный файл
+            # заново при каждом клике (_open_title_variant_preview()), а не
+            # хранится постоянно, так что флаг "документ уже есть",
+            # переживающий перезапуск приложения, указывал бы на файл,
+            # которого уже не существует. См. _build_title_preview_field().
+            self._title_preview_generated = set()
 
             self.availableBlocksList.setIconSize(QSize(15, 15))
             self._refresh_available_blocks_list()
@@ -399,6 +450,51 @@ class MainWindow(QMainWindow):
             # видна эта линия или нет.
             self.includedBlockList.setDropIndicatorShown(False)
             self.includedBlockList.model().rowsInserted.connect(self._on_block_dropped)
+
+            # Подсветка при перетаскивании варианта из сайдбара сюда --
+            # своя, поверх уже готового нативного DnD у QListWidget (сама
+            # вставка блока уже работает и без этого, см. rowsInserted
+            # выше). Родные dragEnterEvent/dragLeaveEvent/dropEvent
+            # сохраняются и по-прежнему вызываются первыми (orig(event)) --
+            # без этого перестала бы работать сама вставка; подсветка
+            # (QSS-свойство dragOver, тот же unpolish/polish-приём, что и у
+            # titleTemplateDropZone/titleTemplateDropHint) добавляется
+            # поверх, только когда orig() реально принял перетаскивание
+            # (event.isAccepted()) -- чужой файл из Finder, например, не
+            # подсвечивает область. dragMoveEvent не трогается -- у
+            # QAbstractItemView он уже принимает события сам, в отличие от
+            # titleTemplateDropZone (голого QWidget без встроенного DnD).
+            block_list = self.includedBlockList
+            orig_drag_enter = block_list.dragEnterEvent
+            orig_drag_leave = block_list.dragLeaveEvent
+            orig_drop_event = block_list.dropEvent
+
+            def _block_list_drag_enter(event, orig=orig_drag_enter, lw=block_list):
+                orig(event)
+                if event.isAccepted():
+                    lw.setProperty("dragOver", True)
+                    lw.style().unpolish(lw)
+                    lw.style().polish(lw)
+                    lw.update()
+
+            def _block_list_drag_leave(event, orig=orig_drag_leave, lw=block_list):
+                orig(event)
+                lw.setProperty("dragOver", False)
+                lw.style().unpolish(lw)
+                lw.style().polish(lw)
+                lw.update()
+
+            def _block_list_drop(event, orig=orig_drop_event, lw=block_list):
+                orig(event)
+                lw.setProperty("dragOver", False)
+                lw.style().unpolish(lw)
+                lw.style().polish(lw)
+                lw.update()
+
+            block_list.dragEnterEvent = _block_list_drag_enter
+            block_list.dragLeaveEvent = _block_list_drag_leave
+            block_list.dropEvent = _block_list_drop
+
             self.pushButt_generateWord.setEnabled(False)
             self._show_included_block_placeholder()
             self._set_crumb("без титульного листа")
@@ -1074,8 +1170,10 @@ class MainWindow(QMainWindow):
         self._refresh_available_blocks_list()
 
     def _show_available_block_context_menu(self, pos):
-        """Правый клик по варианту -- «Удалить», только для пользовательских
-        вариантов (встроенные TITLE_VARIANTS через UI не удаляются)."""
+        """Правый клик по варианту -- «Переименовать»/«Удалить», только для
+        пользовательских вариантов (встроенные TITLE_VARIANTS через UI не
+        меняются -- сейчас словарь пуст, см. project memory, но проверка
+        оставлена на случай, если встроенный вариант когда-нибудь вернётся)."""
         from ..services.template_schema import TITLE_VARIANTS
 
         item = self.availableBlocksList.itemAt(pos)
@@ -1086,9 +1184,47 @@ class MainWindow(QMainWindow):
             return
 
         menu = QMenu(self)
+        rename_action = menu.addAction(icons.icon("edit", "#c7c7cc", 14), "Переименовать")
         delete_action = menu.addAction(icons.icon("trash", "#ff453a", 14), "Удалить")
-        if menu.exec(self.availableBlocksList.mapToGlobal(pos)) == delete_action:
+        chosen = menu.exec(self.availableBlocksList.mapToGlobal(pos))
+        if chosen == rename_action:
+            self._rename_title_variant(variant_id, item.text())
+        elif chosen == delete_action:
             self._delete_title_variant(variant_id, item.text())
+
+    def _rename_title_variant(self, variant_id: str, current_label: str):
+        """«Переименовать» -- меняет только отображаемое название
+        (TitleVariant.document_title в JSON: заголовок карточки в сайдбаре,
+        крошка над документом, подпись перетащенного блока). НЕ трогает уже
+        сгенерированный .docx-фрагмент варианта -- его текст/вёрстку
+        пользователь правит только вручную в Word (см. vsk-21: регенерация
+        задним числом сознательно не делается нигде в этом фиче, иначе
+        затирала бы ручные правки), так что заголовок на самой титульной
+        странице документа переименование не меняет. Если файл фрагмента
+        когда-нибудь пропадёт, safety-net _ensure_title_fragment_exists()
+        перегенерирует его уже с новым названием."""
+        new_name, ok = QInputDialog.getText(
+            self, "Переименовать вариант", "Новое название:", text=current_label,
+        )
+        new_name = new_name.strip()
+        if not ok or not new_name or new_name == current_label:
+            return
+
+        from ..services.title_variants_store import load_title_variants, save_title_variants
+
+        variants = load_title_variants()
+        variant = next((v for v in variants if v.id == variant_id), None)
+        if variant is None:
+            return
+        variant.document_title = new_name
+        save_title_variants(variants)
+        self._refresh_available_blocks_list()
+
+        included = self.includedBlockList
+        if included.count() and included.item(0).data(Qt.ItemDataRole.UserRole) == variant_id:
+            if hasattr(self, "includedBlockTextLabel"):
+                self.includedBlockTextLabel.setText(new_name)
+            self._set_crumb(new_name)
 
     def _delete_title_variant(self, variant_id: str, label: str):
         answer = QMessageBox.question(
@@ -1201,6 +1337,11 @@ class MainWindow(QMainWindow):
         text_label.setWordWrap(True)
         text_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         row_layout.addWidget(text_label, stretch=1)
+        # Сохраняется на self -- _rename_title_variant() обновляет текст
+        # этой подписи вживую, если переименовывают вариант, который сейчас
+        # лежит в документе (иначе после переименования тут осталось бы
+        # старое название до следующего drop).
+        self.includedBlockTextLabel = text_label
         self.includedBlockChevron = QLabel()
         self.includedBlockChevron.setPixmap(icons.render("chevron-down", "#8e8e93", 13))
         self.includedBlockChevron.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
@@ -1216,15 +1357,11 @@ class MainWindow(QMainWindow):
         # не долетает, поэтому отдельный stopPropagation тут не нужен.
         row.setCursor(Qt.CursorShape.PointingHandCursor)
         row.mousePressEvent = self._toggle_fields_panel
-        # ПКМ на уже вставленном блоке -- «Редактировать шаблон» (см.
-        # _show_included_block_context_menu()). Обсуждалось и обкатывалось
-        # сначала на мокапе (docs/design/constructor_mockup.html) -- решили
-        # НЕ дублировать этот пункт в availableBlocksList слева: там ПКМ
-        # остаётся только про «Удалить» вариант из палитры целиком.
-        row.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        row.customContextMenuRequested.connect(
-            lambda pos, vid=variant_id, r=row: self._show_included_block_context_menu(vid, r.mapToGlobal(pos))
-        )
+        # Редактирование каталога плейсхолдеров варианта раньше открывалось
+        # отдельным модальным окном по ПКМ на этой строке (см. историю) --
+        # теперь оно встроено прямо в fieldsPanel (_render_title_fields()),
+        # разворачивается тем же кликом, что и реквизиты, отдельного пункта
+        # меню/окна больше нет.
         block_list.setItemWidget(item, row)
         self._set_included_block_filled(True)
 
@@ -1328,19 +1465,41 @@ class MainWindow(QMainWindow):
 
         Значения уже заполненных полей, которые остаются в новом наборе,
         сохраняются при пересборке -- вызывается не только при первом дропе
-        блока в документ, но и повторно после правки содержимого варианта в
-        редакторе шаблона (_show_included_block_context_menu()), где набор
-        плейсхолдеров мог измениться, а уже введённые значения оставшихся
-        полей терять не нужно.
+        блока в документ, но и повторно после любого добавления/удаления
+        плейсхолдера через каталог (см. _build_title_placeholder_catalog()
+        ниже), где набор плейсхолдеров мог измениться, а уже введённые
+        значения оставшихся полей терять не нужно.
+
+        Для пользовательских вариантов первой строкой (до самих полей)
+        вставляется каталог плейсхолдеров -- раньше это было отдельное
+        модальное окно (TitleContentEditorDialog, удалено), теперь
+        встроено прямо сюда: разворачивается/сворачивается тем же кликом,
+        что и реквизиты (см. _toggle_fields_panel()). Для встроенных
+        вариантов (TITLE_VARIANTS) каталог не показывается вообще -- они
+        собраны в Word вручную и через приложение не редактируются.
 
         Подписи полей -- из общего каталога (встроенные + пользовательские,
         см. get_all_field_labels()), а не только встроенного
         TITLE_FIELD_LABELS -- иначе поле, заведённое через «+ Новое поле» в
-        редакторе шаблона, показывалось бы тут просто как голый id.
+        каталоге плейсхолдеров, показывалось бы тут просто как голый id.
 
         Динамически созданные виджеты регистрируются в self.PLAIN_TEXT_EDIT_NAMES
         -- том же списке, что уже читают get_form_data()/init_widgets() --
-        вместо отдельного пути сохранения/чтения данных для конструктора."""
+        вместо отдельного пути сохранения/чтения данных для конструктора.
+
+        Сразу под заголовком «Реквизиты титульного листа» -- поле
+        «Открыть предпросмотр итогового документа»
+        (_build_title_preview_field(), клик рендерит документ с уже
+        введёнными значениями -- _open_title_variant_preview()). Раньше
+        была обычная кнопка -- пользователь попросил заменить её на
+        заметное поле, в том же визуальном языке, что и карточка
+        загруженного шаблона (_build_template_loaded_card()). Показывается
+        для ЛЮБОГО варианта, включая встроенные (TITLE_VARIANTS) -- в
+        отличие от каталога плейсхолдеров и «Загрузить шаблон Word»
+        (_build_title_placeholder_catalog()), которые только для
+        пользовательских: предпросмотр с подставленными значениями
+        одинаково полезен и для готовых встроенных вариантов."""
+        from ..services.template_schema import TITLE_VARIANTS
         from ..services.title_variants_store import get_all_field_labels, get_all_title_variants
 
         previous_values = {
@@ -1358,8 +1517,29 @@ class MainWindow(QMainWindow):
         while layout.rowCount():
             layout.removeRow(0)
 
-        labels = get_all_field_labels()
         field_ids = get_all_title_variants()[variant_id].subtitle_fields
+        is_custom = variant_id not in TITLE_VARIANTS
+
+        if is_custom:
+            layout.addRow(self._build_title_placeholder_catalog(variant_id, field_ids))
+
+        # Раньше был заголовком самого fieldsPanel (QGroupBox.title) --
+        # вынесен в обычный QLabel-ряд, чтобы идти ПОСЛЕ каталога
+        # плейсхолдеров, а не над ним (QGroupBox всегда рисует свой title
+        # над всем содержимым, порядок в layout на это не влияет).
+        section_label = QLabel("Реквизиты титульного листа")
+        section_label.setObjectName("titleFieldsSectionLabel")
+        layout.addRow(section_label)
+
+        layout.addRow(self._build_title_preview_field(variant_id))
+
+        if is_custom and not field_ids:
+            empty = QLabel("Пока нет ни одного плейсхолдера — добавьте через кнопку «Вставить плейсхолдер» выше.")
+            empty.setWordWrap(True)
+            empty.setStyleSheet("color: #8e8e93; font-style: italic; font-size: 11px;")
+            layout.addRow(empty)
+
+        labels = get_all_field_labels()
         for field_id in field_ids:
             widget = QPlainTextEdit()
             widget.setMaximumHeight(32)
@@ -1367,63 +1547,625 @@ class MainWindow(QMainWindow):
             widget.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
             if field_id in previous_values:
                 widget.setPlainText(previous_values[field_id])
-            layout.addRow(labels.get(field_id, field_id), widget)
+            # Для пользовательских вариантов подпись строки -- тоже сам чип
+            # плейсхолдера (QLabel[titleChip="true"]), ПОЛНОСТЬЮ интерактивный
+            # (клик копирует и подсвечивает -- _copy_title_chip(), ПКМ удаляет
+            # -- _show_title_chip_context_menu()), а не просто стилизованная
+            # под чип надпись. Раньше такой же чип рисовался ОТДЕЛЬНЫМ
+            # списком в _build_title_placeholder_catalog() над реквизитами
+            # -- пользователь поправил: список дублировал поля реквизитов
+            # прямо под ним, чипы должны стоять рядом со своими полями, а
+            # не отдельно. Видимый текст чипа -- пользовательское название
+            # поля (labels.get(field_id)), а не технический тег
+            # "{{ field_id }}" -- оператор не должен видеть Jinja-синтаксис;
+            # сам тег остаётся в тултипе и в тексте, который реально копирует
+            # _copy_title_chip() в буфер. Встроенные варианты (TITLE_VARIANTS)
+            # каталога не имеют -- для них подпись остаётся обычным
+            # некликабельным текстом, как раньше.
+            if is_custom:
+                row_label = QLabel(labels.get(field_id, field_id))
+                row_label.setToolTip(
+                    f"{{{{ {field_id} }}}}\nКлик — скопировать для Word. ПКМ — удалить."
+                )
+                row_label.setProperty("titleChip", True)
+                row_label.setCursor(Qt.CursorShape.PointingHandCursor)
+                row_label.mousePressEvent = (
+                    lambda event, fid=field_id, w=row_label: self._copy_title_chip(fid, w)
+                )
+                row_label.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+                row_label.customContextMenuRequested.connect(
+                    lambda pos, fid=field_id, w=row_label: self._show_title_chip_context_menu(
+                        variant_id, fid, w.mapToGlobal(pos)
+                    )
+                )
+            else:
+                row_label = labels.get(field_id, field_id)
+            layout.addRow(row_label, widget)
             setattr(self, field_id, widget)
             self.PLAIN_TEXT_EDIT_NAMES.append(field_id)
             self._dynamic_field_names.append(field_id)
 
-    def _show_included_block_context_menu(self, variant_id: str, global_pos):
-        """ПКМ на уже вставленном в документ блоке -- «Редактировать
-        шаблон» (см. _process_block_drop(), где подключен сигнал). Только
-        для пользовательских вариантов: встроенные (TITLE_VARIANTS)
-        собраны в Word вручную, generate_title_fragment() их не
-        перезаписывает (см. её докстринг) -- пункт меню показывается
-        неактивным с пояснением, а не молча ничего не делает (иначе
-        непонятно, сработало ли вообще ПКМ)."""
-        from ..services.template_schema import TITLE_VARIANTS
+    def _build_title_placeholder_catalog(self, variant_id: str, field_ids) -> QWidget:
+        """Верхняя панель пользовательского варианта -- кнопка «Вставить
+        плейсхолдер» (общий каталог полей, get_all_field_labels(), в меню
+        см. _build_title_placeholder_menu()), «Загрузить шаблон Word»
+        (выбор .docx + запрос приложения для редактирования, см.
+        _upload_title_variant_template()), карточка загруженного файла
+        (_build_template_loaded_card()) и подсказка про клик/ПКМ по чипам.
 
-        menu = QMenu(self)
-        edit_action = menu.addAction(icons.icon("edit", "#8e8e93", 14), "Редактировать шаблон")
-        if variant_id in TITLE_VARIANTS:
-            edit_action.setEnabled(False)
-            edit_action.setToolTip("Встроенный вариант -- редактируется вручную в Word")
+        Отдельной кнопки «Посмотреть шаблон» больше нет -- пользователь
+        попросил перенести открытие файла варианта как есть (в том
+        состоянии, в котором его оставили в Word, буквально с "{{ field }}"
+        там, где не заполнено значением, см. _open_title_variant_raw_file())
+        на клик по самой карточке загруженного файла
+        (_build_template_loaded_card()), а не по отдельной кнопке. Пока
+        файл не загружен (drop-рамка вместо карточки), кликнуть для
+        просмотра нечего -- там открывать пока нечего.
 
-        if menu.exec(global_pos) == edit_action:
-            self._open_title_content_editor(variant_id)
+        Сами чипы плейсхолдеров здесь БОЛЬШЕ НЕ рисуются отдельным
+        списком (было раньше -- пользователь поправил: список дублировал
+        поля реквизитов, стоящие прямо под ним). Теперь чип -- это подпись
+        строки в самих реквизитах, рядом со своим полем ввода (см.
+        _render_title_fields(), где и живёт _copy_title_chip()/
+        _show_title_chip_context_menu() для этих подписей). «Открыть
+        предпросмотр» (рендер с уже введёнными в форму значениями) -- тоже
+        НЕ здесь, вынесена в _render_title_fields() под заголовок
+        «Реквизиты титульного листа», см. её докстринг.
 
-    def _open_title_content_editor(self, variant_id: str):
-        """Открывает TitleContentEditorDialog для variant_id, сохраняет
-        результат: перезаписывает TitleVariant в title_variants_store,
-        перегенерирует .docx-фрагмент, обновляет форму реквизитов на
-        главном экране (набор плейсхолдеров мог измениться -- см.
-        _render_title_fields())."""
+        Добавление/удаление плейсхолдера (через меню «Вставить
+        плейсхолдер» или ПКМ по чипу в реквизитах) сразу сохраняется в
+        title_variants_store и перестраивает titleFieldsLayout заново
+        (_render_title_fields()) -- отдельного шага "Сохранить шаблон"
+        больше нет, изменение каталога и есть сохранение.
+
+        Вся эта панель (не только кнопка «Загрузить шаблон Word») -- ещё и
+        drop-зона: перетаскивание .docx-файла из Finder сюда делает то же
+        самое, что кнопка + диалог выбора файла (общая установка --
+        _install_title_variant_template()), но без диалога. Кнопка
+        остаётся равноправным способом (пользователь явно попросил
+        добавить перетаскивание, а не заменить им кнопку) -- полезна,
+        когда Finder не открыт рядом или файл лежит в другом окне не на
+        весь экран."""
+        from ..services.title_variants_store import load_title_variants
+
+        # get_all_title_variants() отдаёт для пользовательских вариантов
+        # урезанный TitleConfig (для единообразия со встроенными в списке
+        # «Титульные листы»), без template_filename -- он есть только на
+        # самом TitleVariant, поэтому здесь нужен именно load_title_variants().
+        variant = next((v for v in load_title_variants() if v.id == variant_id), None)
+        template_filename = variant.template_filename if variant else ""
+
+        container = QWidget()
+        container.setObjectName("titleTemplateDropZone")
+        outer = QVBoxLayout(container)
+        outer.setContentsMargins(6, 6, 6, 10)
+        outer.setSpacing(6)
+
+        toolbar = QHBoxLayout()
+        insert_btn = QToolButton()
+        insert_btn.setIcon(icons.icon("tag", "#c7c7cc", 13))
+        insert_btn.setText(" Вставить плейсхолдер")
+        insert_btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        insert_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        insert_btn.setMenu(self._build_title_placeholder_menu(variant_id, field_ids))
+        toolbar.addWidget(insert_btn)
+        toolbar.addStretch(1)
+
+        upload_btn = QToolButton()
+        upload_btn.setIcon(icons.icon("upload", "#0a84ff", 13))
+        upload_btn.setText(" Загрузить шаблон Word")
+        upload_btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        upload_btn.setToolTip(
+            "Выбрать .docx-файл (например, уже готовый документ) и открыть его, спросив, каким "
+            "приложением (Word, Pages, LibreOffice...) редактировать -- именно в него дальше "
+            "вставляются плейсхолдеры и реквизиты варианта. Файл можно и просто перетащить на эту "
+            "панель вместо диалога выбора"
+        )
+        upload_btn.clicked.connect(lambda: self._upload_title_variant_template(variant_id))
+        toolbar.addWidget(upload_btn)
+        outer.addLayout(toolbar)
+
+        if template_filename:
+            outer.addWidget(self._build_template_loaded_card(variant_id, template_filename))
+        else:
+            outer.addWidget(self._build_template_drop_hint())
+
+        hint = QLabel("Клик по плейсхолдеру в реквизитах ниже — скопировать для Word. Правый клик — удалить.")
+        hint.setWordWrap(True)
+        hint.setStyleSheet("color: #8e8e93; font-size: 11px;")
+        outer.addWidget(hint)
+
+        # Перетаскивание .docx должно срабатывать в любой точке панели --
+        # включая саму drop-рамку (_build_template_drop_hint()) и все
+        # прочие дочерние виджеты (кнопки, подписи). По документации Qt
+        # события drag/drop у дочернего виджета без setAcceptDrops(True)
+        # должны сами подниматься к первому предку, у которого это
+        # свойство включено -- но на практике (проверено пользователем на
+        # реальном запуске, не только в headless-тесте с прямой отправкой
+        # события контейнеру) это не сработало понадёжнее явно включить
+        # приём и на container, и на каждом потомке -- тогда результат не
+        # зависит от того, какой именно пиксель ОС посчитает целью drag'а.
+        for widget in [container] + container.findChildren(QWidget):
+            widget.setAcceptDrops(True)
+            widget.dragEnterEvent = (
+                lambda event, c=container: self._title_template_drag_enter(event, c)
+            )
+            widget.dragMoveEvent = self._title_template_drag_move
+            widget.dragLeaveEvent = (
+                lambda event, c=container: self._title_template_drag_leave(event, c)
+            )
+            widget.dropEvent = (
+                lambda event, vid=variant_id, c=container: self._title_template_drop(event, vid, c)
+            )
+
+        return container
+
+    def _build_title_preview_field(self, variant_id: str) -> QWidget:
+        """Поле «Открыть предпросмотр итогового документа» -- заменяет
+        прежнюю обычную кнопку «Открыть предпросмотр», тот же визуальный
+        язык, что и у карточки загруженного шаблона
+        (_build_template_loaded_card()): скруглённая рамка, иконка
+        документа слева, клик по всему полю. Показывается для ЛЮБОГО
+        варианта (см. докстринг _render_title_fields()), поэтому живёт
+        здесь отдельным методом, а не внутри _build_title_placeholder_catalog()
+        (та -- только для пользовательских вариантов).
+
+        Два состояния, различаются только тем, открывали ли предпросмотр
+        этого варианта хотя бы раз в текущем запуске приложения
+        (self._title_preview_generated, см. её комментарий):
+        - ещё ни разу -- приглушённый текст "Здесь будет итоговый документ
+          для предпросмотра" (аналог пустого состояния карточки шаблона,
+          _build_template_drop_hint());
+        - хотя бы раз открывали -- обычный активный вид с подписью
+          "Открыть предпросмотр итогового документа". Клик работает
+          одинаково в обоих состояниях (в первый раз он же и генерирует
+          первый предпросмотр) -- разница чисто визуальная, подсказка "тут
+          появится результат" до первого клика."""
+        already_generated = variant_id in self._title_preview_generated
+
+        field = QWidget()
+        field.setObjectName("titlePreviewField")
+        field.setCursor(Qt.CursorShape.PointingHandCursor)
+        field.setToolTip(
+            "Собрать документ с уже введёнными значениями во временный файл и открыть его -- "
+            "посмотреть, как будет выглядеть готовый документ, не сохраняя его окончательно"
+        )
+        field.mousePressEvent = lambda event, vid=variant_id: self._open_title_variant_preview(vid)
+        layout = QHBoxLayout(field)
+        layout.setContentsMargins(9, 7, 9, 7)
+        layout.setSpacing(8)
+
+        icon_label = QLabel()
+        icon_label.setPixmap(icons.render("file-text", "#0a84ff" if already_generated else "#5a5a5c", 15))
+        icon_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        layout.addWidget(icon_label)
+
+        text_label = QLabel(
+            "Открыть предпросмотр итогового документа" if already_generated
+            else "Здесь будет итоговый документ для предпросмотра"
+        )
+        text_label.setWordWrap(True)
+        text_label.setProperty("titlePreviewFieldActive", already_generated)
+        text_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        layout.addWidget(text_label, stretch=1)
+
+        return field
+
+    def _build_template_drop_hint(self) -> QWidget:
+        """Пустое состояние панели шаблона -- пока файл не загружен, вместо
+        обычной серой строки текста показывается визуальная drop-зона в том
+        же языке, что уже есть у _show_included_block_placeholder()
+        (пунктирная рамка, иконка "drag-drop", центрированный текст) --
+        пользователь попросил именно этот стиль. Перетаскивание .docx
+        работает в любом месте панели независимо от этой рамки (см.
+        setAcceptDrops на container в _build_title_placeholder_catalog()),
+        рамка тут только делает зону видимой и даёт понятную подсказку --
+        сама по себе она drop-события не обрабатывает."""
+        box = QWidget()
+        box.setObjectName("titleTemplateDropHint")
+        layout = QVBoxLayout(box)
+        layout.setContentsMargins(12, 16, 12, 16)
+        layout.setSpacing(6)
+        icon_label = QLabel()
+        icon_label.setPixmap(icons.render("drag-drop", "#5a5a5c", 20))
+        icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(icon_label)
+        text_label = QLabel("Перетащите документ для Word-шаблона сюда для загрузки")
+        text_label.setWordWrap(True)
+        text_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        text_label.setStyleSheet("color: #5a5a5c; font-size: 12px;")
+        layout.addWidget(text_label)
+        return box
+
+    def _build_template_loaded_card(self, variant_id: str, template_filename: str) -> QWidget:
+        """Состояние "файл уже загружен" -- вместо прежней обычной серой
+        строки текста ("Файл шаблона: X") видимая карточка в том же языке,
+        что и карточки вариантов в сайдбаре (availableBlocksList::item --
+        тёмный фон, скруглённая рамка, иконка документа слева), плюс
+        крестик справа для отвязки файла (_remove_title_variant_template()).
+        Перетаскивание нового .docx поверх карточки по-прежнему работает
+        (весь container остаётся drop-зоной, см. цикл setAcceptDrops в
+        _build_title_placeholder_catalog()) и штатно спросит подтверждение
+        на замену, как и раньше.
+
+        Клик по самой карточке -- открывает файл варианта как есть
+        (_open_title_variant_raw_file()), тот же результат, что раньше
+        давала отдельная кнопка «Посмотреть шаблон» (убрана по просьбе
+        пользователя). icon_label/text_label сделаны прозрачными для мыши
+        (WA_TransparentForMouseEvents), иначе клик по ним не долетал бы до
+        card.mousePressEvent -- тот же приём, что уже используется для
+        строки перетащенного блока в _process_block_drop(). remove_btn
+        остаётся ОБЫЧНЫМ (не прозрачным) виджетом -- его собственный клик
+        по-прежнему обрабатывается им самим, до card не долетает, поэтому
+        крестик не запускает просмотр файла."""
+        card = QWidget()
+        card.setObjectName("titleTemplateLoadedCard")
+        card.setCursor(Qt.CursorShape.PointingHandCursor)
+        card.setToolTip(
+            "Открыть сам файл варианта как есть -- в том состоянии, в котором его оставили в Word "
+            "по завершении редактирования"
+        )
+        card.mousePressEvent = lambda event, vid=variant_id: self._open_title_variant_raw_file(vid)
+        layout = QHBoxLayout(card)
+        layout.setContentsMargins(9, 7, 6, 7)
+        layout.setSpacing(8)
+
+        icon_label = QLabel()
+        icon_label.setPixmap(icons.render("file-text", "#0a84ff", 15))
+        icon_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        layout.addWidget(icon_label)
+
+        text_label = QLabel(f"Файл шаблона: {template_filename}")
+        text_label.setWordWrap(True)
+        text_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        layout.addWidget(text_label, stretch=1)
+
+        remove_btn = QPushButton()
+        remove_btn.setIcon(icons.icon("x", "#8e8e93", 14))
+        remove_btn.setFixedSize(22, 22)
+        remove_btn.setFlat(True)
+        remove_btn.setToolTip("Убрать привязанный файл -- вернуться к автосгенерированной заготовке")
+        remove_btn.clicked.connect(lambda: self._remove_title_variant_template(variant_id))
+        layout.addWidget(remove_btn)
+
+        return card
+
+    def _remove_title_variant_template(self, variant_id: str):
+        """Крестик на карточке загруженного шаблона -- отвязывает файл и
+        возвращает панель в состояние "шаблон не загружен" (после
+        _render_title_fields() вместо карточки снова покажется
+        _build_template_drop_hint()). Заготовка при этом не просто
+        удаляется, а перегенерируется заново (generate_title_fragment(),
+        тот же вызов, что и при создании нового варианта) -- иначе
+        find_title_template() продолжал бы резолвить СТАРЫЙ файл на диске
+        (путь фиксированный, FRAGMENTS_DIR/title_{id}.docx, не зависит от
+        template_filename), и «Открыть предпросмотр»/«Посмотреть шаблон»
+        показывали бы отвязанное по названию, но реально то же самое
+        содержимое -- вариант никогда не должен оставаться "осиротевшим"
+        (см. find_title_template() в src/config.py)."""
         from ..config import FRAGMENTS_DIR
         from ..services.template_generator import generate_title_fragment
         from ..services.title_variants_store import load_title_variants, save_title_variants
-        from .title_content_editor import TitleContentEditorDialog
 
         variants = load_title_variants()
         variant = next((v for v in variants if v.id == variant_id), None)
         if variant is None:
-            return  # встроенный вариант -- сюда не должны были попасть, см. вызывающий код
-
-        field_values = {
-            field_id: getattr(self, field_id).toPlainText()
-            for field_id in variant.subtitle_fields
-            if hasattr(self, field_id)
-        }
-        dialog = TitleContentEditorDialog(self, variant, field_values)
-        if dialog.exec() != QDialog.DialogCode.Accepted:
             return
 
-        variant.content = dialog.content()
-        variant.subtitle_fields = dialog.subtitle_fields()
-        save_title_variants(variants)
-        generate_title_fragment(variant, FRAGMENTS_DIR / f"title_{variant.id}.docx")
+        confirm = QMessageBox.question(
+            self, "Убрать шаблон варианта?",
+            "Вернуться к автосгенерированной заготовке? Текущий файл, включая любые правки, "
+            "сделанные в Word, будет заменён заново сгенерированным.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+        )
+        if confirm != QMessageBox.StandardButton.Yes:
+            return
 
-        included = self.includedBlockList
-        if included.count() and included.item(0).data(Qt.ItemDataRole.UserRole) == variant_id:
-            self._render_title_fields(variant_id)
+        variant.template_filename = ""
+        save_title_variants(variants)
+        generate_title_fragment(variant, FRAGMENTS_DIR / f"title_{variant_id}.docx")
+        self._render_title_fields(variant_id)
+
+    def _copy_title_chip(self, field_id: str, chip: QLabel):
+        """Левый клик по плейсхолдеру -- копирует "{{ field_id }}" в буфер
+        обмена (для вставки в открытый в Word файл варианта) и на короткое
+        время подсвечивает чип зелёным (QLabel[titleChipCopied="true"], см.
+        стили выше) как визуальное подтверждение, что копирование
+        произошло. Right-click остался отдельно только для удаления (см.
+        _show_title_chip_context_menu()) -- копирование туда больше не
+        привязано."""
+        QGuiApplication.clipboard().setText("{{ " + field_id + " }}")
+        chip.setProperty("titleChipCopied", True)
+        chip.style().unpolish(chip)
+        chip.style().polish(chip)
+        QTimer.singleShot(900, lambda w=chip: self._clear_title_chip_copied(w))
+
+    def _clear_title_chip_copied(self, chip: QLabel):
+        try:
+            chip.setProperty("titleChipCopied", False)
+            chip.style().unpolish(chip)
+            chip.style().polish(chip)
+        except RuntimeError:
+            pass  # панель могла перестроиться и удалить чип раньше таймера -- не ошибка
+
+    def _build_title_placeholder_menu(self, variant_id: str, field_ids) -> QMenu:
+        from ..services.title_variants_store import get_all_field_labels
+
+        menu = QMenu(self)
+        for field_id, label in get_all_field_labels().items():
+            action = menu.addAction(label)
+            already = field_id in field_ids
+            action.setEnabled(not already)
+            if already:
+                action.setText(label + " ✓")
+            action.triggered.connect(
+                lambda checked=False, fid=field_id: self._add_title_variant_placeholder(variant_id, fid)
+            )
+        menu.addSeparator()
+        new_field_action = menu.addAction(icons.icon("plus", "#0a84ff", 13), "Новое поле…")
+        new_field_action.triggered.connect(lambda: self._create_and_add_title_variant_field(variant_id))
+        return menu
+
+    def _ensure_title_fragment_exists(self, variant):
+        """Сеть безопасности -- генерирует .docx-заготовку варианта, только
+        если файла ещё нет (создан не был или удалён вручную с диска).
+        НЕ вызывается безусловно -- иначе затирала бы ручную правку,
+        сделанную пользователем в Word (см. generate_title_fragment())."""
+        from ..config import FRAGMENTS_DIR
+        from ..services.template_generator import generate_title_fragment
+
+        fragment_path = FRAGMENTS_DIR / f"title_{variant.id}.docx"
+        if not fragment_path.exists():
+            generate_title_fragment(variant, fragment_path)
+
+    def _add_title_variant_placeholder(self, variant_id: str, field_id: str):
+        from ..services.title_variants_store import load_title_variants, save_title_variants
+
+        variants = load_title_variants()
+        variant = next((v for v in variants if v.id == variant_id), None)
+        if variant is None or field_id in variant.subtitle_fields:
+            return
+        variant.subtitle_fields.append(field_id)
+        save_title_variants(variants)
+        self._ensure_title_fragment_exists(variant)
+        self._render_title_fields(variant_id)
+
+    def _remove_title_variant_placeholder(self, variant_id: str, field_id: str):
+        from ..services.title_variants_store import load_title_variants, save_title_variants
+
+        variants = load_title_variants()
+        variant = next((v for v in variants if v.id == variant_id), None)
+        if variant is None:
+            return
+        variant.subtitle_fields = [f for f in variant.subtitle_fields if f != field_id]
+        save_title_variants(variants)
+        self._render_title_fields(variant_id)
+
+    def _create_and_add_title_variant_field(self, variant_id: str):
+        from ..services.title_variants_store import load_field_catalog, save_field_catalog
+
+        label, ok = QInputDialog.getText(self, "Новое поле", "Название поля:")
+        label = label.strip()
+        if not ok or not label:
+            return
+        field_id = "field_" + uuid4().hex[:8]
+        catalog = load_field_catalog()
+        catalog[field_id] = label
+        save_field_catalog(catalog)
+        self._add_title_variant_placeholder(variant_id, field_id)
+
+    def _show_title_chip_context_menu(self, variant_id: str, field_id: str, global_pos):
+        """ПКМ по плейсхолдеру -- только «Удалить» (копирование теперь по
+        левому клику, см. _copy_title_chip())."""
+        menu = QMenu(self)
+        delete_action = menu.addAction(icons.icon("trash", "#ff453a", 13), "Удалить")
+        if menu.exec(global_pos) == delete_action:
+            self._remove_title_variant_placeholder(variant_id, field_id)
+
+    def _upload_title_variant_template(self, variant_id: str):
+        """«Загрузить шаблон Word» -- диалог выбора файла, пользователь
+        указывает ЛЮБОЙ существующий .docx (например, уже готовый
+        реальный отчёт), в который собирается вставлять плейсхолдеры.
+        Сама установка файла (копирование, подтверждение замены, запрос
+        приложения для редактирования) вынесена в
+        _install_title_variant_template() -- та же логика нужна и для
+        перетаскивания .docx прямо на панель каталога плейсхолдеров (см.
+        setAcceptDrops в _build_title_placeholder_catalog()), кнопка при
+        этом остаётся как равноправный способ, не заменяется
+        перетаскиванием."""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "Выбрать документ Word", "", "Документы Word (*.docx)"
+        )
+        if not file_path:
+            return
+        self._install_title_variant_template(variant_id, Path(file_path))
+
+    def _install_title_variant_template(self, variant_id: str, source_path: Path):
+        """Общая часть установки .docx как шаблона варианта -- копирует
+        файл в FRAGMENTS_DIR под именем, которое find_title_template() и
+        так ожидает для этого варианта (title_{id}.docx) -- дальше рендер
+        при сборке документа (_calculate_constructor()) смотрит в ту же
+        точку без отдельного шага "привязать файл к варианту".
+        open_with_prompt() затем спрашивает, каким приложением
+        редактировать (см. src/ui/open_with.py). Исходное имя файла
+        запоминается в variant.template_filename и показывается над
+        каталогом плейсхолдеров (_build_title_placeholder_catalog()) --
+        чтобы было видно, с каким документом сейчас идёт работа.
+        Сохранение и выход из редактора после правок -- дело
+        пользователя, приложение это не отслеживает (см. «Открыть
+        предпросмотр», _open_title_variant_preview())."""
+        from ..config import FRAGMENTS_DIR
+        from ..services.title_variants_store import load_title_variants, save_title_variants
+
+        target_path = FRAGMENTS_DIR / f"title_{variant_id}.docx"
+        source_path = source_path.resolve()
+        if target_path.exists() and source_path != target_path.resolve():
+            confirm = QMessageBox.question(
+                self, "Заменить шаблон варианта?",
+                f"У варианта уже есть загруженный шаблон ({target_path.name}). Заменить его выбранным "
+                "файлом?\n\nТекущее содержимое, включая любые правки, сделанные в Word, будет потеряно.",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+            )
+            if confirm != QMessageBox.StandardButton.Yes:
+                return
+
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        if source_path != target_path.resolve():
+            shutil.copyfile(source_path, target_path)
+
+        variants = load_title_variants()
+        variant = next((v for v in variants if v.id == variant_id), None)
+        if variant is not None:
+            variant.template_filename = source_path.name
+            save_title_variants(variants)
+
+        open_with_prompt(target_path, self)
+        self._render_title_fields(variant_id)
+
+    @staticmethod
+    def _docx_drop_urls(mime_data):
+        """Из перетаскиваемых данных -- только локальные .docx-файлы (папки,
+        не-Word файлы, файлы из другого приложения без локального пути и
+        т.п. игнорируются -- перетаскивание тогда просто не подсвечивается
+        и не срабатывает, без сообщения об ошибке)."""
+        if not mime_data.hasUrls():
+            return []
+        return [
+            url for url in mime_data.urls()
+            if url.isLocalFile() and url.toLocalFile().lower().endswith(".docx")
+        ]
+
+    def _refresh_title_template_drop_style(self, drop_zone: QWidget):
+        """unpolish/polish только на drop_zone (container) не хватает --
+        QSS-правило подсветки нацелено на ВЛОЖЕННЫЙ виджет
+        (titleTemplateDropHint, через compound-селектор
+        "QWidget#titleTemplateDropZone[dragActive] QWidget#titleTemplateDropHint"),
+        а Qt не инвалидирует закэшированный стиль потомка только из-за
+        того, что у родителя поменялось свойство -- перерисовать явно
+        нужно и сам этот потомок (если он вообще есть: в состоянии "файл
+        уже загружен" рамки нет, там просто текст, обновлять нечего).
+        Это и была причина, почему функционально перетаскивание уже
+        работало (файл копировался, диалог открывался), а подсветка -- нет
+        (пользователь подтвердил на реальном запуске)."""
+        drop_zone.style().unpolish(drop_zone)
+        drop_zone.style().polish(drop_zone)
+        drop_zone.update()
+        for hint_box in drop_zone.findChildren(QWidget, "titleTemplateDropHint"):
+            hint_box.style().unpolish(hint_box)
+            hint_box.style().polish(hint_box)
+            hint_box.update()
+
+    def _title_template_drag_enter(self, event, drop_zone: QWidget):
+        if self._docx_drop_urls(event.mimeData()):
+            event.acceptProposedAction()
+            drop_zone.setProperty("dragActive", True)
+            self._refresh_title_template_drop_style(drop_zone)
+        else:
+            event.ignore()
+
+    def _title_template_drag_move(self, event):
+        """Без этого обработчика перетаскивание "гаснет" сразу после входа
+        в виджет: базовая QWidget.dragMoveEvent() ничего не принимает
+        (event.ignore() по умолчанию), и Qt показывает курсор "нельзя
+        бросить" на КАЖДОЕ движение мыши внутри области, даже если
+        dragEnterEvent секундой раньше согласился -- accept там разовый, не
+        держит область "валидной" на всё время перетаскивания. Без этого
+        подсветка из dragEnterEvent виднелась только на долю секунды входа
+        в область и dropEvent часто вообще не успевал сработать."""
+        if self._docx_drop_urls(event.mimeData()):
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def _title_template_drag_leave(self, event, drop_zone: QWidget):
+        drop_zone.setProperty("dragActive", False)
+        self._refresh_title_template_drop_style(drop_zone)
+
+    def _title_template_drop(self, event, variant_id: str, drop_zone: QWidget):
+        drop_zone.setProperty("dragActive", False)
+        self._refresh_title_template_drop_style(drop_zone)
+        urls = self._docx_drop_urls(event.mimeData())
+        if not urls:
+            event.ignore()
+            return
+        event.acceptProposedAction()
+        self._install_title_variant_template(variant_id, Path(urls[0].toLocalFile()))
+
+    def _open_title_variant_preview(self, variant_id: str):
+        """«Открыть предпросмотр» -- рендерит .docx-файл варианта
+        (find_title_template(), тот же файл, что правится в Word через
+        «Загрузить шаблон Word») с уже введёнными в форму значениями --
+        тот же get_form_data()/DocxTemplate.render(), что и «Собрать
+        документ» (_calculate_constructor()) -- во временный файл и
+        открывает его. В отличие от самого файла варианта (там буквально
+        "{{ field }}"), тут плейсхолдеры уже подставлены реальными
+        значениями -- посмотреть, как будет выглядеть готовый документ, не
+        собирая его окончательно. Рендерится в новый временный каталог при
+        каждом вызове (не поверх предыдущего файла) -- если предыдущий
+        предпросмотр всё ещё открыт в Word/Pages, тот держит файл
+        заблокированным, перезапись бы упала с ошибкой доступа."""
+        from ..config import find_title_template
+
+        try:
+            template_path = find_title_template(variant_id)
+        except FileNotFoundError:
+            self.show_message(
+                "Нет файла шаблона",
+                "У этого варианта пока нет сгенерированного .docx-файла.",
+                QMessageBox.Icon.Warning,
+            )
+            return
+
+        tpl = DocxTemplate(template_path)
+        tpl.render(self.get_form_data())
+
+        preview_dir = Path(tempfile.mkdtemp(prefix="title_preview_"))
+        preview_path = preview_dir / f"предпросмотр_{variant_id}.docx"
+        tpl.save(str(preview_path))
+        open_with_prompt(preview_path, self)
+
+        # Поле «Открыть предпросмотр итогового документа»
+        # (_build_title_preview_field()) переключается из приглушённого
+        # "Здесь будет..." в активный вид только после успешного рендера
+        # (не на каждый клик -- если find_title_template() выше упал,
+        # помечать нечего). variant_id может относиться и к встроенному
+        # варианту (TITLE_VARIANTS) -- у него titleFieldsLayout строится
+        # тем же _render_title_fields(), просто без каталога плейсхолдеров,
+        # так что вызов безопасен для любого variant_id.
+        #
+        # QTimer.singleShot(0, ...), а не прямой вызов -- сюда попадают
+        # ИЗ field.mousePressEvent() того самого поля, которое
+        # _render_title_fields() тут же удалит через layout.removeRow(0)
+        # (перестраивает titleFieldsLayout с нуля). Прямой вызов означал
+        # бы удаление виджета прямо изнутри его же обработчика события,
+        # ещё до того как Qt закончит обработку самого mousePressEvent --
+        # то же класс проблемы, что уже решён похожим приёмом в
+        # _on_block_dropped()/_process_block_drop() (там -- по другой
+        # причине, но тот же instrument: отложить на следующий тик).
+        self._title_preview_generated.add(variant_id)
+        QTimer.singleShot(0, lambda vid=variant_id: self._render_title_fields(vid))
+
+    def _open_title_variant_raw_file(self, variant_id: str):
+        """«Посмотреть шаблон» -- открывает сам .docx-файл варианта как
+        есть (find_title_template()), без рендера значений -- ровно в том
+        состоянии, в котором его оставили в Word по завершении
+        редактирования (буквально "{{ field }}" там, где плейсхолдер не
+        относится к уже сохранённым правкам). В отличие от «Открыть
+        предпросмотр» (_open_title_variant_preview()) ничего не рендерит и
+        не копирует во временный файл -- открывает напрямую тот же файл,
+        что правится через «Загрузить шаблон Word»."""
+        from ..config import find_title_template
+
+        try:
+            template_path = find_title_template(variant_id)
+        except FileNotFoundError:
+            self.show_message(
+                "Нет файла шаблона",
+                "У этого варианта пока нет сгенерированного .docx-файла.",
+                QMessageBox.Icon.Warning,
+            )
+            return
+        open_with_prompt(template_path, self)
 
     def show_message(self, title, text, icon=QMessageBox.Icon.Information):
         """Универсальный метод показа сообщений"""

@@ -16,7 +16,12 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class OrganizationConfig:
-    """Реквизиты экспертной организации — Таблица 1 раздела 1.2 отчёта."""
+    """Реквизиты экспертной организации — Таблица 1 раздела 1.2 отчёта.
+
+    okpo/ogrn/kpp/inn -- реквизиты шапки титульного листа конструктора
+    документов (add_organization_letterhead(), src/services/template_generator.py),
+    печатаются в шапке буквально одной строкой вместе, как на реальном
+    бланке организации."""
     full_name: str
     short_name: str
     license_number: str
@@ -29,6 +34,9 @@ class OrganizationConfig:
     head_position: str = ""
     head_name: str = ""
     inn: str = ""
+    okpo: str = ""
+    ogrn: str = ""
+    kpp: str = ""
 
 
 DEFAULT_ORGANIZATION = OrganizationConfig(
@@ -46,4 +54,8 @@ DEFAULT_ORGANIZATION = OrganizationConfig(
     website="edc-impuls.com",
     head_position="Генеральный директор",
     head_name="Сафронов Сергей Васильевич",
+    inn="5018209010",
+    okpo="57504418",
+    ogrn="1215000089040",
+    kpp="501801001",
 )
