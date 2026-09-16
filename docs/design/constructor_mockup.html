@@ -9,6 +9,10 @@
 <symbol id="i-drag-drop" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" stroke-dasharray="4 3"/><path d="M12 9v6"/><path d="M9 12l3 3 3-3"/></symbol>
 <symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
 <symbol id="i-trash" viewBox="0 0 24 24"><line x1="4" y1="7" x2="20" y2="7"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/></symbol>
+<symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
+<symbol id="i-bold" viewBox="0 0 24 24"><path d="M6 4h8a3.5 3.5 0 0 1 0 7H6z"/><path d="M6 11h9a3.5 3.5 0 0 1 0 7H6z"/></symbol>
+<symbol id="i-italic" viewBox="0 0 24 24"><line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/></symbol>
+<symbol id="i-tag" viewBox="0 0 24 24"><path d="M20.59 13.41L11 3.83A2 2 0 0 0 9.59 3.24L4 3a1 1 0 0 0-1 1l.24 5.59a2 2 0 0 0 .59 1.41l9.58 9.58a2 2 0 0 0 2.83 0l4.35-4.35a2 2 0 0 0 0-2.82z"/><circle cx="7.5" cy="7.5" r="1.2" fill="currentColor" stroke="none"/></symbol>
 </defs>
 </svg>
 <div style="background:#eeeeef;min-height:100vh;box-sizing:border-box;padding:32px 20px;display:flex;align-items:flex-start;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,sans-serif;">
@@ -31,11 +35,11 @@
           <span>Титульные листы</span>
         </div>
         <div id="titleGroup" style="padding:4px 0 6px 14px;display:flex;flex-direction:column;gap:8px;">
-          <div class="block-card" draggable="true" data-variant="otchet" oncontextmenu="return openBlockMenu(event,this,'otchet')" ondragstart="onDragStart(event)">
+          <div class="block-card" draggable="true" data-variant="otchet" oncontextmenu="return openBlockMenu(event,this,'otchet','sidebar')" ondragstart="onDragStart(event)">
             <svg class="icon" style="width:15px;height:15px;color:#0a84ff;" aria-hidden="true"><use href="#i-file-text"/></svg>
             <span>Отчёт по результатам технического диагностирования</span>
           </div>
-          <div class="block-card" draggable="true" data-variant="zaklyuchenie" oncontextmenu="return openBlockMenu(event,this,'zaklyuchenie')" ondragstart="onDragStart(event)">
+          <div class="block-card" draggable="true" data-variant="zaklyuchenie" oncontextmenu="return openBlockMenu(event,this,'zaklyuchenie','sidebar')" ondragstart="onDragStart(event)">
             <svg class="icon" style="width:15px;height:15px;color:#0a84ff;" aria-hidden="true"><use href="#i-file-text"/></svg>
             <span>Заключение по техническому освидетельствованию</span>
           </div>
@@ -71,7 +75,7 @@
             <svg class="icon" style="width:22px;height:22px;" aria-hidden="true"><use href="#i-drag-drop"/></svg>
             Перетащите титульный лист сюда
           </div>
-          <div id="dropFilled" onclick="toggleFields()" style="display:none;align-items:center;gap:8px;width:100%;align-self:stretch;box-sizing:border-box;padding:10px 12px;background:#2c2c2e;border-radius:8px;cursor:pointer;" title="Показать/скрыть реквизиты">
+          <div id="dropFilled" onclick="toggleFields()" oncontextmenu="return openBlockMenu(event,this,currentVariant,'dropped')" style="display:none;align-items:center;gap:8px;width:100%;align-self:stretch;box-sizing:border-box;padding:10px 12px;background:#2c2c2e;border-radius:8px;cursor:pointer;" title="Клик — показать/скрыть реквизиты, ПКМ — редактировать шаблон">
             <svg class="icon" style="width:15px;height:15px;color:#0a84ff;" aria-hidden="true"><use href="#i-file-text"/></svg>
             <span id="droppedLabel" style="flex:1;font-size:12px;color:#e5e5e7;"></span>
             <svg id="fieldsChev" class="icon chevron chev-open" style="width:13px;height:13px;color:#8e8e93;" aria-hidden="true"><use href="#i-chevron-right"/></svg>
@@ -95,7 +99,8 @@
   </div>
 
   <div id="blockMenu" style="display:none;position:absolute;z-index:20;background:#2c2c2e;border:0.5px solid #48484a;border-radius:8px;overflow:hidden;min-width:170px;box-shadow:0 8px 24px rgba(0,0,0,.4);">
-    <div class="menu-row" style="color:#ff453a;" onclick="deleteBlockFromMenu()"><svg class="icon" style="width:14px;height:14px;color:#ff453a;" aria-hidden="true"><use href="#i-trash"/></svg>Удалить</div>
+    <div id="menuRowEdit" class="menu-row" onclick="openContentEditorFromMenu()"><svg class="icon" style="width:14px;height:14px;color:#8e8e93;" aria-hidden="true"><use href="#i-edit"/></svg>Редактировать шаблон</div>
+    <div id="menuRowDelete" class="menu-row" style="color:#ff453a;" onclick="deleteBlockFromMenu()"><svg class="icon" style="width:14px;height:14px;color:#ff453a;" aria-hidden="true"><use href="#i-trash"/></svg>Удалить</div>
   </div>
 
   <div id="addModal" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.55);align-items:center;justify-content:center;z-index:10;">
@@ -105,6 +110,42 @@
       <div style="display:flex;gap:8px;justify-content:flex-end;">
         <button onclick="closeAddModal()" style="background:transparent;border:0.5px solid #48484a;color:#c7c7cc;font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;">Отмена</button>
         <button onclick="confirmAddVariant()" style="background:#0a84ff;border:none;color:#fff;font-size:12px;font-weight:500;padding:6px 12px;border-radius:6px;cursor:pointer;">Создать</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="editContentModal" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.55);align-items:center;justify-content:center;z-index:10;">
+    <div style="background:#2c2c2e;border:0.5px solid #48484a;border-radius:10px;padding:16px;width:600px;max-width:92%;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div style="font-size:13px;font-weight:500;color:#e5e5e7;">Редактирование шаблона: <span id="editModalLabel" style="color:#0a84ff;"></span></div>
+        <button onclick="closeContentEditor(true)" style="background:transparent;border:none;color:#8e8e93;cursor:pointer;padding:2px;" aria-label="Закрыть"><svg class="icon" style="width:16px;height:16px;" aria-hidden="true"><use href="#i-x"/></svg></button>
+      </div>
+
+      <div class="editor-toolbar">
+        <button class="tb-btn" onmousedown="event.preventDefault()" onclick="cmdBold()" title="Жирный"><svg class="icon" style="width:13px;height:13px;" aria-hidden="true"><use href="#i-bold"/></svg></button>
+        <button class="tb-btn" onmousedown="event.preventDefault()" onclick="cmdItalic()" title="Курсив"><svg class="icon" style="width:13px;height:13px;" aria-hidden="true"><use href="#i-italic"/></svg></button>
+        <span style="width:0.5px;background:#48484a;align-self:stretch;margin:0 2px;"></span>
+        <div style="position:relative;">
+          <button class="tb-btn" style="width:auto;padding:0 8px;gap:5px;" onmousedown="event.preventDefault()" onclick="togglePlaceholderMenu(event)"><svg class="icon" style="width:13px;height:13px;" aria-hidden="true"><use href="#i-tag"/></svg>Вставить плейсхолдер</button>
+          <div id="placeholderMenu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;background:#2c2c2e;border:0.5px solid #48484a;border-radius:8px;overflow:hidden;min-width:220px;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:5;"></div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;margin-top:10px;">
+        <div style="flex:1;min-width:0;">
+          <div class="pane-label">Содержимое титульного листа</div>
+          <div id="contentEditor" class="doc-page" contenteditable="true" oninput="onEditorChanged()"></div>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div class="pane-label">Предпросмотр</div>
+          <div id="contentPreview" class="doc-page doc-page-preview"></div>
+        </div>
+      </div>
+      <div style="font-size:10.5px;color:#5a5a5c;margin-top:8px;">Плейсхолдер вставляется туда, где стоит курсор в тексте слева. Поля реквизитов на главном экране появляются и пропадают вслед за тем, какие плейсхолдеры сейчас есть в тексте.</div>
+
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+        <button onclick="closeContentEditor(true)" style="background:transparent;border:0.5px solid #48484a;color:#c7c7cc;font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;">Отмена</button>
+        <button onclick="saveContentEditor()" style="background:#0a84ff;border:none;color:#fff;font-size:12px;font-weight:500;padding:6px 12px;border-radius:6px;cursor:pointer;">Сохранить шаблон</button>
       </div>
     </div>
   </div>
@@ -137,6 +178,18 @@ body{background:#eeeeef;}
 input.fld{background:#2c2c2e;border:0.5px solid #38383a;border-radius:5px;padding:6px 8px;color:#e5e5e7;font-family:inherit;font-size:12px;box-sizing:border-box;width:100%;}
 input.fld:focus{outline:none;border-color:#0a84ff;}
 input.fld::placeholder{color:#5a5a5c;}
+
+.editor-toolbar{display:flex;align-items:stretch;gap:4px;background:#242426;border:0.5px solid #38383a;border-radius:7px;padding:4px;}
+.tb-btn{display:flex;align-items:center;justify-content:center;width:26px;height:26px;background:transparent;border:none;border-radius:5px;color:#c7c7cc;cursor:pointer;}
+.tb-btn:hover{background:#3a3a3c;color:#e5e5e7;}
+.pane-label{font-size:10.5px;color:#8e8e93;text-transform:uppercase;letter-spacing:.03em;margin-bottom:5px;}
+.doc-page{background:#fdfdfb;color:#1c1c1e;border-radius:6px;padding:16px 18px;font-size:12px;line-height:1.7;min-height:220px;max-height:220px;overflow-y:auto;box-shadow:0 1px 3px rgba(0,0,0,.3);}
+.doc-page:focus{outline:2px solid #0a84ff;outline-offset:-1px;}
+.doc-page-preview{cursor:default;}
+.ph-chip{display:inline-block;background:rgba(10,132,255,.16);color:#0a5dc7;border:0.5px solid rgba(10,132,255,.4);border-radius:4px;padding:0 4px;font-size:11.5px;white-space:nowrap;}
+.doc-page-preview .ph-chip{background:transparent;border:none;color:#1c1c1e;font-style:italic;}
+.doc-page-preview .ph-chip.ph-empty{color:#b0b0b3;}
+.menu-row-hint{padding:6px 10px;font-size:10.5px;color:#5a5a5c;}
 </style>
 
 <script>
@@ -168,8 +221,13 @@ var variantFields = {
   ]
 };
 function renderFields(variant){
+  // Перестраиваем список реквизитов, но не теряем то, что уже введено в
+  // полях, которые остаются в списке -- иначе живая синхронизация с
+  // плейсхолдерами стирала бы уже заполненные значения при каждой правке.
   var fields = variantFields[variant] || defaultFields;
   var grid = document.getElementById('fieldsGrid');
+  var prevValues = {};
+  grid.querySelectorAll('input.fld').forEach(function(inp){ prevValues[inp.id] = inp.value; });
   grid.innerHTML = '';
   fields.forEach(function(f){
     var lbl = document.createElement('span');
@@ -178,10 +236,17 @@ function renderFields(variant){
     var input = document.createElement('input');
     input.className = 'fld';
     input.id = f.id;
-    input.placeholder = f.placeholder;
+    input.placeholder = f.placeholder || '';
+    if (prevValues.hasOwnProperty(f.id)) input.value = prevValues[f.id];
     grid.appendChild(lbl);
     grid.appendChild(input);
   });
+  if (!fields.length){
+    var empty = document.createElement('div');
+    empty.style.cssText = 'grid-column:1 / -1;font-size:11px;color:#5a5a5c;font-style:italic;';
+    empty.textContent = 'В шаблоне нет плейсхолдеров — реквизиты не нужны.';
+    grid.appendChild(empty);
+  }
 }
 
 function toggleGroup(id){
@@ -271,7 +336,7 @@ function confirmAddVariant(){
   card.draggable = true;
   card.setAttribute('data-variant', variantId);
   card.setAttribute('ondragstart', 'onDragStart(event)');
-  card.setAttribute('oncontextmenu', "return openBlockMenu(event,this,'" + variantId + "')");
+  card.setAttribute('oncontextmenu', "return openBlockMenu(event,this,'" + variantId + "','sidebar')");
   card.innerHTML = '<svg class="icon" style="width:15px;height:15px;color:#0a84ff;" aria-hidden="true"><use href="#i-file-text"></use></svg><span>' + text + '</span>';
 
   var addRow = document.querySelector('#titleGroup .add-block-row');
@@ -280,11 +345,218 @@ function confirmAddVariant(){
   closeAddModal();
 }
 
+// -- Редактор содержимого шаблона (плейсхолдеры + живой предпросмотр) -------
+//
+// Модель: набор реквизитов варианта -- НЕ фиксированный список, а выводится
+// из того, какие плейсхолдеры реально стоят в тексте титульника (см.
+// deriveFieldsFromContent/liveSyncFields). variantFields[variant] по мере
+// правок в редакторе перезаписывается производным списком, и главная форма
+// реквизитов (#fieldsGrid) сразу отражает изменения, если варинт активен в
+// документе. "Каталог" -- список уже известных полей (общих для всех
+// вариантов), которые можно вставить как плейсхолдер; пользователь может
+// завести и совсем новое поле прямо из выпадающего списка.
+var editingVariant = null;
+var variantContent = {}; // variant id -> HTML содержимого титульника (сохранённая версия)
+var fieldCatalog = {};   // field id -> {id, label, placeholder}
+[].concat(defaultFields, variantFields.otchet).forEach(function(f){ fieldCatalog[f.id] = f; });
+var nextCatalogFieldId = 1;
+var savedRange = null; // последняя позиция курсора внутри #contentEditor
+
+function chipHtml(f){
+  return '<span class="ph-chip" contenteditable="false" data-field="' + f.id + '">' + f.label + '</span>&nbsp;';
+}
+function buildDefaultContent(variant){
+  var fields = variantFields[variant] || defaultFields;
+  var html = '<div><b>' + (labels[variant] || 'Новый титульный лист') + '</b></div>';
+  fields.forEach(function(f){
+    html += '<div>' + f.label + ': ' + chipHtml(f) + '</div>';
+  });
+  return html;
+}
+function deriveFieldsFromContent(html){
+  // Сканирует HTML редактора и собирает список реально присутствующих
+  // плейсхолдеров -- порядок первого появления, без дублей.
+  var tmp = document.createElement('div');
+  tmp.innerHTML = html || '';
+  var seen = {}, result = [];
+  tmp.querySelectorAll('.ph-chip').forEach(function(chip){
+    var id = chip.getAttribute('data-field');
+    if (!id || seen[id]) return;
+    seen[id] = true;
+    var cat = fieldCatalog[id];
+    result.push({id: id, label: cat ? cat.label : chip.textContent, placeholder: cat ? cat.placeholder : ''});
+  });
+  return result;
+}
+function liveSyncFields(){
+  // Поля реквизитов на главном экране показываются только для активного в
+  // документе варианта -- если сейчас редактируется другой, просто держим
+  // его будущий набор полей в variantFields, видимую форму не трогаем.
+  if (!editingVariant || editingVariant !== currentVariant) return;
+  variantFields[editingVariant] = deriveFieldsFromContent(document.getElementById('contentEditor').innerHTML);
+  renderFields(currentVariant);
+}
+function saveSelection(){
+  var editor = document.getElementById('contentEditor');
+  var sel = window.getSelection();
+  if (sel.rangeCount > 0){
+    var range = sel.getRangeAt(0);
+    if (editor.contains(range.commonAncestorContainer)) savedRange = range.cloneRange();
+  }
+}
+function restoreSelection(){
+  if (!savedRange) return;
+  var sel = window.getSelection();
+  sel.removeAllRanges();
+  try { sel.addRange(savedRange); } catch (e) {}
+}
+function onEditorChanged(){
+  saveSelection();
+  renderPreview();
+  liveSyncFields();
+}
+function openContentEditor(variant){
+  editingVariant = variant;
+  savedRange = null;
+  document.getElementById('editModalLabel').textContent = labels[variant] || variant;
+  if (!variantContent[variant]) variantContent[variant] = buildDefaultContent(variant);
+  document.getElementById('contentEditor').innerHTML = variantContent[variant];
+  document.getElementById('editContentModal').style.display = 'flex';
+  renderPreview();
+}
+function openContentEditorFromMenu(){
+  var variant = blockMenuTargetVariant;
+  closeBlockMenu();
+  if (!variant) return;
+  openContentEditor(variant);
+}
+function closeContentEditor(discard){
+  // discard=true (Отмена/крестик) -- откатываем всё, что успело
+  // пересчитаться вживую в variantFields, обратно к последней сохранённой
+  // версии содержимого, и обновляем форму реквизитов, если она сейчас видна.
+  if (discard && editingVariant){
+    var baseline = variantContent[editingVariant] || buildDefaultContent(editingVariant);
+    variantFields[editingVariant] = deriveFieldsFromContent(baseline);
+    if (editingVariant === currentVariant) renderFields(currentVariant);
+  }
+  document.getElementById('editContentModal').style.display = 'none';
+  document.getElementById('placeholderMenu').style.display = 'none';
+}
+function saveContentEditor(){
+  var html = document.getElementById('contentEditor').innerHTML;
+  variantContent[editingVariant] = html;
+  variantFields[editingVariant] = deriveFieldsFromContent(html);
+  if (editingVariant === currentVariant) renderFields(currentVariant);
+  closeContentEditor(false);
+}
+function cmdBold(){
+  var editor = document.getElementById('contentEditor');
+  editor.focus(); restoreSelection();
+  document.execCommand('bold');
+  onEditorChanged();
+}
+function cmdItalic(){
+  var editor = document.getElementById('contentEditor');
+  editor.focus(); restoreSelection();
+  document.execCommand('italic');
+  onEditorChanged();
+}
+function togglePlaceholderMenu(ev){
+  ev.stopPropagation();
+  var menu = document.getElementById('placeholderMenu');
+  if (menu.style.display === 'block') { menu.style.display = 'none'; return; }
+  renderPlaceholderMenuList();
+  menu.style.display = 'block';
+}
+function renderPlaceholderMenuList(){
+  var menu = document.getElementById('placeholderMenu');
+  menu.innerHTML = '';
+  Object.keys(fieldCatalog).forEach(function(id){
+    var f = fieldCatalog[id];
+    var row = document.createElement('div');
+    row.className = 'menu-row';
+    row.textContent = f.label;
+    row.onmousedown = function(e){ e.preventDefault(); }; // не терять курсор в редакторе
+    row.onclick = function(e){ e.stopPropagation(); insertPlaceholder(f); document.getElementById('placeholderMenu').style.display = 'none'; };
+    menu.appendChild(row);
+  });
+  var addRow = document.createElement('div');
+  addRow.className = 'menu-row';
+  addRow.style.color = '#0a84ff';
+  addRow.textContent = '+ Новое поле…';
+  addRow.onmousedown = function(e){ e.preventDefault(); };
+  addRow.onclick = function(e){ e.stopPropagation(); renderNewFieldForm(); };
+  menu.appendChild(addRow);
+}
+function renderNewFieldForm(){
+  var menu = document.getElementById('placeholderMenu');
+  menu.innerHTML = '';
+  var wrap = document.createElement('div');
+  wrap.style.padding = '8px';
+  wrap.innerHTML =
+    '<input id="newFieldLabel" type="text" placeholder="Название поля" style="width:100%;box-sizing:border-box;background:#1c1c1e;border:0.5px solid #48484a;border-radius:5px;padding:6px 7px;font-size:11.5px;color:#e5e5e7;margin-bottom:6px;" />' +
+    '<button style="width:100%;background:#0a84ff;border:none;color:#fff;font-size:11.5px;font-weight:500;padding:5px;border-radius:5px;cursor:pointer;">Добавить и вставить</button>';
+  menu.appendChild(wrap);
+  var input = wrap.querySelector('input');
+  var btn = wrap.querySelector('button');
+  btn.onmousedown = function(e){ e.preventDefault(); };
+  function confirmNewField(){
+    var label = input.value.trim();
+    if (!label) { input.focus(); return; }
+    var f = {id: 'field_' + (nextCatalogFieldId++), label: label, placeholder: ''};
+    fieldCatalog[f.id] = f;
+    insertPlaceholder(f);
+    document.getElementById('placeholderMenu').style.display = 'none';
+  }
+  btn.onclick = function(e){ e.stopPropagation(); confirmNewField(); };
+  input.onkeydown = function(e){ if (e.key === 'Enter'){ e.preventDefault(); confirmNewField(); } };
+  setTimeout(function(){ input.focus(); }, 0);
+}
+function insertPlaceholder(f){
+  // Вставляем ровно в ту позицию, где стоял курсор в редакторе до открытия
+  // меню (savedRange) -- а не в конец текста.
+  var editor = document.getElementById('contentEditor');
+  editor.focus();
+  restoreSelection();
+  document.execCommand('insertHTML', false, chipHtml(f));
+  onEditorChanged();
+}
+function renderPreview(){
+  var editor = document.getElementById('contentEditor');
+  var preview = document.getElementById('contentPreview');
+  var clone = editor.cloneNode(true);
+  var chips = clone.querySelectorAll('.ph-chip');
+  chips.forEach(function(chip){
+    var fieldId = chip.getAttribute('data-field');
+    var input = document.getElementById(fieldId);
+    var val = input ? input.value.trim() : '';
+    if (!val){
+      chip.classList.add('ph-empty');
+      chip.textContent = '[' + chip.textContent + ']';
+    } else {
+      chip.textContent = val;
+    }
+  });
+  preview.innerHTML = clone.innerHTML;
+}
+// Реквизиты меняются в основной форме -- если редактор шаблона открыт, превью обновляется вживую
+document.getElementById('fieldsGrid').addEventListener('input', function(){
+  if (document.getElementById('editContentModal').style.display === 'flex') renderPreview();
+});
+document.getElementById('contentEditor').addEventListener('keyup', saveSelection);
+document.getElementById('contentEditor').addEventListener('mouseup', saveSelection);
+
 // -- Удаление варианта правой кнопкой мыши -----------------------------------
 var blockMenuTargetEl = null, blockMenuTargetVariant = null;
-function openBlockMenu(ev, el, variant){
+function openBlockMenu(ev, el, variant, mode){
   ev.preventDefault();
   ev.stopPropagation();
+  if (!variant) return false; // 'dropped' на пустой drop-зоне не должно ничего открывать
+  // Слева (sidebar) — только удаление варианта из палитры; редактирование
+  // содержимого доступно только через ПКМ на уже вставленном в документ
+  // блоке (mode 'dropped') -- см. обсуждение переноса пункта меню.
+  document.getElementById('menuRowEdit').style.display = mode === 'dropped' ? 'flex' : 'none';
+  document.getElementById('menuRowDelete').style.display = mode === 'sidebar' ? 'flex' : 'none';
   var menu = document.getElementById('blockMenu');
   var frame = menu.parentElement.getBoundingClientRect();
   menu.style.left = (ev.clientX - frame.left) + 'px';
@@ -308,5 +580,7 @@ function deleteBlockFromMenu(){
 document.addEventListener('click', function(ev){
   var bm = document.getElementById('blockMenu');
   if (bm.style.display === 'block' && !bm.contains(ev.target)) { closeBlockMenu(); }
+  var pm = document.getElementById('placeholderMenu');
+  if (pm.style.display === 'block' && !pm.contains(ev.target)) { pm.style.display = 'none'; }
 });
 </script>
