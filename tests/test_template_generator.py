@@ -6,8 +6,9 @@ from docx.oxml.ns import qn
 from docx.table import Table
 from docx.text.paragraph import Paragraph
 
+from src.models.title_variant import TitleVariant
 from src.organization_config import DEFAULT_ORGANIZATION
-from src.services.template_generator import generate_template
+from src.services.template_generator import add_title_content, generate_template, generate_title_fragment
 from src.services.template_schema import (
     FieldsTableSection,
     RepeatingTableSection,
@@ -213,3 +214,72 @@ def test_custom_minimal_schema_round_trips(tmp_path):
     doc = Document(str(path))
     full_text = "\n".join(p.text for p in _all_paragraphs(doc))
     assert "{{ custom_field }}" in full_text
+
+
+# -- add_title_content() / generate_title_fragment() -- конструктор документов,
+# редактор шаблона титульного листа (src/ui/title_content_editor.py) --------
+
+def test_add_title_content_mixes_text_and_placeholder_runs_in_one_paragraph(tmp_path):
+    doc = Document()
+    add_title_content(doc, "Протокол по результатам контроля", [
+        [{"text": "Рег./уч. номер: "}, {"placeholder": "reg_number"}],
+    ])
+    doc.save(str(tmp_path / "out.docx"))
+
+    reloaded = Document(str(tmp_path / "out.docx"))
+    assert reloaded.paragraphs[0].text == "Протокол по результатам контроля"
+    assert reloaded.paragraphs[1].text == "Рег./уч. номер: {{ reg_number }}"
+
+
+def test_add_title_content_placeholder_is_exactly_one_run(tmp_path):
+    # Ключевой инвариант генератора (см. модульный докстринг) -- иначе
+    # плейсхолдер может оказаться раздроблен на несколько <w:r>, как в
+    # реальном Шаблон_финал.docx (см. template_validator.py).
+    doc = Document()
+    add_title_content(doc, "Заголовок", [[{"placeholder": "doc_number"}]])
+
+    runs = doc.paragraphs[1].runs
+    assert len(runs) == 1
+    assert runs[0].text == "{{ doc_number }}"
+
+
+def test_add_title_content_applies_bold_and_italic(tmp_path):
+    doc = Document()
+    add_title_content(doc, "Заголовок", [
+        [{"text": "жирный", "bold": True}, {"text": "курсив", "italic": True}, {"text": "обычный"}],
+    ])
+
+    runs = doc.paragraphs[1].runs
+    assert runs[0].bold is True and not runs[0].italic
+    assert runs[1].italic is True and not runs[1].bold
+    assert not runs[2].bold and not runs[2].italic
+
+
+def test_generate_title_fragment_uses_content_when_present(tmp_path):
+    variant = TitleVariant(
+        id="custom-1", document_title="Акт осмотра", subtitle_fields=["doc_number"],
+        content=[[{"text": "№ "}, {"placeholder": "doc_number"}]],
+    )
+    path = generate_title_fragment(variant, tmp_path / "title_custom-1.docx")
+    doc = Document(str(path))
+
+    assert doc.paragraphs[0].text == "Акт осмотра"
+    assert doc.paragraphs[1].text == "№ {{ doc_number }}"
+
+
+def test_generate_title_fragment_falls_back_to_subtitle_fields_without_content(tmp_path):
+    # Старый вариант (создан до появления content) или только что созданный
+    # через «Добавить» -- тот же голый построчный формат, что и add_title().
+    variant = TitleVariant(id="custom-1", document_title="Акт осмотра", subtitle_fields=["doc_number"])
+    path = generate_title_fragment(variant, tmp_path / "title_custom-1.docx")
+    doc = Document(str(path))
+
+    assert doc.paragraphs[0].text == "Акт осмотра"
+    assert doc.paragraphs[1].text == "{{ doc_number }}"
+
+
+def test_generate_title_fragment_creates_parent_directory(tmp_path):
+    variant = TitleVariant(id="custom-1", document_title="Акт осмотра")
+    path = generate_title_fragment(variant, tmp_path / "nested" / "title_custom-1.docx")
+
+    assert path.exists()
