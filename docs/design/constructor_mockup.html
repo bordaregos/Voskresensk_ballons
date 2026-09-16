@@ -13,6 +13,8 @@
 <symbol id="i-bold" viewBox="0 0 24 24"><path d="M6 4h8a3.5 3.5 0 0 1 0 7H6z"/><path d="M6 11h9a3.5 3.5 0 0 1 0 7H6z"/></symbol>
 <symbol id="i-italic" viewBox="0 0 24 24"><line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/></symbol>
 <symbol id="i-tag" viewBox="0 0 24 24"><path d="M20.59 13.41L11 3.83A2 2 0 0 0 9.59 3.24L4 3a1 1 0 0 0-1 1l.24 5.59a2 2 0 0 0 .59 1.41l9.58 9.58a2 2 0 0 0 2.83 0l4.35-4.35a2 2 0 0 0 0-2.82z"/><circle cx="7.5" cy="7.5" r="1.2" fill="currentColor" stroke="none"/></symbol>
+<symbol id="i-table" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1.5"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="9" y1="10" x2="9" y2="20"/></symbol>
+<symbol id="i-signature" viewBox="0 0 24 24"><path d="M3 17c2-4 3-6 5-6s2 3 4 3 3-5 5-5 2 4 4 4"/><line x1="3" y1="21" x2="21" y2="21"/></symbol>
 </defs>
 </svg>
 <div style="background:#eeeeef;min-height:100vh;box-sizing:border-box;padding:32px 20px;display:flex;align-items:flex-start;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,sans-serif;">
@@ -115,7 +117,7 @@
   </div>
 
   <div id="editContentModal" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.55);align-items:center;justify-content:center;z-index:10;">
-    <div style="background:#2c2c2e;border:0.5px solid #48484a;border-radius:10px;padding:16px;width:600px;max-width:92%;">
+    <div style="background:#2c2c2e;border:0.5px solid #48484a;border-radius:10px;padding:16px;width:700px;max-width:94%;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
         <div style="font-size:13px;font-weight:500;color:#e5e5e7;">Редактирование шаблона: <span id="editModalLabel" style="color:#0a84ff;"></span></div>
         <button onclick="closeContentEditor(true)" style="background:transparent;border:none;color:#8e8e93;cursor:pointer;padding:2px;" aria-label="Закрыть"><svg class="icon" style="width:16px;height:16px;" aria-hidden="true"><use href="#i-x"/></svg></button>
@@ -129,19 +131,32 @@
           <button class="tb-btn" style="width:auto;padding:0 8px;gap:5px;" onmousedown="event.preventDefault()" onclick="togglePlaceholderMenu(event)"><svg class="icon" style="width:13px;height:13px;" aria-hidden="true"><use href="#i-tag"/></svg>Вставить плейсхолдер</button>
           <div id="placeholderMenu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;background:#2c2c2e;border:0.5px solid #48484a;border-radius:8px;overflow:hidden;min-width:220px;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:5;"></div>
         </div>
+        <button class="tb-btn" style="width:auto;padding:0 8px;gap:5px;" onmousedown="event.preventDefault()" onclick="insertTableBlock()" title="Вставить таблицу"><svg class="icon" style="width:13px;height:13px;" aria-hidden="true"><use href="#i-table"/></svg>Таблица</button>
+        <button class="tb-btn" style="width:auto;padding:0 8px;gap:5px;" onmousedown="event.preventDefault()" onclick="insertSignatureBlock()" title="Вставить блок подписи"><svg class="icon" style="width:13px;height:13px;" aria-hidden="true"><use href="#i-signature"/></svg>Подпись</button>
       </div>
 
       <div style="display:flex;gap:12px;margin-top:10px;">
         <div style="flex:1;min-width:0;">
           <div class="pane-label">Содержимое титульного листа</div>
           <div id="contentEditor" class="doc-page" contenteditable="true" oninput="onEditorChanged()"></div>
+          <div style="font-size:10px;color:#5a5a5c;margin-top:5px;">Рамка страницы и шапка организации сюда не входят — добавляются автоматически при сборке, см. предпросмотр справа.</div>
         </div>
         <div style="flex:1;min-width:0;">
           <div class="pane-label">Предпросмотр</div>
-          <div id="contentPreview" class="doc-page doc-page-preview"></div>
+          <div id="contentPreviewFrame" class="doc-page-frame">
+            <div class="letterhead">
+              <div class="letterhead-name">ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ<br>«ЭКСПЕРТНО-ДИАГНОСТИЧЕСКИЙ ЦЕНТР ИМПУЛЬС»<br>(ООО «ЭДЦ ИМПУЛЬС»)</div>
+              <div class="letterhead-contacts">
+                Юридический адрес: ул. Пушкинская, д. 15, пом. LIX, мкр. Болшево, г. Королев, Московская обл., 141090<br>
+                тел. (495) 500-47-47, e-mail: impuls2000@inbox.ru<br>
+                ОКПО 57504418, ОГРН 1215000089040, ИНН 5018209010, КПП 501801001
+              </div>
+            </div>
+            <div id="contentPreview" class="doc-page doc-page-preview"></div>
+          </div>
         </div>
       </div>
-      <div style="font-size:10.5px;color:#5a5a5c;margin-top:8px;">Плейсхолдер вставляется туда, где стоит курсор в тексте слева. Поля реквизитов на главном экране появляются и пропадают вслед за тем, какие плейсхолдеры сейчас есть в тексте.</div>
+      <div style="font-size:10.5px;color:#5a5a5c;margin-top:8px;">Плейсхолдер вставляется туда, где стоит курсор в тексте слева. Поля реквизитов на главном экране появляются и пропадают вслед за тем, какие плейсхолдеры сейчас есть в тексте. Рамка и шапка организации — фиксированы, редактированию не подлежат.</div>
 
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
         <button onclick="closeContentEditor(true)" style="background:transparent;border:0.5px solid #48484a;color:#c7c7cc;font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;">Отмена</button>
@@ -185,11 +200,24 @@ input.fld::placeholder{color:#5a5a5c;}
 .pane-label{font-size:10.5px;color:#8e8e93;text-transform:uppercase;letter-spacing:.03em;margin-bottom:5px;}
 .doc-page{background:#fdfdfb;color:#1c1c1e;border-radius:6px;padding:16px 18px;font-size:12px;line-height:1.7;min-height:220px;max-height:220px;overflow-y:auto;box-shadow:0 1px 3px rgba(0,0,0,.3);}
 .doc-page:focus{outline:2px solid #0a84ff;outline-offset:-1px;}
-.doc-page-preview{cursor:default;}
+.doc-page-preview{cursor:default;border-radius:0;box-shadow:none;}
 .ph-chip{display:inline-block;background:rgba(10,132,255,.16);color:#0a5dc7;border:0.5px solid rgba(10,132,255,.4);border-radius:4px;padding:0 4px;font-size:11.5px;white-space:nowrap;}
 .doc-page-preview .ph-chip{background:transparent;border:none;color:#1c1c1e;font-style:italic;}
 .doc-page-preview .ph-chip.ph-empty{color:#b0b0b3;}
 .menu-row-hint{padding:6px 10px;font-size:10.5px;color:#5a5a5c;}
+
+/* Рамка страницы + шапка организации -- фиксированные, не часть
+   редактируемого content, добавляются генератором автоматически (см.
+   обсуждение: page border через docx.oxml + летерхед из OrganizationConfig).
+   Показаны только в Предпросмотре, не в самом редакторе слева. */
+.doc-page-frame{background:#fdfdfb;border:5px solid #1c1c1e;outline:1px solid #1c1c1e;outline-offset:-9px;border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,.3);}
+.letterhead{padding:12px 16px 8px;border-bottom:1.5px solid #1c1c1e;}
+.letterhead-name{font-weight:700;font-size:11px;line-height:1.4;color:#1c1c1e;}
+.letterhead-contacts{margin-top:6px;font-size:9px;line-height:1.6;color:#333;text-align:center;}
+.doc-page-frame .doc-page-preview{background:transparent;min-height:180px;max-height:180px;}
+.doc-page table{border-collapse:collapse;width:100%;margin:8px 0;font-size:11.5px;}
+.doc-page table td{border:0.5px solid #8a8a8a;padding:5px 7px;vertical-align:top;}
+.doc-page table td:first-child{font-weight:600;width:38%;}
 </style>
 
 <script>
@@ -359,6 +387,7 @@ var editingVariant = null;
 var variantContent = {}; // variant id -> HTML содержимого титульника (сохранённая версия)
 var fieldCatalog = {};   // field id -> {id, label, placeholder}
 [].concat(defaultFields, variantFields.otchet).forEach(function(f){ fieldCatalog[f.id] = f; });
+fieldCatalog['signer_name'] = {id:'signer_name', label:'ФИО подписанта', placeholder:'Михайлов С.А.'};
 var nextCatalogFieldId = 1;
 var savedRange = null; // последняя позиция курсора внутри #contentEditor
 
@@ -519,6 +548,48 @@ function insertPlaceholder(f){
   editor.focus();
   restoreSelection();
   document.execCommand('insertHTML', false, chipHtml(f));
+  onEditorChanged();
+}
+
+// -- Вставка таблицы и блока подписи -----------------------------------------
+// Опция B из обсуждения: свободный редактор + вставка таблицы/подписи как
+// ещё один тип вставляемого элемента, наравне с плейсхолдером -- а не
+// фиксированная структура для всех вариантов. Каталог полей тот же
+// (fieldCatalog), плейсхолдеры внутри ячеек/строк -- обычные чипы, ничего
+// специального для них не требуется (deriveFieldsFromContent/renderPreview
+// работают через querySelectorAll('.ph-chip'), им всё равно, лежит чип в
+// параграфе или в ячейке таблицы).
+function insertTableBlock(){
+  var rows = [
+    ['Объект диагностирования:', {id:'diag_object', label:'Объект диагностирования'}],
+    ['Местонахождение:', {id:'location', label:'Местонахождение'}],
+    ['Владелец:', {id:'owner', label:'Владелец'}],
+  ];
+  var html = '<table>' + rows.map(function(r){
+    return '<tr><td>' + r[0] + '</td><td>' + chipHtml(r[1]) + '</td></tr>';
+  }).join('') + '</table><div><br></div>';
+  var editor = document.getElementById('contentEditor');
+  editor.focus();
+  restoreSelection();
+  document.execCommand('insertHTML', false, html);
+  onEditorChanged();
+}
+function insertSignatureBlock(){
+  // Не таблица -- просто несколько строк обычного текста с парой чипов,
+  // теми же примитивами, что и остальной контент (см. обсуждение: блок
+  // подписи не требует расширения модели content).
+  var html =
+    '<div>Генеральный директор</div>' +
+    '<div>ООО «ЭДЦ ИМПУЛЬС»</div>' +
+    '<div><br></div>' +
+    '<div>______________ ' + chipHtml({id:'signer_name', label:'ФИО подписанта'}) + '</div>' +
+    '<div>«' + chipHtml({id:'signed_date', label:'Дата подписания'}) + '»</div>' +
+    '<div><br></div>' +
+    '<div style="text-align:center;">' + chipHtml({id:'city_year', label:'Город / год'}) + '</div>';
+  var editor = document.getElementById('contentEditor');
+  editor.focus();
+  restoreSelection();
+  document.execCommand('insertHTML', false, html);
   onEditorChanged();
 }
 function renderPreview(){
