@@ -643,23 +643,16 @@ SCHEMAS: Dict[str, ReportSchema] = {
 # добавленных через UI кнопкой «Добавить»).
 DEFAULT_TITLE_SUBTITLE_FIELDS = ["doc_number", "reg_number", "doc_date", "object_title"]
 
-TITLE_VARIANTS: Dict[str, TitleConfig] = {
-    # Реальный состав реквизитов титульного листа отчёта по техническому
-    # диагностированию -- порядок задан пользователем, отличается от
-    # DEFAULT_TITLE_SUBTITLE_FIELDS (у остальных вариантов пока общий
-    # набор, доведём каждый отдельным шагом).
-    "otchet": TitleConfig(
-        document_title="Отчёт по результатам технического диагностирования",
-        subtitle_fields=[
-            "title_heading", "doc_number", "diag_object", "reg_number",
-            "location", "owner", "signed_date", "city_year",
-        ],
-    ),
-    "zaklyuchenie": TitleConfig(
-        document_title="Заключение по техническому освидетельствованию",
-        subtitle_fields=DEFAULT_TITLE_SUBTITLE_FIELDS,
-    ),
-}
+# Раньше здесь были два встроенных, вручную оформленных в Word варианта
+# ("otchet"/"zaklyuchenie") -- убраны по просьбе пользователя, весь
+# титульный лист теперь заводится только как пользовательский вариант
+# (кнопка «Добавить» в сайдбаре, см. src/ui/main_window.py). Словарь
+# оставлен пустым, а не удалён целиком -- на него по-прежнему завязана
+# логика "встроенный/пользовательский" (is_custom = variant_id not in
+# TITLE_VARIANTS в src/ui/main_window.py, is_builtin в
+# src/config.py:find_title_template()), которая ломаться не должна, если
+# в будущем встроенный вариант снова понадобится.
+TITLE_VARIANTS: Dict[str, TitleConfig] = {}
 
 # Человекочитаемые подписи полей реквизитов -- единый источник для формы в
 # src/ui/main_window.py (_render_title_fields()), общий для всех вариантов
@@ -675,4 +668,10 @@ TITLE_FIELD_LABELS: Dict[str, str] = {
     "city_year": "Город / год",
     "doc_date": "Дата",
     "object_title": "Наименование объекта",
+    # ФИО подписанта -- отдельное поле от head_name в OrganizationConfig
+    # (тот -- один и тот же для всех отчётов, впечатывается буквально, см.
+    # add_organization_letterhead()): конкретный отчёт может подписать не
+    # обязательно руководитель организации, поэтому это плейсхолдер
+    # реквизитов, а не фиксированный текст.
+    "signer_name": "ФИО подписанта",
 }

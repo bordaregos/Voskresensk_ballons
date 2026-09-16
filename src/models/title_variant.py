@@ -4,23 +4,35 @@
 src/services/template_schema.py) в этот справочник не входят и через UI не
 удаляются.
 
-content -- структурированное содержимое титульника: список параграфов,
-каждый параграф -- список ранов вида {"text": "...", "bold": bool,
-"italic": bool} (обычный текст) или {"placeholder": field_id} (плейсхолдер,
-подставляется докстплом при рендере, в .docx-заготовке пишется буквально
-как "{{ field_id }}", см. src/services/template_generator.py,
-add_title_content()). Заполняется/редактируется через встроенный редактор
-шаблона в конструкторе (src/ui/title_content_editor.py) -- в отличие от
-subtitle_fields (плоский список id, только для built-in TITLE_VARIANTS),
-здесь текст и плейсхолдеры могут свободно перемежаться в одной строке.
+subtitle_fields -- каталог плейсхолдеров варианта: упорядоченный список id
+полей (без дублей). Напрямую редактируется встроенным в главный экран
+каталогом плейсхолдеров (src/ui/main_window.py,
+_build_title_placeholder_catalog()) -- добавить/удалить плейсхолдер значит
+добавить/удалить id из этого списка, тем же способом, что уже был у
+встроенных TITLE_VARIANTS. Определяет: (1) форму реквизитов на главном
+экране (_render_title_fields()), (2) какие "{{ id }}" можно скопировать по
+ПКМ по чипу для вставки в Word.
 
-subtitle_fields для пользовательских вариантов -- ПРОИЗВОДНОЕ от content
-(id плейсхолдеров в порядке первого появления, см.
-derive_subtitle_fields_from_content()), не редактируется отдельно и
-пересчитывается и сохраняется заново при каждой правке content. Оставлен
-отдельным полем (не свойством) для обратной совместимости с вариантами,
-у которых content ещё нет (созданы до этой возможности) -- у них
-subtitle_fields как было, единственный источник истины."""
+template_filename -- имя файла, загруженного через «Загрузить шаблон
+Word» (src/ui/main_window.py, _upload_title_variant_template()) -- чисто
+для отображения над каталогом плейсхолдеров ("с каким документом идёт
+работа"), на резолюцию файла не влияет: она всегда идёт через фиксированный
+путь FRAGMENTS_DIR/title_{id}.docx (см. find_title_template()), независимо
+от исходного имени. Пустая строка -- шаблон ещё не загружался, работает
+только автосгенерированная заготовка (generate_title_fragment()).
+
+Сам текст/вёрстка/таблицы/подпись титульника этим приложением больше не
+редактируются -- пользователь ведёт их напрямую в .docx-файле варианта
+через Word (см. find_title_template()/generate_title_fragment()). Раньше
+(до этой версии) здесь ещё было поле content -- структурированный список
+абзацев/таблиц, который редактировался через rich-text редактор и
+перегенерировал .docx при каждом сохранении; отказались от этого в пользу
+модели "плейсхолдеры + правка в Word" (см. обсуждение задачи и мокап
+docs/design/constructor_mockup.html) -- итоговое форматирование там, где
+для него есть реальный набор инструментов, а не через ограниченный набор
+примитивов python-docx. Старые записи в data/title_variants.json могут
+ещё содержать ключ "content" -- from_dict() его просто не читает, он
+останется мёртвым и исчезнет из файла при следующем save_title_variants()."""
 
 from dataclasses import dataclass, field, asdict
 from typing import Any, Dict, List
@@ -31,7 +43,7 @@ class TitleVariant:
     id: str
     document_title: str = ""
     subtitle_fields: List[str] = field(default_factory=list)
-    content: List[List[Dict[str, Any]]] = field(default_factory=list)
+    template_filename: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -42,21 +54,5 @@ class TitleVariant:
             id=data['id'],
             document_title=data.get('document_title', ''),
             subtitle_fields=list(data.get('subtitle_fields', [])),
-            content=[list(paragraph) for paragraph in data.get('content', [])],
+            template_filename=data.get('template_filename', ''),
         )
-
-
-def derive_subtitle_fields_from_content(content: List[List[Dict[str, Any]]]) -> List[str]:
-    """Список id плейсхолдеров, реально присутствующих в content -- порядок
-    первого появления, без дублей. Источник истины для subtitle_fields
-    пользовательского варианта после любой правки content (см. докстринг
-    класса выше) -- реквизиты формы конструктора должны совпадать с тем,
-    что реально есть в тексте титульника, а не с отдельно поддерживаемым
-    списком."""
-    seen: Dict[str, None] = {}
-    for paragraph in content:
-        for run in paragraph:
-            placeholder = run.get('placeholder')
-            if placeholder and placeholder not in seen:
-                seen[placeholder] = None
-    return list(seen)

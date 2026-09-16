@@ -170,7 +170,7 @@
              </item>
              <item>
               <widget class="QGroupBox" name="fieldsPanel">
-               <property name="title"><string>Реквизиты титульного листа</string></property>
+               <property name="title"><string/></property>
                <property name="visible"><bool>false</bool></property>
                <layout class="QFormLayout" name="titleFieldsLayout"/>
               </widget>

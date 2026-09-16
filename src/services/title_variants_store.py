@@ -10,8 +10,9 @@ instruments_store.py -- не зависит от Qt.
 
 Файл хранит ДВЕ независимые секции -- "title_variants" (сами варианты) и
 "field_catalog" (id -> человекочитаемая подпись поля-плейсхолдера,
-переиспользуется между вариантами при вставке в редакторе шаблона, см.
-src/ui/title_content_editor.py). save_title_variants()/save_field_catalog()
+переиспользуется между вариантами при вставке через каталог плейсхолдеров,
+см. src/ui/main_window.py, _build_title_placeholder_catalog()).
+save_title_variants()/save_field_catalog()
 поэтому читают-правят-пишут файл целиком (read-modify-write), а не
 перезаписывают его слепо целиком своей секцией -- иначе сохранение одной
 секции стирало бы другую."""
