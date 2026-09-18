@@ -179,7 +179,16 @@
            </widget>
           </item>
           <item>
-           <widget class="QWidget" name="mainAreaContent">
+           <widget class="QScrollArea" name="mainAreaScrollArea">
+            <property name="widgetResizable"><bool>true</bool></property>
+            <property name="frameShape"><enum>QFrame::Shape::NoFrame</enum></property>
+            <property name="horizontalScrollBarPolicy">
+             <enum>Qt::ScrollBarPolicy::ScrollBarAlwaysOff</enum>
+            </property>
+            <widget class="QWidget" name="mainAreaContent">
+             <property name="geometry">
+              <rect><x>0</x><y>0</y><width>620</width><height>400</height></rect>
+             </property>
             <layout class="QVBoxLayout" name="mainAreaLayout">
              <property name="leftMargin"><number>18</number></property>
              <property name="topMargin"><number>16</number></property>
@@ -219,6 +228,13 @@
               </widget>
              </item>
              <item>
+              <widget class="QFrame" name="slotSeparator">
+               <property name="frameShape"><enum>QFrame::Shape::NoFrame</enum></property>
+               <property name="minimumSize"><size><width>0</width><height>2</height></size></property>
+               <property name="maximumSize"><size><width>16777215</width><height>2</height></size></property>
+              </widget>
+             </item>
+             <item>
               <widget class="QListWidget" name="includedIntroBlockList">
                <property name="acceptDrops"><bool>true</bool></property>
                <property name="dragDropMode">
@@ -255,6 +271,7 @@
               </spacer>
              </item>
             </layout>
+            </widget>
            </widget>
           </item>
          </layout>

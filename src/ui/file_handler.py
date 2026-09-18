@@ -494,6 +494,20 @@ class FileHandler:
                 self.main_window._specialist_employee_ids
             )
 
+        if equipment_type_id == "constructor":
+            # Включённый блок слота (карточка в included_list -- title/
+            # intro-вариант, перетащенный из сайдбара) нигде в form_data не
+            # лежит -- сами реквизиты (PLAIN_TEXT_EDIT_NAMES) регистрируются
+            # динамически только пока блок включён (см.
+            # MainWindow._render_slot_fields()), но САМ выбор варианта
+            # для каждого слота без этого терялся бы при «Открыть проект»
+            # -- includedBlockList возвращался бы в пустое состояние,
+            # значения реквизитов было бы некуда класть (виджеты под них ещё
+            # не созданы), см. _fill_ui_from_project()/
+            # MainWindow._restore_included_variant().
+            form_data["_included_title_variant_id"] = self.main_window._filled_slot_variant("title")
+            form_data["_included_intro_variant_id"] = self.main_window._filled_slot_variant("intro")
+
         if equipment_type_id != "balloon":
             # Для не-баллонных типов таблицы уже внутри form_data (см.
             # get_form_data() -- TABLE_WIDGET кладётся туда же), отдельное
@@ -529,7 +543,20 @@ class FileHandler:
             project: Объект Project
         """
         from PyQt6.QtCore import QDate, QLocale
-        
+
+        if self.main_window.equipment_type.id == "constructor":
+            # Включённые блоки (title/intro) -- ПЕРЕД генеричным циклом ниже:
+            # он раскладывает значения реквизитов по getattr(main_window,
+            # key), а виджеты под эти реквизиты создаются только вместе с
+            # включением блока (см. _create_project()/
+            # MainWindow._restore_included_variant()) -- без восстановления
+            # блока сейчас у сохранённых значений реквизитов просто не было
+            # бы виджета-получателя.
+            for slot in ("title", "intro"):
+                variant_id = project.report_data.get(f"_included_{slot}_variant_id")
+                if variant_id:
+                    self.main_window._restore_included_variant(slot, variant_id)
+
         # Заполнение форм данными из report_data
         specialist_combo_names = getattr(self.main_window, "SPECIALIST_COMBO_NAMES", ())
         for key, value in project.report_data.items():
@@ -663,3 +690,15 @@ class FileHandler:
                 # правка source-поля (например years_of_operation) после
                 # открытия проекта переставала бы подхватываться.
                 self.main_window._seed_mirror_states_after_load()
+
+        if self.main_window.equipment_type.id == "constructor":
+            # Предзаполнение одинаковых плейсхолдеров между слотами
+            # (MainWindow._cross_slot_placeholder_value()) срабатывает
+            # только в момент СОЗДАНИЯ виджета -- для документов,
+            # сохранённых ДО этой фичи (или просто заполненных только в
+            # одном из двух слотов на момент сохранения), поля второго
+            # слота уже существуют пустыми к этому моменту и сами не
+            # подхватят чужое значение. Досылаем синхронизацию явно, уже
+            # после того, как оба слота восстановлены и заполнены
+            # generic-циклом выше.
+            self.main_window._sync_cross_slot_placeholders()
