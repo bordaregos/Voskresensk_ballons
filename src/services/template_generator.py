@@ -313,3 +313,39 @@ def generate_title_fragment(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     doc.save(str(output_path))
     return output_path
+
+
+def generate_intro_fragment(variant: TitleVariant, output_path: Union[str, Path]) -> Path:
+    """.docx-заготовка ОДНОГО пользовательского варианта вводной части
+    конструктора документов -- второй, независимый от титульного листа слот
+    (см. src/ui/main_window.py). Структурно калька generate_title_fragment()
+    (заголовок + плейсхолдеры-параграфы под variant.subtitle_fields), но
+    БЕЗ add_page_border()/add_organization_letterhead(): рамка страницы и
+    шапка организации -- атрибут ПЕРВОЙ страницы документа, печатаются один
+    раз на титульном фрагменте; если бы их печатал ещё и фрагмент вводной
+    части, при склейке обоих в один файл (см. _calculate_constructor())
+    получилась бы вторая, лишняя рамка/шапка посреди документа. Поэтому и
+    без org_config -- он здесь просто не нужен.
+
+    Плейсхолдеры пишутся с префиксом "intro_" ("{{ intro_doc_number }}", а
+    не "{{ doc_number }}"), хотя каталог полей (TITLE_FIELD_LABELS) общий с
+    титульным листом -- у обоих слотов оператор вставляет плейсхолдеры из
+    ОДНОГО и того же меню «Вставить плейсхолдер». Без префикса совпадающий
+    field_id, добавленный сразу в оба слота, делил бы один и тот же
+    self.<field_id>/form_data[field_id] на два РАЗНЫХ виджета реквизитов --
+    значение того, что создан вторым, молча перезаписывало бы значение
+    первого (см. src/ui/main_window.py, _render_slot_fields()).
+    generate_title_fragment() эту схему НЕ использует -- у него плейсхолдеры
+    остаются голыми: там уже есть реальные, вручную доработанные в Word
+    файлы title_*.docx с голыми "{{ field }}" -- смена схемы молча сломала
+    бы уже существующие фрагменты."""
+    doc = Document()
+    add_title(doc, TitleConfig(
+        document_title=variant.document_title,
+        subtitle_fields=[f"intro_{field_id}" for field_id in variant.subtitle_fields],
+    ))
+
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    doc.save(str(output_path))
+    return output_path

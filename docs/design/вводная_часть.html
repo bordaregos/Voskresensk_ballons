@@ -1,0 +1,908 @@
+<title>Конструктор документов</title>
+<h2 style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);">Мокап конструктора документов: доступные блоки слева, перетаскивание в основную область, форма реквизитов с плейсхолдерами-чипами прямо у своих полей, сборка документа</h2>
+<svg style="position:absolute;width:0;height:0;overflow:hidden;" aria-hidden="true" focusable="false">
+<defs>
+<symbol id="i-chevron-right" viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></symbol>
+<symbol id="i-files" viewBox="0 0 24 24"><rect x="3" y="7" width="13" height="13" rx="2"/><path d="M8 7V4a1 1 0 0 1 1-1h11a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-3"/></symbol>
+<symbol id="i-file-text" viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><line x1="9" y1="9" x2="10" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+<symbol id="i-drag-drop" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" stroke-dasharray="4 3"/><path d="M12 9v6"/><path d="M9 12l3 3 3-3"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><line x1="4" y1="7" x2="20" y2="7"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/></symbol>
+<symbol id="i-tag" viewBox="0 0 24 24"><path d="M20.59 13.41L11 3.83A2 2 0 0 0 9.59 3.24L4 3a1 1 0 0 0-1 1l.24 5.59a2 2 0 0 0 .59 1.41l9.58 9.58a2 2 0 0 0 2.83 0l4.35-4.35a2 2 0 0 0 0-2.82z"/><circle cx="7.5" cy="7.5" r="1.2" fill="currentColor" stroke="none"/></symbol>
+<symbol id="i-upload" viewBox="0 0 24 24"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><polyline points="7 9 12 4 17 9"/><line x1="12" y1="4" x2="12" y2="15"/></symbol>
+<symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
+</defs>
+</svg>
+<div style="background:#eeeeef;min-height:100vh;box-sizing:border-box;padding:32px 20px;display:flex;align-items:flex-start;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,sans-serif;">
+<div style="width:100%;max-width:720px;">
+<p style="margin:0 0 14px;font-size:13px;color:#6b6b70;text-align:center;">Кликабельный мокап — перетащите блок титульного листа из списка слева в основную область</p>
+<div style="max-width:680px;margin:0 auto;background:#1c1c1e;border-radius:10px;overflow:hidden;border:0.5px solid #38383a;position:relative;box-shadow:0 12px 32px rgba(0,0,0,.18);">
+  <div style="display:flex;align-items:center;padding:10px 14px;background:#2c2c2e;border-bottom:0.5px solid #38383a;position:relative;">
+    <span style="width:11px;height:11px;border-radius:50%;background:#ff5f57;margin-right:6px;"></span>
+    <span style="width:11px;height:11px;border-radius:50%;background:#febc2e;margin-right:6px;"></span>
+    <span style="width:11px;height:11px;border-radius:50%;background:#28c840;"></span>
+    <span style="position:absolute;left:50%;transform:translateX(-50%);font-size:12px;color:#8e8e93;">Конструктор документов — MainWindow</span>
+  </div>
+
+  <div style="display:flex;height:560px;">
+    <div id="sidebar" style="width:220px;background:#242426;border-right:0.5px solid #38383a;flex-shrink:0;overflow-y:auto;">
+      <div style="padding:10px 10px 4px;">
+        <div class="group-row" onclick="toggleGroup('titleGroup')">
+          <svg id="titleGroupChev" class="icon chevron chev-open" style="width:13px;height:13px;color:#8e8e93;" aria-hidden="true"><use href="#i-chevron-right"/></svg>
+          <svg class="icon" style="width:14px;height:14px;color:#8e8e93;" aria-hidden="true"><use href="#i-files"/></svg>
+          <span>Титульные листы</span>
+        </div>
+        <div id="titleGroup" style="padding:4px 0 6px 14px;display:flex;flex-direction:column;gap:8px;">
+          <div class="add-block-row" onclick="openAddModal('title')">
+            <svg class="icon" style="width:13px;height:13px;" aria-hidden="true"><use href="#i-plus"/></svg>
+            <span>Добавить</span>
+          </div>
+        </div>
+
+        <div class="group-row" onclick="toggleGroup('introGroup')">
+          <svg id="introGroupChev" class="icon chevron chev-open" style="width:13px;height:13px;color:#8e8e93;" aria-hidden="true"><use href="#i-chevron-right"/></svg>
+          <svg class="icon" style="width:14px;height:14px;color:#8e8e93;" aria-hidden="true"><use href="#i-files"/></svg>
+          <span>Вводная часть</span>
+        </div>
+        <div id="introGroup" style="padding:4px 0 6px 14px;display:flex;flex-direction:column;gap:8px;">
+          <div class="add-block-row" onclick="openAddModal('intro')">
+            <svg class="icon" style="width:13px;height:13px;" aria-hidden="true"><use href="#i-plus"/></svg>
+            <span>Добавить</span>
+          </div>
+        </div>
+
+        <div class="group-row group-row-soon" title="Появится в Phase 2">
+          <svg class="icon" style="width:13px;height:13px;color:#5a5a5c;" aria-hidden="true"><use href="#i-chevron-right"/></svg>
+          <svg class="icon" style="width:14px;height:14px;color:#5a5a5c;" aria-hidden="true"><use href="#i-files"/></svg>
+          <span>Приложения — скоро</span>
+        </div>
+      </div>
+
+      <div style="padding:10px;margin-top:auto;font-size:10.5px;color:#5a5a5c;line-height:1.5;">
+        Перетащите блок в основную область справа, чтобы включить его в документ. Правый клик по карточке слева — «Удалить» вариант из палитры.
+      </div>
+    </div>
+
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;">
+      <div style="padding:8px 18px;background:#202022;border-bottom:0.5px solid #2c2c2e;font-size:11px;color:#8e8e93;flex-shrink:0;">
+        Конструктор документов / <span id="crumbBlock" style="color:#e5e5e7;">без титульного листа</span>
+      </div>
+
+      <div style="flex:1;overflow-y:auto;padding:16px 18px;">
+
+        <div style="font-size:11px;color:#8e8e93;margin-bottom:8px;text-transform:uppercase;letter-spacing:.03em;">Документ</div>
+
+        <div id="dropZone-title" class="drop-zone" ondragover="onDragOver('title',event)" ondragleave="onDragLeave('title',event)" ondrop="onDrop('title',event)">
+          <div id="dropEmpty-title" style="display:flex;flex-direction:column;align-items:center;gap:6px;color:#5a5a5c;font-size:12px;padding:18px 0;">
+            <svg class="icon" style="width:22px;height:22px;" aria-hidden="true"><use href="#i-drag-drop"/></svg>
+            Перетащите титульный лист сюда
+          </div>
+          <div id="dropFilled-title" onclick="toggleFields('title')" style="display:none;align-items:center;gap:8px;width:100%;align-self:stretch;box-sizing:border-box;padding:10px 12px;background:#2c2c2e;border-radius:8px;cursor:pointer;" title="Клик — показать/скрыть реквизиты">
+            <svg class="icon" style="width:15px;height:15px;color:#0a84ff;" aria-hidden="true"><use href="#i-file-text"/></svg>
+            <span id="droppedLabel-title" style="flex:1;font-size:12px;color:#e5e5e7;"></span>
+            <svg id="fieldsChev-title" class="icon chevron chev-open" style="width:13px;height:13px;color:#8e8e93;" aria-hidden="true"><use href="#i-chevron-right"/></svg>
+            <button class="remove-btn" onclick="event.stopPropagation();clearBlock('title')" title="Убрать" aria-label="Убрать"><svg class="icon" style="width:14px;height:14px;" aria-hidden="true"><use href="#i-x"/></svg></button>
+          </div>
+        </div>
+
+        <!-- fieldsPanel-*: реквизиты + (для пользовательских вариантов) тулбар
+             работы с шаблоном. Плейсхолдеры БОЛЬШЕ НЕ отдельный список чипов
+             над реквизитами -- каждый чип теперь подпись СВОЕЙ строки, рядом
+             со своим полем ввода (см. renderFields()). Отдельного окна
+             «Редактировать шаблон» тоже нет -- вся работа с плейсхолдерами
+             и файлом варианта происходит прямо здесь.
+             Слот «title» и слот «intro» ниже -- зеркальные копии одной и той
+             же разметки/логики (см. renderFields(slot, variant) и остальные
+             функции с параметром slot в <script>): у каждого свой дропзон,
+             своя панель реквизитов, свой тулбар шаблона -- независимо друг
+             от друга, оба могут быть заполнены одновременно. -->
+        <div id="fieldsPanel-title" style="display:none;margin-top:22px;">
+
+          <div id="variantToolbar-title" style="display:none;margin-bottom:14px;padding:6px;border-radius:8px;" ondragover="onTemplateDragOver('title',event)" ondragleave="onTemplateDragLeave('title',event)" ondrop="onTemplateDrop('title',event)">
+            <div class="editor-toolbar">
+              <div style="position:relative;">
+                <button class="tb-btn" style="width:auto;padding:0 8px;gap:5px;" onclick="togglePlaceholderMenu('title',event)"><svg class="icon" style="width:13px;height:13px;" aria-hidden="true"><use href="#i-tag"/></svg>Вставить плейсхолдер</button>
+                <div id="placeholderMenu-title" style="display:none;position:absolute;top:calc(100% + 4px);left:0;background:#2c2c2e;border:0.5px solid #48484a;border-radius:8px;overflow:hidden;min-width:220px;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:5;"></div>
+              </div>
+              <div style="flex:1;"></div>
+              <button class="tb-btn" style="width:auto;padding:0 10px;gap:5px;color:#0a84ff;" onclick="uploadTemplate('title')" title="Выбрать .docx и открыть его в выбранном приложении -- файл можно и просто перетащить на эту панель"><svg class="icon" style="width:13px;height:13px;" aria-hidden="true"><use href="#i-upload"/></svg>Загрузить шаблон Word</button>
+            </div>
+            <div id="templateFilenameLabel-title" style="font-size:11px;color:#8e8e93;margin-top:8px;"></div>
+            <div style="font-size:11px;color:#8e8e93;margin-top:4px;">Клик по плейсхолдеру в реквизитах ниже — скопировать для Word. Правый клик — удалить.</div>
+          </div>
+
+          <div style="font-size:11px;color:#8e8e93;margin-bottom:10px;text-transform:uppercase;letter-spacing:.03em;">Реквизиты титульного листа</div>
+          <div id="previewField-title" style="margin-bottom:14px;"></div>
+
+          <div id="fieldsEmptyState-title" style="display:none;font-size:11px;color:#8e8e93;font-style:italic;margin-bottom:10px;"></div>
+          <div class="field-grid" id="fieldsGrid-title"></div>
+        </div>
+
+        <div id="dropZone-intro" class="drop-zone" style="margin-top:14px;" ondragover="onDragOver('intro',event)" ondragleave="onDragLeave('intro',event)" ondrop="onDrop('intro',event)">
+          <div id="dropEmpty-intro" style="display:flex;flex-direction:column;align-items:center;gap:6px;color:#5a5a5c;font-size:12px;padding:18px 0;">
+            <svg class="icon" style="width:22px;height:22px;" aria-hidden="true"><use href="#i-drag-drop"/></svg>
+            Перетащите вводную часть сюда
+          </div>
+          <div id="dropFilled-intro" onclick="toggleFields('intro')" style="display:none;align-items:center;gap:8px;width:100%;align-self:stretch;box-sizing:border-box;padding:10px 12px;background:#2c2c2e;border-radius:8px;cursor:pointer;" title="Клик — показать/скрыть реквизиты">
+            <svg class="icon" style="width:15px;height:15px;color:#0a84ff;" aria-hidden="true"><use href="#i-file-text"/></svg>
+            <span id="droppedLabel-intro" style="flex:1;font-size:12px;color:#e5e5e7;"></span>
+            <svg id="fieldsChev-intro" class="icon chevron chev-open" style="width:13px;height:13px;color:#8e8e93;" aria-hidden="true"><use href="#i-chevron-right"/></svg>
+            <button class="remove-btn" onclick="event.stopPropagation();clearBlock('intro')" title="Убрать" aria-label="Убрать"><svg class="icon" style="width:14px;height:14px;" aria-hidden="true"><use href="#i-x"/></svg></button>
+          </div>
+        </div>
+
+        <div id="fieldsPanel-intro" style="display:none;margin-top:22px;">
+
+          <div id="variantToolbar-intro" style="display:none;margin-bottom:14px;padding:6px;border-radius:8px;" ondragover="onTemplateDragOver('intro',event)" ondragleave="onTemplateDragLeave('intro',event)" ondrop="onTemplateDrop('intro',event)">
+            <div class="editor-toolbar">
+              <div style="position:relative;">
+                <button class="tb-btn" style="width:auto;padding:0 8px;gap:5px;" onclick="togglePlaceholderMenu('intro',event)"><svg class="icon" style="width:13px;height:13px;" aria-hidden="true"><use href="#i-tag"/></svg>Вставить плейсхолдер</button>
+                <div id="placeholderMenu-intro" style="display:none;position:absolute;top:calc(100% + 4px);left:0;background:#2c2c2e;border:0.5px solid #48484a;border-radius:8px;overflow:hidden;min-width:220px;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:5;"></div>
+              </div>
+              <div style="flex:1;"></div>
+              <button class="tb-btn" style="width:auto;padding:0 10px;gap:5px;color:#0a84ff;" onclick="uploadTemplate('intro')" title="Выбрать .docx и открыть его в выбранном приложении -- файл можно и просто перетащить на эту панель"><svg class="icon" style="width:13px;height:13px;" aria-hidden="true"><use href="#i-upload"/></svg>Загрузить шаблон Word</button>
+            </div>
+            <div id="templateFilenameLabel-intro" style="font-size:11px;color:#8e8e93;margin-top:8px;"></div>
+            <div style="font-size:11px;color:#8e8e93;margin-top:4px;">Клик по плейсхолдеру в реквизитах ниже — скопировать для Word. Правый клик — удалить.</div>
+          </div>
+
+          <div style="font-size:11px;color:#8e8e93;margin-bottom:10px;text-transform:uppercase;letter-spacing:.03em;">Реквизиты вводной части</div>
+          <div id="previewField-intro" style="margin-bottom:14px;"></div>
+
+          <div id="fieldsEmptyState-intro" style="display:none;font-size:11px;color:#8e8e93;font-style:italic;margin-bottom:10px;"></div>
+          <div class="field-grid" id="fieldsGrid-intro"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;border-top:0.5px solid #38383a;">
+    <div id="assembleBtn" onclick="assemble()" style="flex:1;text-align:center;padding:9px;font-size:12px;color:#5a5a5c;border-right:0.5px solid #38383a;cursor:default;">Собрать документ</div>
+    <div style="flex:1;text-align:center;padding:9px;font-size:12px;color:#c7c7cc;border-right:0.5px solid #38383a;cursor:pointer;">Сохранить проект</div>
+    <div style="flex:1;text-align:center;padding:9px;font-size:12px;color:#c7c7cc;cursor:pointer;">Открыть проект</div>
+  </div>
+
+  <!-- ПКМ по карточке в сайдбаре -- только «Удалить» вариант из палитры.
+       У уже вставленного в документ блока (dropFilled) контекстного меню
+       больше нет вообще -- клик по нему просто показывает/скрывает
+       реквизиты, см. обсуждение задачи. -->
+  <div id="blockMenu" style="display:none;position:absolute;z-index:20;background:#2c2c2e;border:0.5px solid #48484a;border-radius:8px;overflow:hidden;min-width:170px;box-shadow:0 8px 24px rgba(0,0,0,.4);">
+    <div class="menu-row" onclick="renameBlockFromMenu()"><svg class="icon" style="width:14px;height:14px;color:#c7c7cc;" aria-hidden="true"><use href="#i-edit"/></svg>Переименовать</div>
+    <div class="menu-row" style="color:#ff453a;" onclick="deleteBlockFromMenu()"><svg class="icon" style="width:14px;height:14px;color:#ff453a;" aria-hidden="true"><use href="#i-trash"/></svg>Удалить</div>
+  </div>
+
+  <!-- ПКМ по чипу-плейсхолдеру в реквизитах -- только «Удалить» (копирование
+       теперь по левому клику на самом чипе, не через меню). -->
+  <div id="chipMenu" style="display:none;position:absolute;z-index:20;background:#2c2c2e;border:0.5px solid #48484a;border-radius:8px;overflow:hidden;min-width:170px;box-shadow:0 8px 24px rgba(0,0,0,.4);">
+    <div class="menu-row" style="color:#ff453a;" onclick="deleteChipFromMenu()"><svg class="icon" style="width:14px;height:14px;color:#ff453a;" aria-hidden="true"><use href="#i-trash"/></svg>Удалить</div>
+  </div>
+
+  <div id="addModal" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.55);align-items:center;justify-content:center;z-index:10;">
+    <div style="background:#2c2c2e;border:0.5px solid #48484a;border-radius:10px;padding:18px;width:260px;">
+      <div style="font-size:13px;font-weight:500;color:#e5e5e7;margin-bottom:10px;">Новый вариант титульного листа</div>
+      <input id="newVariantName" type="text" placeholder="Например, Протокол по результатам контроля" style="width:100%;box-sizing:border-box;background:#1c1c1e;border:0.5px solid #48484a;border-radius:6px;padding:7px 8px;font-size:12px;color:#e5e5e7;margin-bottom:14px;" />
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button onclick="closeAddModal()" style="background:transparent;border:0.5px solid #48484a;color:#c7c7cc;font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;">Отмена</button>
+        <button onclick="confirmAddVariant()" style="background:#0a84ff;border:none;color:#fff;font-size:12px;font-weight:500;padding:6px 12px;border-radius:6px;cursor:pointer;">Создать</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Замена window.confirm(): в песочнице превью артефактов нативные
+       confirm()/alert()/prompt() диалоги заблокированы и confirm() сразу
+       отдаёт false -- поэтому кнопки удаления (тестовых вариантов в
+       сайдбаре, привязанного шаблона) молча не срабатывали. showConfirm()
+       ниже -- тот же паттерн модалки, что и addModal, но универсальный. -->
+  <div id="confirmModal" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.55);align-items:center;justify-content:center;z-index:10;">
+    <div style="background:#2c2c2e;border:0.5px solid #48484a;border-radius:10px;padding:18px;width:280px;">
+      <div id="confirmModalText" style="font-size:12.5px;color:#e5e5e7;line-height:1.4;margin-bottom:14px;"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button onclick="closeConfirmModal()" style="background:transparent;border:0.5px solid #48484a;color:#c7c7cc;font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;">Отмена</button>
+        <button onclick="confirmModalAccept()" style="background:#ff453a;border:none;color:#fff;font-size:12px;font-weight:500;padding:6px 12px;border-radius:6px;cursor:pointer;">Удалить</button>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+<style>
+body{background:#eeeeef;}
+.icon{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;}
+.chevron{transition:transform .15s ease;}
+.chevron.chev-open{transform:rotate(90deg);}
+.group-row{display:flex;align-items:center;gap:6px;padding:6px 6px;border-radius:5px;cursor:pointer;font-size:11.5px;color:#e5e5e7;font-weight:500;}
+.group-row:hover{background:#2c2c2e;}
+.group-row-soon{cursor:not-allowed;color:#5a5a5c;}
+.group-row-soon:hover{background:transparent;}
+.block-card{display:flex;align-items:center;gap:8px;background:#2c2c2e;border:0.5px solid #38383a;border-radius:7px;padding:8px 9px;font-size:11.5px;color:#e5e5e7;cursor:grab;line-height:1.3;}
+.block-card:active{cursor:grabbing;}
+.block-card:hover{border-color:#0a84ff;}
+.add-block-row{display:flex;align-items:center;gap:6px;border:0.5px dashed #48484a;border-radius:7px;padding:7px 9px;font-size:11.5px;color:#8e8e93;cursor:pointer;}
+.add-block-row:hover{border-color:#0a84ff;color:#e5e5e7;}
+.remove-btn{display:flex;align-items:center;justify-content:center;width:22px;height:22px;flex-shrink:0;background:transparent;border:none;border-radius:5px;color:#8e8e93;font-size:14px;cursor:pointer;padding:0;}
+.remove-btn:hover{background:#3a3a3c;color:#e5e5e7;}
+.menu-row{padding:8px 10px;font-size:12px;color:#e5e5e7;cursor:pointer;display:flex;align-items:center;gap:6px;}
+.menu-row:hover{background:#3a3a3c;}
+.menu-row-delete-btn{display:flex;align-items:center;justify-content:center;width:20px;height:20px;flex-shrink:0;background:transparent;border:none;border-radius:5px;color:#8e8e93;cursor:pointer;padding:0;}
+.menu-row-delete-btn:hover{background:#48484a;color:#ff453a;}
+.drop-zone{border:1.5px dashed #38383a;border-radius:8px;transition:border-color .15s,background .15s;min-height:56px;display:flex;align-items:center;justify-content:center;}
+.drop-zone.drag-over{border-color:#0a84ff;background:rgba(10,132,255,.08);}
+.field-grid{display:grid;grid-template-columns:180px 1fr;row-gap:9px;column-gap:10px;align-items:start;font-size:12px;}
+.lbl{color:#c7c7cc;}
+/* Свёрнуто по умолчанию (max-height ~3 строки) -- реальная высота под весь
+   текст всё равно считается автоподгоном (autoGrowField() задаёт height
+   инлайново по scrollHeight), max-height её только визуально обрезает.
+   Раскрывается в двух случаях: :focus (печатаешь -- видно, что печатаешь)
+   и .expanded (ручной переключатель-шеврон field-expand-btn ниже -- держит
+   поле раскрытым для ЧТЕНИЯ, не завязано на фокус, не схлопывается по
+   клику мимо). transition -- на max-height, а не на height, чтобы не
+   спорить с инлайновым height от autoGrowField(). */
+textarea.fld{background:#2c2c2e;border:0.5px solid #38383a;border-radius:5px;padding:6px 8px;padding-right:26px;color:#e5e5e7;font-family:inherit;font-size:12px;box-sizing:border-box;width:100%;resize:none;overflow:hidden;line-height:1.4;max-height:29px;transition:max-height .18s ease;}
+textarea.fld:focus,textarea.fld.expanded{outline:none;max-height:2000px;}
+textarea.fld:focus{border-color:#0a84ff;}
+textarea.fld::placeholder{color:#5a5a5c;}
+
+/* Кнопка-шеврон поверх textarea (верхний правый угол, см. wrap в
+   renderFields()) -- отдельная от самого поля область клика, чтобы не
+   уводить фокус/курсор набора текста при переключении. chev-open (тот же
+   класс, что и у остальных шевронов в этом мокапе) -- поворот на 90°,
+   означает "развёрнуто". */
+.field-expand-btn{position:absolute;top:5px;right:5px;width:16px;height:16px;display:none;align-items:center;justify-content:center;background:transparent;border:none;border-radius:4px;color:#8e8e93;cursor:pointer;padding:0;}
+.field-expand-btn.visible{display:flex;}
+.field-expand-btn:hover{background:#3a3a3c;color:#e5e5e7;}
+
+.editor-toolbar{display:flex;align-items:stretch;gap:4px;background:#242426;border:0.5px solid #38383a;border-radius:7px;padding:4px;}
+.tb-btn{display:flex;align-items:center;justify-content:center;gap:5px;height:26px;background:transparent;border:none;border-radius:5px;color:#c7c7cc;font-size:11.5px;cursor:pointer;padding:0 8px;}
+.tb-btn:hover{background:#3a3a3c;color:#e5e5e7;}
+
+/* Вся панель «Вставить плейсхолдер»/«Загрузить шаблон Word»/«Посмотреть
+   шаблон» -- ещё и drop-зона (см. onTemplateDrop() ниже): перетаскивание
+   .docx сюда делает то же, что кнопка «Загрузить шаблон Word», без
+   диалога выбора файла. Кнопка остаётся равноправным способом, не
+   заменяется перетаскиванием (пользователь попросил добавить, не
+   заменить). Сама подсветка при перетаскивании -- не на всю панель (было
+   так раньше), а именно на саму drop-рамку #templateFilenameLabel (см.
+   renderFields() -- она же и есть "область, которую запилили" под
+   пустое состояние): onTemplateDragOver()/-Leave() переключают .drag-over
+   на ней же, а не на #variantToolbar, срабатывает только когда рамка
+   реально показана (класс .drop-zone уже на ней, т.е. шаблон ещё не
+   загружен) -- .drag-over без .drop-zone ничего не даёт, так что в
+   состоянии "файл загружен" подсветки просто нет, что и ожидаемо: там нет
+   самой рамки. */
+#variantToolbar{transition:background .15s;}
+
+/* Чип-плейсхолдер -- подпись СВОЕЙ строки реквизитов (не отдельный список
+   над формой, см. обсуждение задачи). Видимый текст -- пользовательское
+   название поля (f.label), а не технический тег "{{ id }}" -- оператор не
+   должен видеть Jinja-синтаксис. Технический id остаётся в title-тултипе
+   и в тексте, который реально копируется в буфер. Клик копирует "{{ id }}"
+   и на короткое время красит чип в зелёный (.copied) как подтверждение;
+   правый клик -- удалить (chipMenu). */
+.ph-chip-block{display:inline-block;background:rgba(10,132,255,.16);color:#5ab4ff;border:0.5px solid rgba(10,132,255,.4);border-radius:6px;padding:4px 9px;font-size:11.5px;cursor:pointer;white-space:normal;word-break:break-word;transition:background .15s,color .15s,border-color .15s;}
+.ph-chip-block:hover{border-color:#0a84ff;}
+.ph-chip-block.copied{background:rgba(48,209,88,.16);color:#30d158;border-color:rgba(48,209,88,.4);}
+</style>
+
+<script>
+// Раньше здесь были два встроенных, вручную оформленных в Word варианта
+// ("otchet"/"zaklyuchenie") -- убраны по просьбе пользователя, титульный
+// лист теперь заводится только как пользовательский вариант (кнопка
+// «Добавить»). labels/variantFields поэтому стартуют пустыми и заполняются
+// исключительно через confirmAddVariant()/addPlaceholder() -- то же самое,
+// что теперь и в реальном коде (TITLE_VARIANTS = {} в
+// src/services/template_schema.py).
+var labels = {};
+// Слот «title» -- дропзона под титульные листы, слот «intro» -- под вводную
+// часть, каждый со своим independent currentVariant (оба могут быть
+// заполнены одновременно, см. разметку #dropZone-title/#dropZone-intro).
+var slotState = { title: { currentVariant: null }, intro: { currentVariant: null } };
+function variantGroup(variantId){
+  return variantId && variantId.indexOf('intro-') === 0 ? 'intro' : 'title';
+}
+
+// Реквизиты титульного листа -- свой набор полей под каждый вариант, все
+// варианты теперь пользовательские: строка добавляется через «Вставить
+// плейсхолдер», подпись чипа -- человекочитаемое f.label (то же название,
+// что оператор видел в меню «Вставить плейсхолдер»), технический тег
+// "{{ id }}" в текст чипа не выводится -- он копируется в буфер по клику и
+// виден в title-тултипе (см. renderFields()).
+var defaultFields = [
+  {id:'doc_number', label:'Номер документа', placeholder:'681/24'},
+  {id:'reg_number', label:'Рег./уч. номер', placeholder:'720291'},
+  {id:'doc_date', label:'Дата', placeholder:'15 ноября 2026'},
+  {id:'object_title', label:'Наименование объекта', placeholder:'Трубопровод технологический №1'}
+];
+// Остальные подписи каталога -- раньше жёстко привязаны к удалённому
+// варианту "otchet", но остаются в общем каталоге «Вставить плейсхолдер»
+// для любого пользовательского варианта (соответствует TITLE_FIELD_LABELS
+// в src/services/template_schema.py, который решено было не трогать).
+var extraCatalogFields = [
+  {id:'title_heading', label:'Заголовок титульного листа', placeholder:'Отчёт по результатам технического диагностирования'},
+  {id:'diag_object', label:'Объект диагностирования', placeholder:'Трубопровод технологический №1'},
+  {id:'location', label:'Местонахождение', placeholder:'промплощадка АО «КБХиммаш», г. Воскресенск'},
+  {id:'owner', label:'Владелец', placeholder:'АО «КБХиммаш»'},
+  {id:'signed_date', label:'Дата подписания руководством', placeholder:'15 ноября 2026'},
+  {id:'city_year', label:'Город / год', placeholder:'Воскресенск, 2026'}
+];
+var variantFields = {};
+var variantTemplateFilename = {}; // variant id -> имя загруженного .docx
+var previewGenerated = {}; // variant id -> открывали ли предпросмотр хотя бы раз в этой сессии
+// field id -> {id, label, placeholder, builtIn} -- общий каталог для
+// «Вставить плейсхолдер». builtIn:true -- зашитые в коде поля (аналог
+// TITLE_FIELD_LABELS в src/services/template_schema.py), их нельзя удалить
+// из каталога через UI -- только пользовательские, заведённые через «+
+// Новое поле…» (builtIn не выставлен вовсе, см. confirmNewField()), тот же
+// принцип, что уже действует для встроенных вариантов титульного листа
+// (isCustom()/«Удалить» в блочном меню сайдбара).
+var fieldCatalog = {};
+[].concat(defaultFields, extraCatalogFields).forEach(function(f){ f.builtIn = true; fieldCatalog[f.id] = f; });
+fieldCatalog['signer_name'] = {id:'signer_name', label:'ФИО подписанта', placeholder:'Михайлов С.А.', builtIn:true};
+var nextCatalogFieldId = 1;
+
+function isCustom(variant){
+  // Встроенных вариантов больше нет -- каждый добавленный блок пользовательский.
+  return true;
+}
+
+function renderFields(slot, variant){
+  // Перестраиваем список реквизитов, но не теряем то, что уже введено в
+  // полях, которые остаются в списке.
+  var fields = variantFields[variant] || (isCustom(variant) ? [] : defaultFields);
+  var custom = isCustom(variant);
+  var grid = document.getElementById('fieldsGrid-' + slot);
+  var prevValues = {};
+  grid.querySelectorAll('.fld').forEach(function(inp){ prevValues[inp.id] = inp.value; });
+  grid.innerHTML = '';
+
+  document.getElementById('variantToolbar-' + slot).style.display = custom ? 'block' : 'none';
+  if (custom) {
+    var filename = variantTemplateFilename[variant];
+    var box = document.getElementById('templateFilenameLabel-' + slot);
+    if (filename) {
+      // Файл уже загружен -- заметная карточка (тот же язык, что у карточек
+      // вариантов в сайдбаре: тёмный фон, скруглённая рамка, иконка слева),
+      // а не просто серая строка текста, плюс крестик для отвязки файла
+      // (removeTemplate() ниже) -- см. _build_template_loaded_card() /
+      // _remove_title_variant_template() в реальном коде. Клик по самой
+      // карточке -- открывает файл как есть (viewTemplate()), замена
+      // отдельной кнопке «Посмотреть шаблон» (убрана по просьбе
+      // пользователя). event.stopPropagation() на крестике -- иначе клик
+      // по нему всплывал бы до карточки и открывал файл ВМЕСТЕ с запросом
+      // на удаление.
+      box.className = '';
+      box.style.cssText = 'margin-top:8px;';
+      box.innerHTML =
+        '<div style="display:flex;align-items:center;gap:8px;background:#2c2c2e;border:0.5px solid #38383a;border-radius:7px;padding:7px 9px;cursor:pointer;" onclick="viewTemplate(\'' + slot + '\')" title="Открыть файл варианта как есть — в том состоянии, в котором его оставили в Word по завершении редактирования">' +
+        '<svg class="icon" style="width:15px;height:15px;color:#0a84ff;flex-shrink:0;" aria-hidden="true"><use href="#i-file-text"></use></svg>' +
+        '<span style="flex:1;font-size:11.5px;color:#e5e5e7;word-break:break-word;">Файл шаблона: ' + filename + '</span>' +
+        '<button class="remove-btn" onclick="event.stopPropagation(); removeTemplate(\'' + slot + '\')" title="Убрать привязанный файл — вернуться к автосгенерированной заготовке"><svg class="icon" style="width:14px;height:14px;" aria-hidden="true"><use href="#i-x"></use></svg></button>' +
+        '</div>';
+    } else {
+      // Пока файла нет -- та же визуальная drop-зона, что и у верхнего
+      // #dropZone/#dropEmpty («Перетащите титульный лист сюда») -- тот же
+      // класс .drop-zone, та же иконка i-drag-drop. Перетаскивание
+      // по-прежнему обрабатывает вся панель #variantToolbar
+      // (onTemplateDrop() ниже), эта рамка только делает зону видимой.
+      box.className = 'drop-zone';
+      box.style.cssText = 'margin-top:8px;min-height:64px;padding:14px 0;';
+      box.innerHTML =
+        '<div style="display:flex;flex-direction:column;align-items:center;gap:6px;color:#5a5a5c;font-size:12px;text-align:center;padding:0 12px;">' +
+        '<svg class="icon" style="width:18px;height:18px;" aria-hidden="true"><use href="#i-drag-drop"></use></svg>' +
+        'Перетащите документ для Word-шаблона сюда для загрузки</div>';
+    }
+  }
+
+  // Поле «Открыть предпросмотр итогового документа» -- заменяет прежнюю
+  // обычную кнопку «Открыть предпросмотр» (пользователь попросил), тот же
+  // визуальный язык, что и у карточки загруженного шаблона выше. Для
+  // ЛЮБОГО варианта, не только пользовательского (в отличие от блока
+  // выше) -- см. _build_title_preview_field() в реальном коде. Пока
+  // предпросмотр этого варианта ни разу не открывали в этой сессии
+  // мокапа (previewGenerated) -- приглушённый текст-заглушка, иначе --
+  // обычный активный вид. Клик работает одинаково в обоих состояниях.
+  var previewField = document.getElementById('previewField-' + slot);
+  var previewReady = !!previewGenerated[variant];
+  previewField.innerHTML =
+    '<div style="display:flex;align-items:center;gap:8px;background:#2c2c2e;border:0.5px solid #38383a;border-radius:7px;padding:7px 9px;cursor:pointer;" onclick="openPreview(\'' + slot + '\')" title="Собрать документ с уже введёнными значениями во временный файл и открыть его — посмотреть, как будет выглядеть готовый документ, не сохраняя его окончательно">' +
+    '<svg class="icon" style="width:15px;height:15px;color:' + (previewReady ? '#0a84ff' : '#5a5a5c') + ';flex-shrink:0;" aria-hidden="true"><use href="#i-file-text"></use></svg>' +
+    '<span style="flex:1;font-size:11.5px;color:' + (previewReady ? '#e5e5e7' : '#8e8e93') + ';">' +
+    (previewReady ? 'Открыть предпросмотр итогового документа' : 'Здесь будет итоговый документ для предпросмотра') +
+    '</span></div>';
+
+  var emptyState = document.getElementById('fieldsEmptyState-' + slot);
+  if (custom && !fields.length) {
+    emptyState.textContent = 'Пока нет ни одного плейсхолдера — добавьте через кнопку «Вставить плейсхолдер» выше.';
+    emptyState.style.display = 'block';
+  } else {
+    emptyState.style.display = 'none';
+  }
+
+  fields.forEach(function(f){
+    var lbl;
+    if (custom) {
+      lbl = document.createElement('span');
+      lbl.className = 'ph-chip-block';
+      lbl.textContent = f.label;
+      lbl.title = f.label + '  {{ ' + f.id + ' }}\nКлик — скопировать для Word. ПКМ — удалить.';
+      lbl.onclick = function(){ copyChipInline(f.id, lbl); };
+      lbl.oncontextmenu = function(ev){ return openChipMenu(ev, slot, variant, f); };
+    } else {
+      lbl = document.createElement('span');
+      lbl.className = 'lbl';
+      lbl.textContent = f.label;
+    }
+    // textarea, а не <input> -- значения бывают длиной в целый абзац (см.
+    // содержательные пункты вводной части вроде «1.1. На основании
+    // требований п.198 ФНП ТТ ...»), однострочный input с фиксированной
+    // высотой такой текст либо обрезает, либо прячет за горизонтальным
+    // скроллом. rows=1 + autoGrowField() ниже -- поле растёт по высоте
+    // вместе с переносом строк, без ручного resize-уголка (.fld его
+    // скрывает через resize:none, см. <style>).
+    var input = document.createElement('textarea');
+    input.className = 'fld';
+    input.id = f.id;
+    input.rows = 1;
+    input.placeholder = f.placeholder || '';
+    if (prevValues.hasOwnProperty(f.id)) input.value = prevValues[f.id];
+    input.addEventListener('input', function(){ autoGrowField(input); });
+
+    // Шеврон -- ручной, независимый от фокуса переключатель "свёрнуто/
+    // развёрнуто" (класс .expanded на textarea, снимает max-height, см.
+    // <style>). Раскрытие по фокусу (клик в само поле, печать) при этом
+    // остаётся -- шеврон нужен, чтобы держать поле раскрытым для ЧТЕНИЯ,
+    // не переходя в режим редактирования и не сворачиваясь при клике мимо.
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'position:relative;';
+    var chevBtn = document.createElement('button');
+    chevBtn.type = 'button';
+    chevBtn.className = 'field-expand-btn';
+    chevBtn.title = 'Свернуть/развернуть поле';
+    chevBtn.setAttribute('aria-label', 'Свернуть/развернуть поле');
+    chevBtn.innerHTML = '<svg class="icon chevron field-expand-chev" style="width:12px;height:12px;" aria-hidden="true"><use href="#i-chevron-right"></use></svg>';
+    chevBtn.onclick = function(ev){
+      ev.stopPropagation();
+      var expanded = input.classList.toggle('expanded');
+      chevBtn.querySelector('.field-expand-chev').classList.toggle('chev-open', expanded);
+    };
+    wrap.appendChild(input);
+    wrap.appendChild(chevBtn);
+
+    grid.appendChild(lbl);
+    grid.appendChild(wrap);
+    autoGrowField(input); // сразу подогнать высоту под восстановленное значение (prevValues)
+  });
+}
+
+// -- Автоподгон высоты textarea реквизита под введённый текст --------------
+// scrollHeight корректно читается только после сброса height, иначе при
+// удалении текста поле не сжимается обратно (scrollHeight держит старую
+// высоту, пока не "забыть" её через height:auto).
+//
+// Однострочная высота поля -- 29px (padding 6+6 + line-height 1.4*12px), то
+// же значение, что и max-height у свёрнутого textarea.fld в <style>. Если
+// реальный scrollHeight заметно больше -- текста больше одной строки,
+// значит есть что скрывать при сворачивании, и шеврон нужен; для
+// однострочного значения сворачивать/разворачивать нечего -- шеврон
+// показывать незачем (см. .field-expand-btn.visible в <style>).
+var FIELD_SINGLE_LINE_HEIGHT = 29;
+function autoGrowField(el){
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+  var chevBtn = el.nextElementSibling;
+  if (chevBtn && chevBtn.classList.contains('field-expand-btn')) {
+    var multiline = el.scrollHeight > FIELD_SINGLE_LINE_HEIGHT + 2;
+    chevBtn.classList.toggle('visible', multiline);
+    if (!multiline) {
+      // Схлопнувшееся до одной строки поле не должно оставаться "залипшим"
+      // развёрнутым -- иначе после стирания текста max-height:2000px из
+      // .expanded продолжит применяться без всякого смысла (шеврона,
+      // который мог бы это отменить, уже не видно).
+      el.classList.remove('expanded');
+    }
+  }
+}
+
+function toggleGroup(id){
+  var body = document.getElementById(id);
+  var chev = document.getElementById(id + 'Chev');
+  var open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'flex';
+  chev.classList.toggle('chev-open', !open);
+}
+function onDragStart(ev){
+  var variant = ev.currentTarget.getAttribute('data-variant');
+  ev.dataTransfer.setData('text/plain', variant);
+  // Дополнительный тип с именем слота -- единственное, что реально можно
+  // прочитать из dataTransfer.types на dragover (значения полезной нагрузки
+  // браузер до drop не отдаёт) -- по нему dropzone нужного слота решает,
+  // подсвечиваться ли и принимать ли перетаскиваемую карточку, см.
+  // onDragOver()/onDrop() ниже.
+  ev.dataTransfer.setData('application/x-slot-' + variantGroup(variant), '1');
+  ev.dataTransfer.effectAllowed = 'move';
+}
+function onDragOver(slot, ev){
+  if (ev.dataTransfer.types && Array.prototype.indexOf.call(ev.dataTransfer.types, 'application/x-slot-' + slot) === -1) return;
+  ev.preventDefault();
+  document.getElementById('dropZone-' + slot).classList.add('drag-over');
+}
+function onDragLeave(slot, ev){
+  document.getElementById('dropZone-' + slot).classList.remove('drag-over');
+}
+function onDrop(slot, ev){
+  ev.preventDefault();
+  document.getElementById('dropZone-' + slot).classList.remove('drag-over');
+  var variant = ev.dataTransfer.getData('text/plain');
+  if (!labels[variant]) return; // "скоро" — не перетаскивается по-настоящему
+  if (variantGroup(variant) !== slot) return; // чужой слот -- титульный лист в вводную часть не попадёт и наоборот
+  setBlock(slot, variant);
+}
+function setBlock(slot, variant){
+  // Второй drop в тот же слот заменяет первый -- в документе ровно один
+  // титульный лист и ровно одна вводная часть (Phase 1), см. docs/design и
+  // план реализации. Слоты независимы: оба могут быть заполнены одновременно.
+  slotState[slot].currentVariant = variant;
+  document.getElementById('dropEmpty-' + slot).style.display = 'none';
+  var filled = document.getElementById('dropFilled-' + slot);
+  filled.style.display = 'flex';
+  document.getElementById('droppedLabel-' + slot).textContent = labels[variant];
+  renderFields(slot, variant);
+  document.getElementById('fieldsPanel-' + slot).style.display = 'block';
+  document.getElementById('fieldsChev-' + slot).classList.add('chev-open');
+  if (slot === 'title') document.getElementById('crumbBlock').textContent = labels[variant];
+  updateAssembleButtonState();
+}
+function toggleFields(slot){
+  if (!slotState[slot].currentVariant) return;
+  var panel = document.getElementById('fieldsPanel-' + slot);
+  var chev = document.getElementById('fieldsChev-' + slot);
+  var open = panel.style.display !== 'none';
+  panel.style.display = open ? 'none' : 'block';
+  chev.classList.toggle('chev-open', !open);
+}
+function clearBlock(slot){
+  slotState[slot].currentVariant = null;
+  document.getElementById('dropEmpty-' + slot).style.display = 'flex';
+  document.getElementById('dropFilled-' + slot).style.display = 'none';
+  document.getElementById('fieldsPanel-' + slot).style.display = 'none';
+  if (slot === 'title') document.getElementById('crumbBlock').textContent = 'без титульного листа';
+  updateAssembleButtonState();
+}
+// -- Кнопка «Собрать документ» активна, если заполнен хотя бы один слот --
+function updateAssembleButtonState(){
+  var anyFilled = !!(slotState.title.currentVariant || slotState.intro.currentVariant);
+  var btn = document.getElementById('assembleBtn');
+  btn.style.color = anyFilled ? '#c7c7cc' : '#5a5a5c';
+  btn.style.cursor = anyFilled ? 'pointer' : 'default';
+}
+function assemble(){
+  var parts = [];
+  if (slotState.title.currentVariant) parts.push(labels[slotState.title.currentVariant]);
+  if (slotState.intro.currentVariant) parts.push(labels[slotState.intro.currentVariant]);
+  if (!parts.length) return;
+  alert('Здесь MainWindow._calculate_constructor() отрендерит ' + parts.join(' + ') + ' с введёнными реквизитами и сохранит .docx.');
+}
+
+// -- Добавление нового варианта титульного листа / вводной части ------------
+// Обе группы («Титульные листы», «Вводная часть») используют одну и ту же
+// модалку -- addModalGroup запоминает, в какую именно группу вставлять
+// карточку и с каким префиксом id (см. confirmAddVariant()).
+var addModalGroup = 'title';
+function openAddModal(group){
+  addModalGroup = group || 'title';
+  document.getElementById('addModal').style.display = 'flex';
+  document.getElementById('newVariantName').focus();
+}
+function closeAddModal(){
+  document.getElementById('addModal').style.display = 'none';
+  document.getElementById('newVariantName').value = '';
+}
+var nextVariantId = 1;
+var nextIntroVariantId = 1;
+function confirmAddVariant(){
+  var input = document.getElementById('newVariantName');
+  var text = input.value.trim();
+  if (!text) { input.focus(); return; }
+
+  var isIntro = addModalGroup === 'intro';
+  var variantId = (isIntro ? 'intro-' : 'custom-') + (isIntro ? (nextIntroVariantId++) : (nextVariantId++));
+  labels[variantId] = text;
+  variantFields[variantId] = defaultFields.slice(); // как в реальном приложении -- сразу рабочая заготовка, не пустой список
+
+  var card = document.createElement('div');
+  card.className = 'block-card';
+  card.draggable = true;
+  card.setAttribute('data-variant', variantId);
+  card.setAttribute('ondragstart', 'onDragStart(event)');
+  card.setAttribute('oncontextmenu', "return openBlockMenu(event,this,'" + variantId + "')");
+  card.innerHTML = '<svg class="icon" style="width:15px;height:15px;color:#0a84ff;" aria-hidden="true"><use href="#i-file-text"></use></svg><span>' + text + '</span>';
+
+  var addRow = document.querySelector((isIntro ? '#introGroup' : '#titleGroup') + ' .add-block-row');
+  addRow.parentNode.insertBefore(card, addRow);
+
+  closeAddModal();
+}
+
+// -- Тулбар пользовательского варианта: вставка плейсхолдера, загрузка/
+// просмотр .docx-файла, предпросмотр с подставленными значениями --------
+//
+// Приложение не хранит и не редактирует текст/вёрстку титульника -- только
+// список плейсхолдеров варианта (variantFields[variant]). Реальный .docx с
+// текстом, таблицами, подписью пользователь ведёт сам в Word/Pages/
+// LibreOffice; приложение лишь гарантирует, что файл существует, и даёт
+// быстро скопировать "{{ id }}" прямо с чипа-подписи нужного поля.
+function togglePlaceholderMenu(slot, ev){
+  ev.stopPropagation();
+  var menu = document.getElementById('placeholderMenu-' + slot);
+  if (menu.style.display === 'block') { menu.style.display = 'none'; return; }
+  renderPlaceholderMenuList(slot);
+  menu.style.display = 'block';
+}
+function renderPlaceholderMenuList(slot){
+  var menu = document.getElementById('placeholderMenu-' + slot);
+  menu.innerHTML = '';
+  var current = variantFields[slotState[slot].currentVariant] || [];
+  Object.keys(fieldCatalog).forEach(function(id){
+    var f = fieldCatalog[id];
+    var already = current.some(function(cf){ return cf.id === id; });
+    var row = document.createElement('div');
+    row.className = 'menu-row';
+    row.style.opacity = already ? '.4' : '1';
+    var label = document.createElement('span');
+    label.style.cssText = 'flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+    label.textContent = f.label + (already ? ' ✓' : '');
+    row.appendChild(label);
+    row.onclick = function(e){ e.stopPropagation(); if (!already) addPlaceholder(slot, f); document.getElementById('placeholderMenu-' + slot).style.display = 'none'; };
+    // Удалить поле из каталога целиком -- только для пользовательских
+    // (builtIn не выставлен, см. confirmNewField()); встроенные (аналог
+    // TITLE_FIELD_LABELS в реальном коде) через UI не редактируются, тот
+    // же принцип, что уже действует для встроенных вариантов титульного
+    // листа. Уже вставленное в РЕКВИЗИТЫ какого-то варианта значение поле
+    // из каталога удалить можно -- у самого варианта чип останется (id
+    // хранится в variantFields, не зависит от каталога), просто подпись
+    // упадёт на голый id, если каталог его больше не знает (тот же
+    // fallback labels.get(field_id, field_id), что уже есть в реальном
+    // коде).
+    if (!f.builtIn) {
+      var del = document.createElement('button');
+      del.className = 'menu-row-delete-btn';
+      del.title = 'Удалить поле из каталога';
+      del.innerHTML = '<svg class="icon" style="width:12px;height:12px;" aria-hidden="true"><use href="#i-trash"></use></svg>';
+      del.onclick = function(e){
+        e.stopPropagation();
+        showConfirm('Удалить поле «' + f.label + '» из каталога плейсхолдеров? Оно пропадёт из списка «Вставить плейсхолдер» для всех вариантов (и титульных листов, и вводной части) — каталог общий.', function(){
+          delete fieldCatalog[f.id];
+          renderPlaceholderMenuList(slot);
+        });
+      };
+      row.appendChild(del);
+    }
+    menu.appendChild(row);
+  });
+  var addRow = document.createElement('div');
+  addRow.className = 'menu-row';
+  addRow.style.color = '#0a84ff';
+  addRow.textContent = '+ Новое поле…';
+  addRow.onclick = function(e){ e.stopPropagation(); renderNewFieldForm(slot); };
+  menu.appendChild(addRow);
+}
+function renderNewFieldForm(slot){
+  var menu = document.getElementById('placeholderMenu-' + slot);
+  menu.innerHTML = '';
+  var wrap = document.createElement('div');
+  wrap.style.padding = '8px';
+  wrap.innerHTML =
+    '<input id="newFieldLabel" type="text" placeholder="Название поля" style="width:100%;box-sizing:border-box;background:#1c1c1e;border:0.5px solid #48484a;border-radius:5px;padding:6px 7px;font-size:11.5px;color:#e5e5e7;margin-bottom:6px;" />' +
+    '<button style="width:100%;background:#0a84ff;border:none;color:#fff;font-size:11.5px;font-weight:500;padding:5px;border-radius:5px;cursor:pointer;">Добавить</button>';
+  menu.appendChild(wrap);
+  var input = wrap.querySelector('input');
+  var btn = wrap.querySelector('button');
+  function confirmNewField(){
+    var label = input.value.trim();
+    if (!label) { input.focus(); return; }
+    var f = {id: 'field_' + (nextCatalogFieldId++), label: label, placeholder: ''};
+    fieldCatalog[f.id] = f;
+    addPlaceholder(slot, f);
+    document.getElementById('placeholderMenu-' + slot).style.display = 'none';
+  }
+  btn.onclick = function(e){ e.stopPropagation(); confirmNewField(); };
+  input.onkeydown = function(e){ if (e.key === 'Enter'){ e.preventDefault(); confirmNewField(); } };
+  setTimeout(function(){ input.focus(); }, 0);
+}
+function addPlaceholder(slot, f){
+  // Добавление сразу сохраняется (нет отдельного шага "Сохранить шаблон") --
+  // тот же принцип, что и в реальном приложении.
+  var variant = slotState[slot].currentVariant;
+  if (!variantFields[variant]) variantFields[variant] = [];
+  variantFields[variant].push(f);
+  renderFields(slot, variant);
+}
+function uploadTemplate(slot){
+  var name = prompt('Мокап: выберите .docx-файл (введите имя файла)', 'шаблон_титул_конструктор.docx');
+  if (!name) return;
+  installTemplate(slot, name);
+}
+// -- Общая установка файла шаблона -- и для кнопки «Загрузить шаблон
+// Word» (после диалога выбора файла), и для перетаскивания .docx на
+// панель (onTemplateDrop() ниже) -- см. MainWindow._install_title_variant_template(),
+// та же логика вынесена туда же ради ровно той же причины: два способа
+// указать файл, одна установка.
+function installTemplate(slot, name){
+  var variant = slotState[slot].currentVariant;
+  variantTemplateFilename[variant] = name;
+  renderFields(slot, variant);
+  alert('Здесь MainWindow._install_title_variant_template() скопирует «' + name + '» в templates/fragments/title_' + variant + '.docx и откроет его, спросив (при первом разе) приложение для редактирования — дальше приложение запоминается и в следующий раз открывается сразу, без диалога.');
+}
+// -- Крестик на карточке загруженного шаблона -- отвязывает файл, панель
+// возвращается в состояние "шаблон не загружен" (снова покажется
+// drop-рамка). См. MainWindow._remove_title_variant_template() -- там же
+// заготовка не просто удаляется, а перегенерируется автосгенератором
+// заново, чтобы вариант не остался без файла вообще.
+function removeTemplate(slot){
+  var variant = slotState[slot].currentVariant;
+  showConfirm('Вернуться к автосгенерированной заготовке? Текущий файл, включая любые правки, сделанные в Word, будет заменён заново сгенерированным.', function(){
+    delete variantTemplateFilename[variant];
+    renderFields(slot, variant);
+    alert('Здесь MainWindow._remove_title_variant_template() перегенерирует templates/fragments/title_' + variant + '.docx автосгенератором заново и уберёт template_filename у варианта.');
+  });
+}
+
+// -- Универсальная замена window.confirm() (см. комментарий у #confirmModal
+// в разметке) -- showConfirm(текст, колбэк) открывает модалку, колбэк
+// вызывается только по кнопке «Удалить», «Отмена»/клик мимо -- ничего не
+// делает.
+var confirmModalCallback = null;
+function showConfirm(text, onAccept){
+  document.getElementById('confirmModalText').textContent = text;
+  confirmModalCallback = onAccept;
+  document.getElementById('confirmModal').style.display = 'flex';
+}
+function closeConfirmModal(){
+  document.getElementById('confirmModal').style.display = 'none';
+  confirmModalCallback = null;
+}
+function confirmModalAccept(){
+  var cb = confirmModalCallback;
+  closeConfirmModal();
+  if (cb) cb();
+}
+function viewTemplate(slot){
+  var variant = slotState[slot].currentVariant;
+  alert('Здесь MainWindow._open_title_variant_raw_file() откроет templates/fragments/title_' + variant + '.docx как есть — с "{{ field }}" там, где плейсхолдеры ещё не вписаны в текст руками.');
+}
+function openPreview(slot){
+  var variant = slotState[slot].currentVariant;
+  previewGenerated[variant] = true;
+  renderFields(slot, variant);
+  alert('Здесь MainWindow._open_title_variant_preview() отрендерит тот же файл с уже введёнными в реквизиты значениями во временный файл и откроет его.');
+}
+
+// -- Перетаскивание .docx прямо на панель варианта -- то же самое, что
+// кнопка «Загрузить шаблон Word», без диалога выбора файла. Кнопка
+// остаётся равноправным способом, перетаскивание её не заменяет (см.
+// _build_title_placeholder_catalog() в реальном коде). dragover требует
+// preventDefault(), иначе браузер не разрешит drop; подсветка -- только
+// когда среди перетаскиваемых данных реально есть файлы (dataTransfer.types
+// содержит 'Files'), не на любое перетаскивание (напр. текста).
+function hasDraggedFiles(dataTransfer){
+  return !!(dataTransfer && dataTransfer.types && Array.prototype.indexOf.call(dataTransfer.types, 'Files') !== -1);
+}
+function onTemplateDragOver(slot, ev){
+  if (!hasDraggedFiles(ev.dataTransfer)) return;
+  ev.preventDefault();
+  // Подсветка -- на самой drop-рамке (#templateFilenameLabel-*, когда она в
+  // режиме .drop-zone), не на всей панели -- см. комментарий у
+  // #variantToolbar в <style>.
+  document.getElementById('templateFilenameLabel-' + slot).classList.add('drag-over');
+}
+function onTemplateDragLeave(slot, ev){
+  document.getElementById('templateFilenameLabel-' + slot).classList.remove('drag-over');
+}
+function onTemplateDrop(slot, ev){
+  ev.preventDefault();
+  document.getElementById('templateFilenameLabel-' + slot).classList.remove('drag-over');
+  var file = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0];
+  if (!file || !/\.docx$/i.test(file.name)) return;
+  installTemplate(slot, file.name);
+}
+
+// -- Клик по чипу-подписи в реквизитах: скопировать + подсветить -----------
+function copyChipInline(id, el){
+  var text = '{{ ' + id + ' }}';
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).catch(function(){});
+  }
+  el.classList.add('copied');
+  clearTimeout(el._copyTimer);
+  el._copyTimer = setTimeout(function(){ el.classList.remove('copied'); }, 900);
+}
+
+// -- ПКМ по чипу-подписи: удалить ------------------------------------------
+var chipMenuTarget = null; // {slot, variant, field}
+function openChipMenu(ev, slot, variant, f){
+  ev.preventDefault();
+  ev.stopPropagation();
+  chipMenuTarget = {slot: slot, variant: variant, field: f};
+  var menu = document.getElementById('chipMenu');
+  var frame = menu.parentElement.getBoundingClientRect();
+  menu.style.left = (ev.clientX - frame.left) + 'px';
+  menu.style.top = (ev.clientY - frame.top) + 'px';
+  menu.style.display = 'block';
+  return false;
+}
+function closeChipMenu(){
+  document.getElementById('chipMenu').style.display = 'none';
+}
+function deleteChipFromMenu(){
+  if (!chipMenuTarget) { closeChipMenu(); return; }
+  var slot = chipMenuTarget.slot, variant = chipMenuTarget.variant, fieldId = chipMenuTarget.field.id;
+  variantFields[variant] = (variantFields[variant] || []).filter(function(f){ return f.id !== fieldId; });
+  if (variant === slotState[slot].currentVariant) renderFields(slot, variant);
+  closeChipMenu();
+}
+
+// -- Переименование/удаление варианта правой кнопкой мыши (только карточки
+// в сайдбаре) -- см. src/ui/main_window.py, _rename_title_variant() --------
+var blockMenuTargetEl = null, blockMenuTargetVariant = null;
+function openBlockMenu(ev, el, variant){
+  ev.preventDefault();
+  ev.stopPropagation();
+  var menu = document.getElementById('blockMenu');
+  var frame = menu.parentElement.getBoundingClientRect();
+  menu.style.left = (ev.clientX - frame.left) + 'px';
+  menu.style.top = (ev.clientY - frame.top) + 'px';
+  menu.style.display = 'block';
+  blockMenuTargetEl = el;
+  blockMenuTargetVariant = variant;
+  return false;
+}
+function closeBlockMenu(){
+  document.getElementById('blockMenu').style.display = 'none';
+}
+function renameBlockFromMenu(){
+  if (!blockMenuTargetEl) { closeBlockMenu(); return; }
+  var variant = blockMenuTargetVariant;
+  var newName = prompt('Новое название:', labels[variant]);
+  closeBlockMenu();
+  newName = newName === null ? null : newName.trim();
+  if (!newName || newName === labels[variant]) return;
+  // Как и в реальном приложении -- переименование меняет только подпись в
+  // сайдбаре/крошке/подписи перетащенного блока, а не текст уже
+  // сгенерированного .docx-фрагмента (его правят вручную в Word).
+  labels[variant] = newName;
+  var span = blockMenuTargetEl.querySelector('span');
+  if (span) span.textContent = newName;
+  // Карточка могла быть перетащена в свой слот (title или intro) --
+  // проверяем оба, вариант живёт максимум в одном из них одновременно.
+  ['title', 'intro'].forEach(function(slot){
+    if (slotState[slot].currentVariant === variant) {
+      document.getElementById('droppedLabel-' + slot).textContent = newName;
+      if (slot === 'title') document.getElementById('crumbBlock').textContent = newName;
+    }
+  });
+}
+function deleteBlockFromMenu(){
+  if (!blockMenuTargetEl) { closeBlockMenu(); return; }
+  var el = blockMenuTargetEl, variant = blockMenuTargetVariant;
+  closeBlockMenu();
+  showConfirm('Удалить вариант «' + labels[variant] + '»?', function(){
+    ['title', 'intro'].forEach(function(slot){
+      if (slotState[slot].currentVariant === variant) clearBlock(slot);
+    });
+    delete labels[variant];
+    el.remove();
+  });
+}
+document.addEventListener('click', function(ev){
+  var bm = document.getElementById('blockMenu');
+  if (bm.style.display === 'block' && !bm.contains(ev.target)) { closeBlockMenu(); }
+  ['title', 'intro'].forEach(function(slot){
+    var pm = document.getElementById('placeholderMenu-' + slot);
+    if (pm.style.display === 'block' && !pm.contains(ev.target)) { pm.style.display = 'none'; }
+  });
+  var cm = document.getElementById('chipMenu');
+  if (cm.style.display === 'block' && !cm.contains(ev.target)) { closeChipMenu(); }
+});
+</script>

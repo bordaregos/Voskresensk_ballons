@@ -8,7 +8,7 @@ from docx.text.paragraph import Paragraph
 
 from src.models.title_variant import TitleVariant
 from src.organization_config import DEFAULT_ORGANIZATION
-from src.services.template_generator import generate_template, generate_title_fragment
+from src.services.template_generator import generate_intro_fragment, generate_template, generate_title_fragment
 from src.services.template_schema import (
     FieldsTableSection,
     RepeatingTableSection,
@@ -266,5 +266,45 @@ def test_generate_title_fragment_has_page_border(tmp_path):
 def test_generate_title_fragment_creates_parent_directory(tmp_path):
     variant = TitleVariant(id="custom-1", document_title="Акт осмотра")
     path = generate_title_fragment(variant, tmp_path / "nested" / "title_custom-1.docx")
+
+    assert path.exists()
+
+
+# -- generate_intro_fragment() -- конструктор документов, второй,
+# независимый от титульного листа слот «Вводная часть» -------------------
+
+
+def test_generate_intro_fragment_writes_subtitle_fields_as_placeholders(tmp_path):
+    # Префикс "intro_" -- намеренно, не баг: см. докстринг
+    # generate_intro_fragment() про общий с титульным листом каталог полей
+    # и коллизию self.<field_id> между двумя слотами без префикса.
+    variant = TitleVariant(id="custom-1", document_title="Вводная часть", subtitle_fields=["field_1"])
+    path = generate_intro_fragment(variant, tmp_path / "intro_custom-1.docx")
+    doc = Document(str(path))
+
+    idx = _heading_index(doc, "Вводная часть")
+    assert doc.paragraphs[idx + 1].text == "{{ intro_field_1 }}"
+
+
+def test_generate_intro_fragment_has_no_organization_letterhead(tmp_path):
+    # В отличие от generate_title_fragment() -- вводная часть не первая
+    # страница документа, шапку организации и рамку страницы печатает
+    # только титульный фрагмент (см. докстринг generate_intro_fragment()) --
+    # иначе после склейки обоих фрагментов в один файл шапка появилась бы
+    # второй раз, посреди документа.
+    variant = TitleVariant(id="custom-1", document_title="Вводная часть")
+    path = generate_intro_fragment(variant, tmp_path / "intro_custom-1.docx")
+    doc = Document(str(path))
+    full_text = "\n".join(p.text for p in doc.paragraphs)
+
+    assert DEFAULT_ORGANIZATION.full_name not in full_text
+
+    sectPr = doc.sections[0]._sectPr
+    assert sectPr.find(qn('w:pgBorders')) is None
+
+
+def test_generate_intro_fragment_creates_parent_directory(tmp_path):
+    variant = TitleVariant(id="custom-1", document_title="Вводная часть")
+    path = generate_intro_fragment(variant, tmp_path / "nested" / "intro_custom-1.docx")
 
     assert path.exists()

@@ -8,14 +8,17 @@ instruments_store.py -- не зависит от Qt.
 (uuid4().hex[:8], тот же приём, что src/ui/employees_tab.py) и поэтому не
 пересекается с "otchet"/"zaklyuchenie".
 
-Файл хранит ДВЕ независимые секции -- "title_variants" (сами варианты) и
+Файл хранит ТРИ независимые секции -- "title_variants" (сами варианты),
 "field_catalog" (id -> человекочитаемая подпись поля-плейсхолдера,
 переиспользуется между вариантами при вставке через каталог плейсхолдеров,
-см. src/ui/main_window.py, _build_title_placeholder_catalog()).
-save_title_variants()/save_field_catalog()
-поэтому читают-правят-пишут файл целиком (read-modify-write), а не
-перезаписывают его слепо целиком своей секцией -- иначе сохранение одной
-секции стирало бы другую."""
+см. src/ui/main_window.py, _build_placeholder_menu()) и
+"hidden_builtin_fields" (id встроенных полей TITLE_FIELD_LABELS, скрытых
+оператором через корзину в том же меню -- сама константа в коде не
+трогается, "удаление" встроенного поля -- это его id в списке-исключении,
+см. get_all_field_labels()). save_title_variants()/save_field_catalog()/
+save_hidden_builtin_fields() поэтому читают-правят-пишут файл целиком
+(read-modify-write), а не перезаписывают его слепо целиком своей секцией --
+иначе сохранение одной секции стирало бы другие."""
 
 import json
 from pathlib import Path
@@ -73,12 +76,31 @@ def save_field_catalog(catalog: Dict[str, str], path: Path = TITLE_VARIANTS_FILE
     _save_raw(data, path)
 
 
+def load_hidden_builtin_fields(path: Path = TITLE_VARIANTS_FILE) -> List[str]:
+    """Id встроенных полей (TITLE_FIELD_LABELS), скрытых оператором через
+    корзину в меню «Вставить плейсхолдер» (см. src/ui/main_window.py,
+    _delete_catalog_field()). Сама константа в коде остаётся нетронутой --
+    это просто список-исключение, который get_all_field_labels() вычитает
+    при сборке итогового каталога."""
+    data = _load_raw(path)
+    return list(data.get('hidden_builtin_fields', []))
+
+
+def save_hidden_builtin_fields(field_ids: List[str], path: Path = TITLE_VARIANTS_FILE) -> None:
+    """Сохраняет список скрытых встроенных полей, не трогая секции
+    title_variants/field_catalog."""
+    data = _load_raw(path)
+    data['hidden_builtin_fields'] = list(field_ids)
+    _save_raw(data, path)
+
+
 def get_all_field_labels(path: Path = TITLE_VARIANTS_FILE) -> Dict[str, str]:
-    """Встроенные TITLE_FIELD_LABELS + пользовательский field_catalog, в виде
-    единого словаря id -> подпись -- источник для выпадающего списка
-    «Вставить плейсхолдер» и для подписей в форме реквизитов
-    (src/ui/main_window.py, _render_title_fields())."""
-    labels = dict(TITLE_FIELD_LABELS)
+    """(Встроенные TITLE_FIELD_LABELS минус hidden_builtin_fields) +
+    пользовательский field_catalog, в виде единого словаря id -> подпись --
+    источник для выпадающего списка «Вставить плейсхолдер» и для подписей
+    в форме реквизитов (src/ui/main_window.py, _render_slot_fields())."""
+    hidden = set(load_hidden_builtin_fields(path))
+    labels = {field_id: label for field_id, label in TITLE_FIELD_LABELS.items() if field_id not in hidden}
     labels.update(load_field_catalog(path))
     return labels
 
