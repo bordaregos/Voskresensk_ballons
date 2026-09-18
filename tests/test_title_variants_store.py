@@ -3,6 +3,7 @@ from src.services.template_schema import TITLE_FIELD_LABELS, TITLE_VARIANTS
 from src.services.title_variants_store import (
     load_title_variants, save_title_variants, get_all_title_variants,
     load_field_catalog, save_field_catalog, get_all_field_labels,
+    load_hidden_builtin_fields, save_hidden_builtin_fields,
 )
 
 
@@ -113,3 +114,41 @@ def test_get_all_field_labels_merges_custom_on_top(tmp_path):
 
     assert result["field_1"] == "Дата составления"
     assert TITLE_FIELD_LABELS.items() <= result.items()
+
+
+def test_load_hidden_builtin_fields_missing_file_returns_empty_list(tmp_path):
+    path = tmp_path / "title_variants.json"
+
+    assert load_hidden_builtin_fields(path) == []
+
+
+def test_save_and_load_hidden_builtin_fields_round_trip(tmp_path):
+    path = tmp_path / "title_variants.json"
+    builtin_id = next(iter(TITLE_FIELD_LABELS))
+
+    save_hidden_builtin_fields([builtin_id], path)
+
+    assert load_hidden_builtin_fields(path) == [builtin_id]
+
+
+def test_get_all_field_labels_excludes_hidden_builtin_fields(tmp_path):
+    path = tmp_path / "title_variants.json"
+    builtin_id = next(iter(TITLE_FIELD_LABELS))
+    save_hidden_builtin_fields([builtin_id], path)
+
+    result = get_all_field_labels(path)
+
+    assert builtin_id not in result
+    other_builtins = {k: v for k, v in TITLE_FIELD_LABELS.items() if k != builtin_id}
+    assert other_builtins.items() <= result.items()
+
+
+def test_hidden_builtin_fields_does_not_clobber_other_sections(tmp_path):
+    path = tmp_path / "title_variants.json"
+    save_title_variants([TitleVariant(id="custom-1", document_title="Акт осмотра")], path)
+    save_field_catalog({"field_1": "Дата составления"}, path)
+
+    save_hidden_builtin_fields([next(iter(TITLE_FIELD_LABELS))], path)
+
+    assert [v.id for v in load_title_variants(path)] == ["custom-1"]
+    assert load_field_catalog(path) == {"field_1": "Дата составления"}

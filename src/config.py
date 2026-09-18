@@ -28,6 +28,16 @@ INSTRUMENTS_FILE = DATA_DIR / "instruments.json"
 # (TITLE_VARIANTS) в этот файл не попадают.
 TITLE_VARIANTS_FILE = DATA_DIR / "title_variants.json"
 
+# Пользовательские варианты вводной части конструктора документов -- второй,
+# независимый слот наравне с титульным листом (см. src/services/
+# intro_variants_store.py), отдельный JSON-файл, но переиспользует ту же
+# модель TitleVariant (см. src/models/title_variant.py) и общий каталог
+# плейсхолдеров title_variants_store.get_all_field_labels() -- ничего
+# специфичного для титульного листа в самой модели нет (id/document_title/
+# subtitle_fields/template_filename одинаково осмысленны и для вводной
+# части), заводить отдельный почти идентичный dataclass не было смысла.
+INTRO_VARIANTS_FILE = DATA_DIR / "intro_variants.json"
+
 # Приложение, выбранное пользователем через «Открыть с помощью» для
 # редактирования/просмотра .docx-файлов конструктора документов (см.
 # src/ui/open_with.py) -- запоминается один раз, дальше open_with_prompt()
@@ -164,6 +174,35 @@ def find_title_template(variant_id: str):
         )
     raise FileNotFoundError(
         f"Не найдена заготовка титульного листа «{variant_id}» -- похоже, файл "
+        f"{path} удалили вручную. Откройте вариант на редактирование и сохраните "
+        f"ещё раз, чтобы перегенерировать заготовку."
+    )
+
+
+def find_intro_template(variant_id: str):
+    """Найти .docx-заготовку варианта вводной части конструктора -- та же
+    логика, что у find_title_template(), но со своим реестром (INTRO_VARIANTS)
+    и своим пользовательским стором (intro_variants_store, data/
+    intro_variants.json), а фрагмент лежит в FRAGMENTS_DIR под префиксом
+    "intro_" вместо "title_"."""
+    from .services.template_schema import INTRO_VARIANTS
+    from .services.intro_variants_store import load_intro_variants
+
+    is_builtin = variant_id in INTRO_VARIANTS
+    is_custom = any(v.id == variant_id for v in load_intro_variants())
+    if not is_builtin and not is_custom:
+        raise ValueError(f"Неизвестный вариант вводной части: {variant_id}")
+
+    path = FRAGMENTS_DIR / f"intro_{variant_id}.docx"
+    if path.exists():
+        return path
+    if is_builtin:
+        raise FileNotFoundError(
+            f"Не найдена заготовка вводной части «{variant_id}». Сгенерируйте её: "
+            f"python scripts/template_tool.py generate-intro {variant_id}"
+        )
+    raise FileNotFoundError(
+        f"Не найдена заготовка вводной части «{variant_id}» -- похоже, файл "
         f"{path} удалили вручную. Откройте вариант на редактирование и сохраните "
         f"ещё раз, чтобы перегенерировать заготовку."
     )
