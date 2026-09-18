@@ -110,6 +110,7 @@ QListWidget#includedBlockList[dragOver="true"], QListWidget#includedIntroBlockLi
 QGroupBox#fieldsPanel, QGroupBox#introFieldsPanel {
     border: none; margin-top: 14px; padding-top: 0;
 }
+QFrame#slotSeparator { background: #545456; margin-top: 20px; margin-bottom: 12px; border-radius: 1px; }
 QGroupBox#fieldsPanel QLabel, QGroupBox#introFieldsPanel QLabel { color: #c7c7cc; font-size: 12px; }
 QGroupBox#fieldsPanel QLabel#titleFieldsSectionLabel, QGroupBox#introFieldsPanel QLabel#titleFieldsSectionLabel {
     color: #8e8e93; font-size: 11px; margin-top: 4px;
@@ -504,6 +505,68 @@ class MainWindow(QMainWindow):
         только то, на что сейчас указывает атрибут)."""
         return field_id if slot == "title" else f"intro_{field_id}"
 
+    def _cross_slot_placeholder_value(self, field_id: str) -> str:
+        """Значение того же field_id, уже введённое в ДРУГОМ отрисованном
+        слоте -- один и тот же плейсхолдер (например, «заводской №»)
+        нередко вставлен и в титульный лист, и во вводную часть (общий
+        каталог полей, см. _slot_placeholder_name()), и вводить его дважды
+        неудобно. Разовое предзаполнение в момент создания виджета, НЕ
+        живая привязка -- дальнейшая правка в одном слоте на другой не
+        влияет (виджеты остаются независимыми QPlainTextEdit, ничего не
+        связывает их после этого вызова).
+
+        Title хранит виджет под голым field_id, intro -- под
+        f"intro_{field_id}" (см. _slot_placeholder_name()) -- проверяем
+        оба варианта имени атрибута, не зная заранее, в каком слоте
+        плейсхолдер уже заполнен."""
+        for attr in (field_id, f"intro_{field_id}"):
+            widget = getattr(self, attr, None)
+            if widget is not None and hasattr(widget, "toPlainText"):
+                text = widget.toPlainText()
+                if text:
+                    return text
+        return ""
+
+    def _sync_cross_slot_placeholders(self):
+        """Досылает предзаполнение одинаковых плейсхолдеров между слотами
+        (_cross_slot_placeholder_value()) для УЖЕ существующих виджетов --
+        вызывается после «Открыть проект» (см.
+        FileHandler._fill_ui_from_project()), когда оба слота
+        восстановлены и заполнены своими сохранёнными значениями, но
+        документ мог быть сохранён ДО того, как заработало предзаполнение
+        при создании виджета, или заполнен только в одном из двух слотов.
+        Трогает только пустые поля -- уже заполненное (в т.ч. намеренно
+        оставленное пустым другим текстом при сохранении) значение не
+        перезаписывает."""
+        for slot in ("title", "intro"):
+            for widget_name in self._dynamic_field_names.get(slot, []):
+                widget = getattr(self, widget_name, None)
+                if widget is None or widget.toPlainText():
+                    continue
+                field_id = widget_name[len("intro_"):] if slot == "intro" else widget_name
+                prefill = self._cross_slot_placeholder_value(field_id)
+                if prefill:
+                    widget.setPlainText(prefill)
+
+    def _used_in_other_slot(self, slot: str, field_id: str) -> bool:
+        """True, если field_id уже добавлен в реквизиты включённого блока
+        ДРУГОГО слота (см. _build_placeholder_menu()) -- статус "уже
+        вставлен" (✓, серым, некликабельно) в меню «Вставить плейсхолдер»
+        должен относиться ТОЛЬКО к текущему варианту текущего слота (в
+        отличие от общего каталога полей -- он один на оба слота), иначе
+        пользователь не смог бы вставить в этот слот плейсхолдер, который
+        уже стоит в другом. Использование в другом слоте -- отдельная,
+        не блокирующая пометка рядом со строкой (см. вызывающую
+        сторону)."""
+        other_slot = "intro" if slot == "title" else "title"
+        other_variant_id = self._filled_slot_variant(other_slot)
+        if other_variant_id is None:
+            return False
+        get_all_variants = self._slot_store(other_slot).get_all_title_variants if other_slot == "title" \
+            else self._slot_store(other_slot).get_all_intro_variants
+        other_variant = get_all_variants().get(other_variant_id)
+        return other_variant is not None and field_id in other_variant.subtitle_fields
+
     def _init_constructor_slot(self, slot: str):
         """Инициализация одного слота конструктора -- вызывается по разу
         для "title" и "intro" из __init__. Дословно то, что раньше было
@@ -584,6 +647,28 @@ class MainWindow(QMainWindow):
         included_list.dragEnterEvent = _block_list_drag_enter
         included_list.dragLeaveEvent = _block_list_drag_leave
         included_list.dropEvent = _block_list_drop
+
+        # sizeHint единственного item'а (карточка блока или
+        # placeholder-подсказка, см. _process_block_drop()/
+        # _show_included_block_placeholder()) фиксирует ширину строки в
+        # пикселях под viewport().width() НА МОМЕНТ создания item'а --
+        # если список потом станет уже (окно сузили, или появился
+        # вертикальный скролл у обёртки mainAreaScrollArea), старая
+        # ширина не пересчитывается сама, и правый край строки (крестик
+        # «×») обрезается видом списка. Держим sizeHint в ногу с
+        # фактической шириной на каждый resize.
+        orig_resize_event = included_list.resizeEvent
+
+        def _block_list_resize(event, orig=orig_resize_event, lw=included_list):
+            orig(event)
+            if lw.count() == 0:
+                return
+            item = lw.item(0)
+            width = lw.viewport().width()
+            if width and item.sizeHint().width() != width:
+                item.setSizeHint(QSize(width, item.sizeHint().height()))
+
+        included_list.resizeEvent = _block_list_resize
 
         self._show_included_block_placeholder(slot)
 
@@ -721,8 +806,11 @@ class MainWindow(QMainWindow):
             # одного большого статического шаблона -- рендер устроен
             # совсем иначе (см. _calculate_constructor()), чем у
             # balloon/pipeline ниже, поэтому отдельная ветка, а не третий
-            # elif в теле этого метода.
-            self._calculate_constructor()
+            # elif в теле этого метода. Перед самой сборкой -- диалог
+            # выбора шаблонов (_open_generate_dialog()): пользователь
+            # решает, из чего собирать, а не только из того, что уже
+            # лежит в included_list слотов.
+            self._open_generate_dialog()
             return
 
         missing = [step for step in self.STEP_ORDER if step not in self._completed_steps]
@@ -1084,6 +1172,96 @@ class MainWindow(QMainWindow):
             return None
         variant_id = included_list.item(0).data(Qt.ItemDataRole.UserRole)
         return None if variant_id == self.INCLUDED_BLOCK_PLACEHOLDER else variant_id
+
+    def _restore_included_variant(self, slot: str, variant_id: str):
+        """Программно включает variant_id в слот -- кладёт в included_list
+        слота item с тем же UserRole=variant_id, что при обычном
+        перетаскивании из available_list, и прогоняет его через тот же
+        _process_block_drop(), который иначе запускается только сигналом
+        rowsInserted настоящего drag-and-drop. Два вызывающих: «Открыть
+        проект» (см. FileHandler._create_project()/_fill_ui_from_project())
+        и выбор шаблона в диалоге «Собрать документ» (_open_generate_dialog()).
+        Если вариант с этим id с тех пор удалили из каталога (JSON правили
+        руками, или «Удалить» после сохранения проекта) -- молча ничего не
+        делает, слот остаётся в прежнем состоянии, как и было бы после
+        обычного drop чужого/несуществующего id (см. _process_block_drop())."""
+        get_all_variants = self._slot_store(slot).get_all_title_variants if slot == "title" \
+            else self._slot_store(slot).get_all_intro_variants
+        variants = get_all_variants()
+        if variant_id not in variants:
+            return
+
+        block_list = self._slot_widget(slot, "included_list")
+        block_list.clear()
+        item = QListWidgetItem(variants[variant_id].document_title)
+        item.setIcon(icons.icon("file-text", "#0a84ff", 15))
+        item.setData(Qt.ItemDataRole.UserRole, variant_id)
+        block_list.addItem(item)
+        self._process_block_drop(slot)
+
+    _GENERATE_DIALOG_SLOT_LABELS = {"title": "Титульный лист", "intro": "Вводная часть"}
+
+    def _open_generate_dialog(self):
+        """«Собрать документ» -- перед самим рендером (_calculate_constructor())
+        даёт явно выбрать, какой вариант каждого слота пойдёт в документ, а
+        не молча берёт то, что сейчас лежит в included_list (пользователь
+        мог захотеть собрать другую комбинацию без лишнего drag-and-drop
+        по канвасу). По умолчанию в каждом выпадающем списке выбран
+        вариант, уже включённый в этот слот (или «— не включать —», если
+        слот пуст) -- открыть диалог и просто нажать OK равносильно
+        нынешнему поведению без диалога.
+
+        Выбор в диалоге ПРИМЕНЯЕТСЯ к included_list слотов (через
+        _restore_included_variant()/_clear_included_block() -- те же
+        функции, что и обычный drag-and-drop/восстановление проекта),
+        поэтому после закрытия диалога канвас (карточки, реквизиты)
+        отражает именно то, что попадёт в документ, а не расходится с
+        ним -- следующее открытие диалога снова покажет актуальный
+        выбор."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Собрать документ")
+        layout = QVBoxLayout(dialog)
+        layout.addWidget(QLabel("Выберите, из каких шаблонов собрать документ:"))
+
+        combos = {}
+        for slot in self._CONSTRUCTOR_SLOTS:
+            get_all_variants = self._slot_store(slot).get_all_title_variants if slot == "title" \
+                else self._slot_store(slot).get_all_intro_variants
+            variants = get_all_variants()
+            current_variant_id = self._filled_slot_variant(slot)
+
+            layout.addWidget(QLabel(self._GENERATE_DIALOG_SLOT_LABELS[slot]))
+            combo = QComboBox()
+            combo.addItem("— не включать —", None)
+            selected_index = 0
+            for i, (variant_id, config) in enumerate(variants.items(), start=1):
+                combo.addItem(config.document_title, variant_id)
+                if variant_id == current_variant_id:
+                    selected_index = i
+            combo.setCurrentIndex(selected_index)
+            layout.addWidget(combo)
+            combos[slot] = combo
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        for slot, combo in combos.items():
+            selected_variant_id = combo.currentData()
+            if selected_variant_id == self._filled_slot_variant(slot):
+                continue
+            if selected_variant_id is None:
+                self._clear_included_block(slot)
+            else:
+                self._restore_included_variant(slot, selected_variant_id)
+
+        self._calculate_constructor()
 
     @staticmethod
     def _append_docx_body(target_doc, source_doc):
@@ -1785,6 +1963,10 @@ class MainWindow(QMainWindow):
             widget = GrowablePlaceholderField()
             if widget_name in previous_values:
                 widget.setPlainText(previous_values[widget_name])
+            else:
+                prefill = self._cross_slot_placeholder_value(field_id)
+                if prefill:
+                    widget.setPlainText(prefill)
             # Для пользовательских вариантов подпись строки -- тоже сам чип
             # плейсхолдера (QLabel[titleChip="true"]), ПОЛНОСТЬЮ интерактивный
             # (клик копирует и подсвечивает -- _copy_chip(), ПКМ удаляет
@@ -2159,7 +2341,22 @@ class MainWindow(QMainWindow):
         menu = QMenu(self)
         for field_id, label in get_all_field_labels().items():
             already = field_id in field_ids
-            row_text = label + (" ✓" if already else "")
+            # "Уже вставлен" -- строго про ТЕКУЩИЙ вариант этого слота (see
+            # docstring), а не про общий каталог -- тот же field_id мог
+            # быть отдельно вставлен и в другой слот, это не должно мешать
+            # вставить его и сюда. Такое использование в другом слоте --
+            # не блокирующая, отдельная пометка (used_elsewhere), а не тот
+            # же статус "✓ уже вставлен".
+            used_elsewhere = not already and self._used_in_other_slot(slot, field_id)
+            if already:
+                row_text = label + " ✓"
+            elif used_elsewhere:
+                row_text = (
+                    f'{html.escape(label)} '
+                    '<span style="color:#5a5a5c; font-size:10.5px;">· уже в другом шаблоне</span>'
+                )
+            else:
+                row_text = label
 
             row = QWidget()
             row.enterEvent = lambda event, r=row: r.setStyleSheet("background: #0a84ff;")
@@ -2168,6 +2365,8 @@ class MainWindow(QMainWindow):
             row_layout.setContentsMargins(10, 2, 4, 2)
             row_layout.setSpacing(4)
             text_label = QLabel(row_text)
+            if used_elsewhere:
+                text_label.setTextFormat(Qt.TextFormat.RichText)
             if already:
                 text_label.setStyleSheet("color: #5a5a5c;")
             else:
@@ -2184,6 +2383,8 @@ class MainWindow(QMainWindow):
             delete_btn.setFixedSize(22, 22)
             delete_btn.setFlat(True)
             delete_btn.setToolTip("Удалить поле из каталога")
+            delete_btn.enterEvent = lambda event, b=delete_btn: b.setIcon(icons.icon("trash", "#ff453a", 12))
+            delete_btn.leaveEvent = lambda event, b=delete_btn: b.setIcon(icons.icon("trash", "#8e8e93", 12))
             delete_btn.clicked.connect(
                 functools.partial(self._delete_catalog_field, slot, variant_id, field_id, label)
             )
@@ -2205,11 +2406,11 @@ class MainWindow(QMainWindow):
         Поле пропадёт из списка «Вставить плейсхолдер» для ЛЮБОГО варианта
         (и титульных листов, и вводной части -- каталог общий, см.
         _build_placeholder_menu()). Уже вставленный в чей-то вариант
-        плейсхолдер с этим id при этом НЕ удаляется -- id остаётся в
-        variant.subtitle_fields, просто подпись чипа падает на голый id,
-        если каталог его больше не знает (тот же фоллбэк
-        labels.get(field_id, field_id), что уже используется в
-        _render_slot_fields()).
+        плейсхолдер с этим id при этом тоже удаляется -- из
+        variant.subtitle_fields ВСЕХ вариантов обоих слотов (не только
+        текущего), чтобы висящий чип с подписью-фоллбэком на голый id
+        (см. _render_slot_fields()) не оставался в интерфейсе после того,
+        как поле пропало из каталога.
 
         Работает и для пользовательских полей (заведённых через «+ Новое
         поле…» -- field_catalog в JSON, физически удаляется), и для
@@ -2237,7 +2438,9 @@ class MainWindow(QMainWindow):
         from ..services.title_variants_store import (
             load_field_catalog, save_field_catalog,
             load_hidden_builtin_fields, save_hidden_builtin_fields,
+            load_title_variants, save_title_variants,
         )
+        from ..services.intro_variants_store import load_intro_variants, save_intro_variants
 
         catalog = load_field_catalog()
         if field_id in catalog:
@@ -2248,6 +2451,20 @@ class MainWindow(QMainWindow):
             if field_id not in hidden:
                 hidden.append(field_id)
                 save_hidden_builtin_fields(hidden)
+
+        for load_variants, save_variants in (
+            (load_title_variants, save_title_variants),
+            (load_intro_variants, save_intro_variants),
+        ):
+            variants = load_variants()
+            changed = False
+            for variant in variants:
+                if field_id in variant.subtitle_fields:
+                    variant.subtitle_fields.remove(field_id)
+                    changed = True
+            if changed:
+                save_variants(variants)
+
         QTimer.singleShot(0, functools.partial(self._render_slot_fields, slot, variant_id))
 
     def _ensure_fragment_exists(self, slot: str, variant):
