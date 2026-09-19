@@ -38,6 +38,11 @@ TITLE_VARIANTS_FILE = DATA_DIR / "title_variants.json"
 # части), заводить отдельный почти идентичный dataclass не было смысла.
 INTRO_VARIANTS_FILE = DATA_DIR / "intro_variants.json"
 
+# Пользовательские варианты «Приложения 1» конструктора документов -- третий,
+# независимый слот (см. src/services/appendix_variants_store.py) -- тот же
+# приём и та же модель TitleVariant, что и у INTRO_VARIANTS_FILE выше.
+APPENDIX_VARIANTS_FILE = DATA_DIR / "appendix_variants.json"
+
 # Приложение, выбранное пользователем через «Открыть с помощью» для
 # редактирования/просмотра .docx-файлов конструктора документов (см.
 # src/ui/open_with.py) -- запоминается один раз, дальше open_with_prompt()
@@ -203,6 +208,35 @@ def find_intro_template(variant_id: str):
         )
     raise FileNotFoundError(
         f"Не найдена заготовка вводной части «{variant_id}» -- похоже, файл "
+        f"{path} удалили вручную. Откройте вариант на редактирование и сохраните "
+        f"ещё раз, чтобы перегенерировать заготовку."
+    )
+
+
+def find_appendix_template(variant_id: str):
+    """Найти .docx-заготовку варианта «Приложения 1» конструктора -- та же
+    логика, что у find_title_template()/find_intro_template(), но со своим
+    реестром (APPENDIX_VARIANTS) и своим пользовательским стором
+    (appendix_variants_store, data/appendix_variants.json), а фрагмент лежит
+    в FRAGMENTS_DIR под префиксом "appendix1_"."""
+    from .services.template_schema import APPENDIX_VARIANTS
+    from .services.appendix_variants_store import load_appendix_variants
+
+    is_builtin = variant_id in APPENDIX_VARIANTS
+    is_custom = any(v.id == variant_id for v in load_appendix_variants())
+    if not is_builtin and not is_custom:
+        raise ValueError(f"Неизвестный вариант приложения 1: {variant_id}")
+
+    path = FRAGMENTS_DIR / f"appendix1_{variant_id}.docx"
+    if path.exists():
+        return path
+    if is_builtin:
+        raise FileNotFoundError(
+            f"Не найдена заготовка приложения 1 «{variant_id}». Сгенерируйте её: "
+            f"python scripts/template_tool.py generate-appendix {variant_id}"
+        )
+    raise FileNotFoundError(
+        f"Не найдена заготовка приложения 1 «{variant_id}» -- похоже, файл "
         f"{path} удалили вручную. Откройте вариант на редактирование и сохраните "
         f"ещё раз, чтобы перегенерировать заготовку."
     )

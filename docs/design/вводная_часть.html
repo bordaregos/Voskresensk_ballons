@@ -4,6 +4,7 @@
 <defs>
 <symbol id="i-chevron-right" viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></symbol>
 <symbol id="i-files" viewBox="0 0 24 24"><rect x="3" y="7" width="13" height="13" rx="2"/><path d="M8 7V4a1 1 0 0 1 1-1h11a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-3"/></symbol>
+<symbol id="i-folder" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></symbol>
 <symbol id="i-file-text" viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><line x1="9" y1="9" x2="10" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></symbol>
 <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
 <symbol id="i-drag-drop" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" stroke-dasharray="4 3"/><path d="M12 9v6"/><path d="M9 12l3 3 3-3"/></symbol>
@@ -13,6 +14,9 @@
 <symbol id="i-upload" viewBox="0 0 24 24"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><polyline points="7 9 12 4 17 9"/><line x1="12" y1="4" x2="12" y2="15"/></symbol>
 <symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
 <symbol id="i-formula" viewBox="0 0 24 24"><line x1="4" y1="12" x2="20" y2="12"/><circle cx="8" cy="6" r="1.3" fill="currentColor" stroke="none"/><circle cx="16" cy="18" r="1.3" fill="currentColor" stroke="none"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.4" y2="16.4"/></symbol>
+<symbol id="i-database" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/></symbol>
+<symbol id="i-users" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
 </defs>
 </svg>
 <div style="background:#eeeeef;min-height:100vh;box-sizing:border-box;padding:32px 20px;display:flex;align-items:flex-start;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,sans-serif;">
@@ -27,6 +31,14 @@
   </div>
 
   <div style="display:flex;height:560px;">
+    <div id="activityBar" style="width:44px;background:#1c1c1e;border-right:0.5px solid #38383a;flex-shrink:0;display:flex;flex-direction:column;align-items:center;padding:8px 0;">
+      <div class="activity-icon" data-view="search" onclick="switchView('search')" title="Поиск"><svg class="icon" style="width:19px;height:19px;" aria-hidden="true"><use href="#i-search"/></svg></div>
+      <div class="activity-icon" data-view="database" onclick="switchView('database')" title="База документов"><svg class="icon" style="width:19px;height:19px;" aria-hidden="true"><use href="#i-database"/></svg></div>
+      <div class="activity-icon active" data-view="editor" onclick="switchView('editor')" title="Редактор документов"><svg class="icon" style="width:19px;height:19px;" aria-hidden="true"><use href="#i-edit"/></svg></div>
+      <div class="activity-icon" data-view="employees" onclick="switchView('employees')" title="Сотрудники"><svg class="icon" style="width:19px;height:19px;" aria-hidden="true"><use href="#i-users"/></svg></div>
+    </div>
+
+    <div id="viewEditor" style="display:flex;flex:1;min-width:0;">
     <div id="sidebar" style="width:220px;background:#242426;border-right:0.5px solid #38383a;flex-shrink:0;overflow-y:auto;">
       <div style="padding:10px 10px 4px;">
         <div class="group-row" onclick="toggleGroup('titleGroup')">
@@ -163,11 +175,56 @@
 
       </div>
     </div>
+    </div>
+
+    <!-- «База документов» -- узкая колонка-дерево слева (тот же ширина/язык,
+         что у #sidebar конструктора, НЕ на всю ширину окна) + структура
+         выбранного документа справа (см. обсуждение задачи). Дерево -- один
+         explorer-стиль список (файлы и папки вперемешку, как в VSCode) --
+         файл отображается ровно там же, где и его папка, а не в отдельном
+         списке. Документ -- JSON-вариант проекта (не .docx, тот же формат,
+         что Project из src/models/project.py); {name, date, snapshot} без
+         реального файла за мокапом -- snapshot (см. дальше по файлу) это
+         срез реквизитов title/intro-слотов на момент «Сохранить проект»,
+         правая панель рендерит его тем же field-grid, что и в «Редакторе
+         документов» -- можно посмотреть и поправить значения прямо здесь
+         (renderDbStructure()/buildDbStructureBlock() ниже). Основной путь
+         наполнения -- кнопка «Сохранить проект» в нижнем тулбаре «Редактора
+         документов» (см. #saveProjectModal), «Добавить вариант» в ПКМ-меню
+         папки -- запасной ручной способ прямо отсюда, без снимка (у такого
+         документа справа будут пустые блоки). -->
+    <div id="viewDatabase" style="display:none;flex:1;min-width:0;">
+      <div style="width:220px;background:#242426;border-right:0.5px solid #38383a;flex-shrink:0;overflow-y:auto;display:flex;flex-direction:column;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 10px 4px;">
+          <span style="font-size:11px;color:#8e8e93;text-transform:uppercase;letter-spacing:.03em;">Объекты</span>
+          <button onclick="newRootFolder()" title="Новая папка" class="remove-btn" style="width:20px;height:20px;"><svg class="icon" style="width:14px;height:14px;" aria-hidden="true"><use href="#i-plus"/></svg></button>
+        </div>
+        <div id="dbTreeRoot" style="padding:4px 6px 10px;"></div>
+        <div style="padding:10px;margin-top:auto;font-size:10.5px;color:#5a5a5c;line-height:1.5;">
+          Правый клик по папке — новая подпапка, добавить вариант, переименовать, удалить. Правый клик по документу — переименовать, удалить.
+        </div>
+      </div>
+
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;">
+        <div style="padding:8px 18px;background:#202022;border-bottom:0.5px solid #2c2c2e;font-size:11px;color:#8e8e93;flex-shrink:0;">
+          <span id="dbStructureBreadcrumb">Выберите документ слева</span>
+        </div>
+        <div style="flex:1;overflow-y:auto;padding:16px 18px;">
+          <div id="dbStructureEmpty" style="font-size:11.5px;color:#5a5a5c;font-style:italic;">Выберите документ (не папку) в дереве слева, чтобы посмотреть и отредактировать структуру шаблона.</div>
+          <div id="dbStructureContent" style="display:none;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="viewStub" style="display:none;flex:1;min-width:0;align-items:center;justify-content:center;flex-direction:column;gap:6px;color:#5a5a5c;font-size:12px;text-align:center;padding:24px;">
+      <div id="placeholderTitle" style="font-size:13px;color:#8e8e93;"></div>
+      <div>Раздел мокапа — пока не реализован</div>
+    </div>
   </div>
 
   <div style="display:flex;border-top:0.5px solid #38383a;">
     <div id="assembleBtn" onclick="openGenerateDialog()" style="flex:1;text-align:center;padding:9px;font-size:12px;color:#c7c7cc;border-right:0.5px solid #38383a;cursor:pointer;">Собрать документ</div>
-    <div style="flex:1;text-align:center;padding:9px;font-size:12px;color:#c7c7cc;border-right:0.5px solid #38383a;cursor:pointer;">Сохранить проект</div>
+    <div id="saveProjectBtn" onclick="openSaveProjectModal()" style="flex:1;text-align:center;padding:9px;font-size:12px;color:#c7c7cc;border-right:0.5px solid #38383a;cursor:pointer;">Сохранить проект</div>
     <div style="flex:1;text-align:center;padding:9px;font-size:12px;color:#c7c7cc;cursor:pointer;">Открыть проект</div>
   </div>
 
@@ -220,6 +277,81 @@
     <div class="menu-row" style="color:#ff453a;" onclick="deleteChipFromMenu()"><svg class="icon" style="width:14px;height:14px;color:#ff453a;" aria-hidden="true"><use href="#i-trash"/></svg>Удалить</div>
   </div>
 
+  <!-- ПКМ по строке папки в дереве «База документов» -- новая подпапка и
+       «Добавить вариант» (ручное создание JSON-записи прямо в этой папке,
+       см. addVariantFromMenu()) всегда доступны, переименовать и удалить --
+       для любой папки дерева (никакая не builtIn, всё дерево
+       пользовательское). -->
+  <div id="folderMenu" style="display:none;position:absolute;z-index:20;background:#2c2c2e;border:0.5px solid #48484a;border-radius:8px;overflow:hidden;min-width:190px;box-shadow:0 8px 24px rgba(0,0,0,.4);">
+    <div class="menu-row" onclick="newSubfolderFromMenu()"><svg class="icon" style="width:14px;height:14px;color:#c7c7cc;" aria-hidden="true"><use href="#i-plus"/></svg>Новая подпапка</div>
+    <div class="menu-row" onclick="addVariantFromMenu()"><svg class="icon" style="width:14px;height:14px;color:#0a84ff;" aria-hidden="true"><use href="#i-file-text"/></svg>Добавить вариант</div>
+    <div class="menu-row" onclick="renameFolderFromMenu()"><svg class="icon" style="width:14px;height:14px;color:#c7c7cc;" aria-hidden="true"><use href="#i-edit"/></svg>Переименовать</div>
+    <div class="menu-row" style="color:#ff453a;" onclick="deleteFolderFromMenu()"><svg class="icon" style="width:14px;height:14px;color:#ff453a;" aria-hidden="true"><use href="#i-trash"/></svg>Удалить</div>
+  </div>
+
+  <!-- ПКМ по строке документа в дереве «База документов» -- «Открыть в
+       редакторе документов» (загружает snapshot в слоты title/intro
+       конструктора и переключает на «Редактор документов», см.
+       openDocInEditor()/loadDocIntoEditor() ниже), переименовать (меняет
+       только name записи, расширение .json подставляется заново, если
+       стёрли) и удалить. -->
+  <div id="docMenu" style="display:none;position:absolute;z-index:20;background:#2c2c2e;border:0.5px solid #48484a;border-radius:8px;overflow:hidden;min-width:220px;box-shadow:0 8px 24px rgba(0,0,0,.4);">
+    <div class="menu-row" onclick="openDocInEditor()"><svg class="icon" style="width:14px;height:14px;color:#0a84ff;" aria-hidden="true"><use href="#i-file-text"/></svg>Открыть в редакторе документов</div>
+    <div class="menu-row" onclick="renameDocFromMenu()"><svg class="icon" style="width:14px;height:14px;color:#c7c7cc;" aria-hidden="true"><use href="#i-edit"/></svg>Переименовать</div>
+    <div class="menu-row" style="color:#ff453a;" onclick="deleteDocFromMenu()"><svg class="icon" style="width:14px;height:14px;color:#ff453a;" aria-hidden="true"><use href="#i-trash"/></svg>Удалить</div>
+  </div>
+
+  <!-- Общая модалка для однострочного текстового ввода -- новая папка/
+       подпапка, переименование папки, имя сохраняемого документа.
+       Параметризуется через openTextInputModal(заголовок, placeholder,
+       подпись кнопки, значение по умолчанию, колбэк) -- то же самое, что
+       addModal ниже делает только для варианта титульного листа/вводной
+       части, здесь -- переиспользуемо для любого текстового поля «База
+       документов». -->
+  <div id="textInputModal" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.55);align-items:center;justify-content:center;z-index:10;">
+    <div style="background:#2c2c2e;border:0.5px solid #48484a;border-radius:10px;padding:18px;width:280px;">
+      <div id="textInputModalTitle" style="font-size:13px;font-weight:500;color:#e5e5e7;margin-bottom:10px;"></div>
+      <input id="textInputModalInput" type="text" style="width:100%;box-sizing:border-box;background:#1c1c1e;border:0.5px solid #48484a;border-radius:6px;padding:7px 8px;font-size:12px;color:#e5e5e7;margin-bottom:14px;" onkeydown="if(event.key==='Enter'){event.preventDefault();confirmTextInputModal();}" />
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button onclick="closeTextInputModal()" style="background:transparent;border:0.5px solid #48484a;color:#c7c7cc;font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;">Отмена</button>
+        <button id="textInputModalConfirmBtn" onclick="confirmTextInputModal()" style="background:#0a84ff;border:none;color:#fff;font-size:12px;font-weight:500;padding:6px 12px;border-radius:6px;cursor:pointer;">Создать</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- «Сохранить проект» (нижний тулбар конструктора) -- сохраняет не
+       .docx, а JSON-снимок текущей сессии (тот же формат, что и Project,
+       см. src/models/project.py) в Базу документов. Явно спрашивает папку
+       -- выбор из плоского списка существующих папок дерева (с отступом по
+       глубине) либо «+ Новая папка…», которая раскрывает поле для её
+       названия -- см. обсуждение задачи ("предварительно уточнив надо ли
+       папку создавать"). Новая папка всегда создаётся на верхнем уровне
+       дерева -- вложенность при желании настраивается потом вручную в самой
+       Базе документов (ПКМ → «Новая подпапка»), здесь так же, как и с
+       выбором существующей папки, всё едино -- один плоский список. -->
+  <div id="saveProjectModal" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.55);align-items:center;justify-content:center;z-index:10;">
+    <div style="background:#2c2c2e;border:0.5px solid #48484a;border-radius:10px;padding:18px;width:300px;">
+      <div style="font-size:13px;font-weight:500;color:#e5e5e7;margin-bottom:2px;">Сохранить проект в Базу документов</div>
+      <div style="font-size:11.5px;color:#8e8e93;margin-bottom:12px;">Сохраняется JSON со всеми введёнными реквизитами и выбранными вариантами — проект можно будет открыть заново и продолжить.</div>
+
+      <div style="font-size:11px;color:#8e8e93;margin-bottom:4px;">Название</div>
+      <input id="saveProjectNameInput" type="text" style="width:100%;box-sizing:border-box;background:#1c1c1e;border:0.5px solid #48484a;border-radius:6px;padding:7px 8px;font-size:12px;color:#e5e5e7;margin-bottom:12px;" />
+
+      <div style="font-size:11px;color:#8e8e93;margin-bottom:4px;">Папка</div>
+      <select id="saveProjectFolderSelect" onchange="onSaveProjectFolderChange()" style="width:100%;box-sizing:border-box;background:#1c1c1e;border:0.5px solid #48484a;border-radius:6px;padding:6px 8px;font-size:12px;color:#e5e5e7;margin-bottom:8px;"></select>
+
+      <div id="saveProjectNewFolderWrap" style="display:none;margin-bottom:8px;">
+        <div style="font-size:11px;color:#8e8e93;margin-bottom:4px;">Название новой папки</div>
+        <input id="saveProjectNewFolderInput" type="text" placeholder="Например, название объекта/заказчика" style="width:100%;box-sizing:border-box;background:#1c1c1e;border:0.5px solid #48484a;border-radius:6px;padding:7px 8px;font-size:12px;color:#e5e5e7;" />
+      </div>
+
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;">
+        <button onclick="closeSaveProjectModal()" style="background:transparent;border:0.5px solid #48484a;color:#c7c7cc;font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;">Отмена</button>
+        <button onclick="confirmSaveProject()" style="background:#0a84ff;border:none;color:#fff;font-size:12px;font-weight:500;padding:6px 12px;border-radius:6px;cursor:pointer;">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
   <div id="addModal" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.55);align-items:center;justify-content:center;z-index:10;">
     <div style="background:#2c2c2e;border:0.5px solid #48484a;border-radius:10px;padding:18px;width:260px;">
       <div style="font-size:13px;font-weight:500;color:#e5e5e7;margin-bottom:10px;">Новый вариант титульного листа</div>
@@ -263,7 +395,12 @@
        клик по области делает её активной (подсвечивается рамкой,
        formula-zone-active), кнопки тулбара добавляют элемент В КОНЕЦ
        активной области -- вставка «Дробь» сразу переключает активную
-       область на новый (пустой) числитель, как в редакторе формул Word. -->
+       область на новый (пустой) числитель, как в редакторе формул Word.
+
+       Пара "(" / ")" вокруг дроби -- растянутая кривая (см.
+       stretchBracketPairs()/makeParenGlyph() в <script>), а не плоский
+       текстовый символ, зеркалит _ParenGlyph реального редактора формул
+       (src/ui/formula_editor_dialog.py). -->
   <div id="formulaModal" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.55);align-items:center;justify-content:center;z-index:30;">
     <div style="background:#2c2c2e;border:0.5px solid #48484a;border-radius:10px;padding:18px;width:420px;max-width:calc(100vw - 40px);">
       <div style="font-size:13px;font-weight:500;color:#e5e5e7;margin-bottom:2px;">Редактор формул</div>
@@ -327,6 +464,13 @@ body{background:#eeeeef;}
 .icon{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;}
 .chevron{transition:transform .15s ease;}
 .chevron.chev-open{transform:rotate(90deg);}
+.activity-icon{width:44px;height:40px;display:flex;align-items:center;justify-content:center;color:#8e8e93;cursor:pointer;position:relative;flex-shrink:0;}
+.activity-icon:hover{color:#e5e5e7;}
+.activity-icon.active{color:#e5e5e7;}
+.activity-icon.active::before{content:'';position:absolute;left:0;top:6px;bottom:6px;width:2px;background:#0a84ff;border-radius:1px;}
+.db-tree-row{display:flex;align-items:center;gap:5px;padding:5px 6px;border-radius:5px;cursor:pointer;font-size:11.5px;color:#c7c7cc;}
+.db-tree-row:hover{background:#2c2c2e;}
+.db-tree-row-active{background:rgba(10,132,255,.16);color:#e5e5e7;}
 .group-row{display:flex;align-items:center;gap:6px;padding:6px 6px;border-radius:5px;cursor:pointer;font-size:11.5px;color:#e5e5e7;font-weight:500;}
 .group-row:hover{background:#2c2c2e;}
 .group-row-soon{cursor:not-allowed;color:#5a5a5c;}
@@ -436,6 +580,583 @@ textarea.fld.fld-computed{background:rgba(191,90,242,.10);border-color:rgba(191,
 </style>
 
 <script>
+// -- Активити-бар (узкая колонка иконок слева, по образцу вертикальной
+// панели VSCode) -- переключатель между разделами приложения. «Редактор
+// документов» и «База документов» -- реально реализованные в этом мокапе
+// разделы; «Поиск»/«Сотрудники» -- заглушка (viewStub), показывает только
+// сам паттерн навигации, без содержимого.
+var activityViewTitles = { search: 'Поиск', employees: 'Сотрудники' };
+function switchView(view){
+  document.querySelectorAll('.activity-icon').forEach(function(el){
+    el.classList.toggle('active', el.getAttribute('data-view') === view);
+  });
+  document.getElementById('viewEditor').style.display = view === 'editor' ? 'flex' : 'none';
+  document.getElementById('viewDatabase').style.display = view === 'database' ? 'flex' : 'none';
+  var isStub = view !== 'editor' && view !== 'database';
+  document.getElementById('viewStub').style.display = isStub ? 'flex' : 'none';
+  if (isStub) document.getElementById('placeholderTitle').textContent = activityViewTitles[view] || '';
+  if (view === 'database') refreshDbView();
+}
+
+// -- «База документов» ------------------------------------------------------
+// Один explorer-стиль дерева (файлы и папки вперемешку, в порядке
+// добавления, как в VSCode) -- никакого отдельного списка документов сбоку,
+// файл отображается ровно там же, где и его папка (см. обсуждение задачи).
+// Папки -- произвольная вложенность, заводятся и правятся целиком
+// пользователем через ПКМ/кнопку «Новая папка». Документ -- JSON-вариант
+// проекта (не .docx -- сериализация сессии, тот же формат, что Project в
+// src/models/project.py), в мокапе запись {id, name, date} без реального
+// файла за ней. Основной путь наполнения -- «Сохранить проект» в нижнем
+// тулбаре «Редактора документов» (openSaveProjectModal()/
+// confirmSaveProject() ниже), которая явно спрашивает папку и при
+// необходимости создаёт новую; «Добавить вариант» в ПКМ-меню папки
+// (addVariantFromMenu()) -- запасной ручной способ.
+var nextDbFolderId = 1;
+var nextDbDocId = 1;
+var dbTree = {
+  id: 'root', name: 'Документы', type: 'folder', expanded: true,
+  children: [
+    { id: 'f1', name: 'АО «КБХиммаш»', type: 'folder', expanded: true, children: [
+      { id: 'f1-1', name: 'Баллоны — партия №5', type: 'folder', expanded: true, children: [
+        { id: 'd1', type: 'doc', name: 'закл_681-24_рег-720291_р-200_азот_кбХиммаш_20шт.json', date: '15.11.2026', snapshot: {
+          title: { variantLabel: 'Титульный лист', fields: [
+            {id: 'doc_number', label: 'Номер документа', value: '681/24'},
+            {id: 'reg_number', label: 'Рег./уч. номер', value: '720291'},
+            {id: 'doc_date', label: 'Дата', value: '15 ноября 2026'},
+            {id: 'object_title', label: 'Наименование объекта', value: 'Баллоны-воздухохранители высокого давления, 20 шт.'}
+          ] },
+          intro: { variantLabel: 'Вводная часть', fields: [
+            {id: 'diag_object', label: 'Объект диагностирования', value: 'Баллоны-воздухохранители высокого давления'},
+            {id: 'location', label: 'Местонахождение', value: 'промплощадка АО «КБХиммаш», г. Воскресенск'}
+          ] }
+        } }
+      ] },
+      { id: 'f1-2', name: 'Трубопровод технологический №1', type: 'folder', expanded: false, children: [] }
+    ] }
+  ]
+};
+var dbSelectedId = null; // id папки или документа -- только для подсветки строки
+
+// findFolderNode/findParentFolder -- поиск ТОЛЬКО среди папок (используются
+// там, где результат обязан быть папкой -- новая подпапка/вариант,
+// переименование папки, выбор папки в «Сохранить проект»). findDbEntry --
+// общий поиск по обоим типам (нужен для переименования/удаления документа).
+function findFolderNode(node, id){
+  if (node.id === id) return node;
+  for (var i = 0; i < node.children.length; i++){
+    if (node.children[i].type !== 'folder') continue;
+    var found = findFolderNode(node.children[i], id);
+    if (found) return found;
+  }
+  return null;
+}
+function findParentFolder(node, childId){
+  for (var i = 0; i < node.children.length; i++){
+    var c = node.children[i];
+    if (c.type === 'folder' && c.id === childId) return node;
+    if (c.type === 'folder') {
+      var found = findParentFolder(c, childId);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+function findDbEntry(node, id, parent){
+  if (node.id === id) return {node: node, parent: parent};
+  for (var i = 0; i < node.children.length; i++){
+    var found = findDbEntry(node.children[i], id, node);
+    if (found) return found;
+  }
+  return null;
+}
+
+function renderDbTree(){
+  var root = document.getElementById('dbTreeRoot');
+  root.innerHTML = '';
+  renderDbTreeChildren(dbTree, root, 0);
+}
+function renderDbTreeChildren(node, container, depth){
+  node.children.forEach(function(child){
+    if (child.type === 'folder') {
+      container.appendChild(buildDbFolderRow(child, depth));
+      if (child.expanded) renderDbTreeChildren(child, container, depth + 1);
+    } else {
+      container.appendChild(buildDbDocRow(child, depth));
+    }
+  });
+}
+function buildDbFolderRow(node, depth){
+  var hasChildren = node.children.length > 0;
+  var row = document.createElement('div');
+  row.className = 'db-tree-row' + (dbSelectedId === node.id ? ' db-tree-row-active' : '');
+  row.style.paddingLeft = (depth * 14 + 6) + 'px';
+  row.innerHTML =
+    '<svg class="icon chevron' + (node.expanded ? ' chev-open' : '') + '" style="width:12px;height:12px;color:#8e8e93;flex-shrink:0;visibility:' + (hasChildren ? 'visible' : 'hidden') + ';" aria-hidden="true"><use href="#i-chevron-right"></use></svg>' +
+    '<svg class="icon" style="width:13px;height:13px;color:#c9a227;flex-shrink:0;" aria-hidden="true"><use href="#i-folder"></use></svg>' +
+    '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + node.name + '</span>';
+  row.onclick = function(){
+    dbSelectedId = node.id;
+    if (hasChildren) node.expanded = !node.expanded;
+    refreshDbView();
+  };
+  row.oncontextmenu = function(ev){ return openFolderMenu(ev, node.id); };
+  return row;
+}
+// Отступ дочернего документа выровнен по иконке папки-родителя (а не по её
+// шеврону) -- ширина шеврона (12px) + его gap (5px) от .db-tree-row, чтобы
+// иконки файла и папки на соседних уровнях визуально стояли в одну колонку.
+function buildDbDocRow(doc, depth){
+  var row = document.createElement('div');
+  row.className = 'db-tree-row' + (dbSelectedId === doc.id ? ' db-tree-row-active' : '');
+  row.style.paddingLeft = (depth * 14 + 6 + 17) + 'px';
+  row.innerHTML =
+    '<svg class="icon" style="width:13px;height:13px;color:#0a84ff;flex-shrink:0;" aria-hidden="true"><use href="#i-file-text"></use></svg>' +
+    '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + doc.name + '">' + doc.name + '</span>' +
+    '<span style="font-size:10px;color:#5a5a5c;flex-shrink:0;">' + doc.date + '</span>';
+  row.onclick = function(){ dbSelectedId = doc.id; refreshDbView(); };
+  row.oncontextmenu = function(ev){ return openDocMenu(ev, doc.id); };
+  return row;
+}
+function refreshDbView(){
+  renderDbTree();
+  renderDbStructure();
+}
+
+// -- Структура выбранного документа (правая панель) -------------------------
+// Та же разметка, что и у блока «Документ» в «Редакторе документов»
+// (dropFilled-* карточка + «Реквизиты …» + field-grid из ph-chip-block +
+// textarea.fld, см. renderFields() выше) -- см. обсуждение задачи, правая
+// панель Базы документов должна выглядеть так же, как правая панель
+// конструктора, а не собственным упрощённым видом. Отличия -- только то,
+// что вынужденно не переносится на СОХРАНЁННЫЙ снимок: нет ни drop-зоны
+// (блок уже вставлен, перетаскивать некуда), ни тулбара варианта (вставка
+// плейсхолдера/загрузка .docx-шаблона относятся к живому варианту в
+// каталоге, а не к застывшей копии его значений в этом документе), ни
+// карточки предпросмотра. Значения -- сразу редактируемые textarea, правка
+// пишется прямо в snapshot документа (f.value), без отдельной кнопки
+// «Сохранить», тот же принцип живого автосохранения, что и у остальных
+// текстовых полей в этом мокапе. Чип клика -- та же copyChipInline(), что и
+// в конструкторе.
+function renderDbStructure(){
+  var breadcrumb = document.getElementById('dbStructureBreadcrumb');
+  var emptyEl = document.getElementById('dbStructureEmpty');
+  var contentEl = document.getElementById('dbStructureContent');
+
+  if (!dbSelectedId) {
+    breadcrumb.textContent = 'Выберите документ слева';
+    emptyEl.textContent = 'Выберите документ (не папку) в дереве слева, чтобы посмотреть и отредактировать структуру шаблона.';
+    emptyEl.style.display = 'block';
+    contentEl.style.display = 'none';
+    return;
+  }
+  var found = findDbEntry(dbTree, dbSelectedId, null);
+  if (!found || found.node.type !== 'doc') {
+    breadcrumb.textContent = found ? found.node.name : 'Выберите документ слева';
+    emptyEl.textContent = 'Это папка — выберите документ внутри неё, чтобы посмотреть его структуру.';
+    emptyEl.style.display = 'block';
+    contentEl.style.display = 'none';
+    return;
+  }
+
+  var doc = found.node;
+  breadcrumb.textContent = doc.name;
+  emptyEl.style.display = 'none';
+  contentEl.style.display = 'block';
+  contentEl.innerHTML = '';
+
+  var docLabel = document.createElement('div');
+  docLabel.style.cssText = 'font-size:11px;color:#8e8e93;margin-bottom:8px;text-transform:uppercase;letter-spacing:.03em;';
+  docLabel.textContent = 'Документ';
+  contentEl.appendChild(docLabel);
+
+  contentEl.appendChild(buildDbStructureBlock('title', doc.snapshot && doc.snapshot.title));
+  var sep = document.createElement('div');
+  sep.style.cssText = 'height:1px;background:#545456;margin:20px 0 12px;border-radius:1px;';
+  contentEl.appendChild(sep);
+  contentEl.appendChild(buildDbStructureBlock('intro', doc.snapshot && doc.snapshot.intro));
+}
+function buildDbStructureBlock(kind, slotSnapshot){
+  var reqLabel = kind === 'title' ? 'Реквизиты титульного листа' : 'Реквизиты вводной части';
+  var emptyLabel = kind === 'title' ? 'Титульный лист не выбран в этом варианте' : 'Вводная часть не выбрана в этом варианте';
+  var wrap = document.createElement('div');
+
+  if (!slotSnapshot) {
+    wrap.innerHTML =
+      '<div class="drop-zone" style="min-height:56px;">' +
+        '<div style="display:flex;flex-direction:column;align-items:center;gap:6px;color:#5a5a5c;font-size:12px;padding:18px 0;text-align:center;">' + emptyLabel + '</div>' +
+      '</div>';
+    return wrap;
+  }
+
+  // Карточка блока -- тот же вид и поведение, что и у #dropFilled-title/
+  // #dropFilled-intro в конструкторе (заполненная drop-зона): клик по
+  // карточке сворачивает/разворачивает реквизиты снизу, шеврон крутится
+  // тем же классом chev-open, что и toggleFields() там (см. обсуждение
+  // задачи -- то же самое должно быть доступно и здесь).
+  var card = document.createElement('div');
+  card.style.cssText = 'display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box;padding:10px 12px;background:#2c2c2e;border-radius:8px;cursor:pointer;';
+  card.title = 'Клик — показать/скрыть реквизиты';
+  card.innerHTML =
+    '<svg class="icon" style="width:15px;height:15px;color:#0a84ff;flex-shrink:0;" aria-hidden="true"><use href="#i-file-text"></use></svg>' +
+    '<span style="flex:1;font-size:12px;color:#e5e5e7;">' + slotSnapshot.variantLabel + '</span>' +
+    '<svg class="icon chevron chev-open" style="width:13px;height:13px;color:#8e8e93;flex-shrink:0;" aria-hidden="true"><use href="#i-chevron-right"></use></svg>';
+  wrap.appendChild(card);
+
+  var fieldsWrap = document.createElement('div');
+  fieldsWrap.style.cssText = 'margin-top:22px;';
+  var heading = document.createElement('div');
+  heading.style.cssText = 'font-size:11px;color:#8e8e93;margin-bottom:10px;text-transform:uppercase;letter-spacing:.03em;';
+  heading.textContent = reqLabel;
+  fieldsWrap.appendChild(heading);
+
+  if (!slotSnapshot.fields.length) {
+    var empty = document.createElement('div');
+    empty.style.cssText = 'font-size:11px;color:#8e8e93;font-style:italic;';
+    empty.textContent = 'В этом варианте нет ни одного плейсхолдера.';
+    fieldsWrap.appendChild(empty);
+  } else {
+    var grid = document.createElement('div');
+    grid.className = 'field-grid';
+    slotSnapshot.fields.forEach(function(f){
+      var lbl = document.createElement('span');
+      lbl.className = 'ph-chip-block';
+      lbl.textContent = f.label;
+      lbl.title = f.label + '  {{ ' + f.id + ' }}\nКлик — скопировать для Word.';
+      lbl.onclick = function(){ copyChipInline(f.id, lbl); };
+      var input = document.createElement('textarea');
+      input.className = 'fld';
+      input.rows = 1;
+      input.value = f.value;
+      input.addEventListener('input', function(){ f.value = input.value; autoGrowField(input); });
+      grid.appendChild(lbl);
+      grid.appendChild(input);
+    });
+    fieldsWrap.appendChild(grid);
+    setTimeout(function(){
+      grid.querySelectorAll('textarea.fld').forEach(function(ta){ autoGrowField(ta); });
+    }, 0);
+  }
+  wrap.appendChild(fieldsWrap);
+
+  var chev = card.querySelector('.chevron');
+  card.onclick = function(){
+    var open = fieldsWrap.style.display !== 'none';
+    fieldsWrap.style.display = open ? 'none' : 'block';
+    chev.classList.toggle('chev-open', !open);
+  };
+  return wrap;
+}
+
+function newRootFolder(){
+  openTextInputModal('Новая папка', 'Например, название объекта/заказчика', 'Создать', '', function(text){
+    dbTree.children.push({id: 'f' + (nextDbFolderId++), name: text, type: 'folder', expanded: false, children: []});
+    refreshDbView();
+  });
+}
+// -- Общее добавление JSON-записи документа в папку -- используется и
+// вручную (addVariantFromMenu, без snapshot), и из «Сохранить проект»
+// (confirmSaveProject ниже, со snapshot реквизитов title/intro-слотов).
+// Расширение всегда .json -- это не .docx, а сериализованный снимок
+// проекта (см. комментарий у #saveProjectModal в разметке).
+function addDbDocEntry(folder, name, snapshot){
+  var today = new Date();
+  var pad = function(n){ return String(n).padStart(2, '0'); };
+  var dateStr = pad(today.getDate()) + '.' + pad(today.getMonth() + 1) + '.' + today.getFullYear();
+  var fileName = /\.json$/i.test(name) ? name : name + '.json';
+  folder.children.push({id: 'd' + (nextDbDocId++), type: 'doc', name: fileName, date: dateStr, snapshot: snapshot || null});
+  return fileName;
+}
+
+// -- «Сохранить проект» (нижний тулбар «Редактора документов») -------------
+// Явно спрашивает, в какую папку Базы документов положить JSON-снимок
+// сессии, и предлагает создать новую папку тут же, не выходя из диалога --
+// см. обсуждение задачи. Список папок -- плоский, с отступом по глубине
+// вложенности (flattenDbFolders()), плюс «Документы (без подпапки)» -- сам
+// корень дерева, и «+ Новая папка…» в конце, переключающая видимость поля
+// её названия (onSaveProjectFolderChange()).
+function flattenDbFolders(node, depth){
+  var out = [];
+  node.children.forEach(function(c){
+    if (c.type !== 'folder') return;
+    out.push({id: c.id, name: c.name, depth: depth});
+    out = out.concat(flattenDbFolders(c, depth + 1));
+  });
+  return out;
+}
+function populateSaveProjectFolderSelect(){
+  var select = document.getElementById('saveProjectFolderSelect');
+  select.innerHTML = '';
+  var rootOpt = document.createElement('option');
+  rootOpt.value = 'root';
+  rootOpt.textContent = 'Документы (без подпапки)';
+  select.appendChild(rootOpt);
+  flattenDbFolders(dbTree, 0).forEach(function(f){
+    var opt = document.createElement('option');
+    opt.value = f.id;
+    opt.textContent = '    '.repeat(f.depth) + (f.depth ? '↳ ' : '') + f.name;
+    select.appendChild(opt);
+  });
+  var newOpt = document.createElement('option');
+  newOpt.value = '__new__';
+  newOpt.textContent = '+ Новая папка…';
+  select.appendChild(newOpt);
+  select.value = (dbSelectedId && findFolderNode(dbTree, dbSelectedId)) ? dbSelectedId : 'root';
+  onSaveProjectFolderChange();
+}
+function onSaveProjectFolderChange(){
+  var isNew = document.getElementById('saveProjectFolderSelect').value === '__new__';
+  document.getElementById('saveProjectNewFolderWrap').style.display = isNew ? 'block' : 'none';
+}
+// -- Предложенное название проекта -- по номеру документа из реквизитов
+// титульного листа, если он уже введён (doc_number, тот же плейсхолдер, что
+// и в defaultFields выше), иначе -- просто «Проект».
+function suggestProjectName(){
+  var titleVariant = slotState.title.currentVariant;
+  if (titleVariant) {
+    var grid = document.getElementById('fieldsGrid-title');
+    var docNumInput = grid && grid.querySelector('#doc_number');
+    if (docNumInput && docNumInput.value.trim()) return 'Проект №' + docNumInput.value.trim();
+  }
+  return 'Проект';
+}
+// -- Срез реквизитов слота на момент сохранения -- значения берутся из уже
+// отрисованных полей (fieldsGrid-*), а не из variantFields напрямую, чтобы
+// попало именно то, что оператор реально ввёл (включая вычисляемые поля --
+// у них там уже готовый результат формулы, не сама формула). null, если
+// слот вообще не заполнен -- тогда структура документа справа в «Базе
+// документов» покажет этот блок как «не выбран», а не пустой список полей.
+function snapshotSlotFields(slot){
+  var variant = slotState[slot].currentVariant;
+  if (!variant) return null;
+  var fields = variantFields[variant] || [];
+  var grid = document.getElementById('fieldsGrid-' + slot);
+  return {
+    variantLabel: labels[variant] || variant,
+    fields: fields.map(function(f){
+      var input = grid && grid.querySelector('#' + CSS.escape(f.id));
+      return {id: f.id, label: f.label, value: input ? input.value : ''};
+    })
+  };
+}
+function openSaveProjectModal(){
+  document.getElementById('saveProjectNameInput').value = suggestProjectName();
+  document.getElementById('saveProjectNewFolderInput').value = '';
+  populateSaveProjectFolderSelect();
+  document.getElementById('saveProjectModal').style.display = 'flex';
+  setTimeout(function(){
+    var input = document.getElementById('saveProjectNameInput');
+    input.focus();
+    input.select();
+  }, 0);
+}
+function closeSaveProjectModal(){
+  document.getElementById('saveProjectModal').style.display = 'none';
+}
+function confirmSaveProject(){
+  var nameInput = document.getElementById('saveProjectNameInput');
+  var name = nameInput.value.trim();
+  if (!name) { nameInput.focus(); return; }
+
+  var folderChoice = document.getElementById('saveProjectFolderSelect').value;
+  var targetFolder;
+  if (folderChoice === '__new__') {
+    var newFolderInput = document.getElementById('saveProjectNewFolderInput');
+    var newFolderName = newFolderInput.value.trim();
+    if (!newFolderName) { newFolderInput.focus(); return; }
+    targetFolder = {id: 'f' + (nextDbFolderId++), name: newFolderName, type: 'folder', expanded: false, children: []};
+    dbTree.children.push(targetFolder);
+  } else {
+    targetFolder = findFolderNode(dbTree, folderChoice) || dbTree;
+  }
+
+  var snapshot = { title: snapshotSlotFields('title'), intro: snapshotSlotFields('intro') };
+  var fileName = addDbDocEntry(targetFolder, name, snapshot);
+  targetFolder.expanded = true;
+  closeSaveProjectModal();
+
+  dbSelectedId = targetFolder.id;
+  if (document.getElementById('viewDatabase').style.display !== 'none') refreshDbView();
+  alert('Здесь MainWindow._save_project() сериализует текущую сессию (Project, см. src/models/project.py) в JSON и сохранит «' + fileName + '» в папку «' + targetFolder.name + '» Базы документов.');
+}
+
+// -- ПКМ по строке папки -----------------------------------------------------
+var folderMenuTargetId = null;
+function openFolderMenu(ev, id){
+  ev.preventDefault();
+  ev.stopPropagation();
+  folderMenuTargetId = id;
+  var menu = document.getElementById('folderMenu');
+  var frame = menu.parentElement.getBoundingClientRect();
+  menu.style.left = (ev.clientX - frame.left) + 'px';
+  menu.style.top = (ev.clientY - frame.top) + 'px';
+  menu.style.display = 'block';
+  return false;
+}
+function closeFolderMenu(){ document.getElementById('folderMenu').style.display = 'none'; }
+function newSubfolderFromMenu(){
+  var id = folderMenuTargetId;
+  closeFolderMenu();
+  var node = findFolderNode(dbTree, id);
+  if (!node) return;
+  openTextInputModal('Новая подпапка в «' + node.name + '»', 'Например, Партия №6', 'Создать', '', function(text){
+    node.children.push({id: 'f' + (nextDbFolderId++), name: text, type: 'folder', expanded: false, children: []});
+    node.expanded = true;
+    refreshDbView();
+  });
+}
+// Ручное добавление варианта прямо в конкретную папку дерева -- тот же
+// формат хранения (JSON, addDbDocEntry()), что и у «Сохранить проект»,
+// просто без снимка реального состояния конструктора за ним.
+function addVariantFromMenu(){
+  var id = folderMenuTargetId;
+  closeFolderMenu();
+  var node = findFolderNode(dbTree, id);
+  if (!node) return;
+  openTextInputModal('Добавить вариант в «' + node.name + '»', 'Название варианта', 'Сохранить', '', function(text){
+    addDbDocEntry(node, text);
+    node.expanded = true;
+    refreshDbView();
+  });
+}
+function renameFolderFromMenu(){
+  var id = folderMenuTargetId;
+  closeFolderMenu();
+  var node = findFolderNode(dbTree, id);
+  if (!node) return;
+  openTextInputModal('Переименовать папку', '', 'Сохранить', node.name, function(text){
+    node.name = text;
+    refreshDbView();
+  });
+}
+function deleteFolderFromMenu(){
+  var id = folderMenuTargetId;
+  closeFolderMenu();
+  var node = findFolderNode(dbTree, id);
+  if (!node) return;
+  showConfirm('Удалить папку «' + node.name + '» со всем содержимым, включая вложенные папки и документы?', function(){
+    var parent = findParentFolder(dbTree, id);
+    if (!parent) return;
+    parent.children = parent.children.filter(function(c){ return c.id !== id; });
+    if (dbSelectedId === id) dbSelectedId = null;
+    refreshDbView();
+  });
+}
+
+// -- ПКМ по строке документа -------------------------------------------------
+var docMenuTargetId = null;
+function openDocMenu(ev, id){
+  ev.preventDefault();
+  ev.stopPropagation();
+  docMenuTargetId = id;
+  var menu = document.getElementById('docMenu');
+  var frame = menu.parentElement.getBoundingClientRect();
+  menu.style.left = (ev.clientX - frame.left) + 'px';
+  menu.style.top = (ev.clientY - frame.top) + 'px';
+  menu.style.display = 'block';
+  return false;
+}
+function closeDocMenu(){ document.getElementById('docMenu').style.display = 'none'; }
+// -- «Открыть в редакторе документов» -- превращает snapshot документа
+// (см. addDbDocEntry()/confirmSaveProject() выше) обратно в живые слоты
+// конструктора: заводит по пользовательскому варианту на каждый непустой
+// слот (title/intro), с теми же полями и значениями, что были сохранены,
+// вставляет карточку в сайдбар (тот же код, что и confirmAddVariant()) и
+// переключает на «Редактор документов». Спрашивает подтверждение, только
+// если в конструкторе уже что-то стоит в слотах -- иначе заменять нечего.
+var nextDbEditorLoadId = 1;
+function openDocInEditor(){
+  var id = docMenuTargetId;
+  closeDocMenu();
+  var found = findDbEntry(dbTree, id, null);
+  if (!found || found.node.type !== 'doc') return;
+  var doc = found.node;
+  var proceed = function(){
+    loadDocIntoEditor(doc);
+    switchView('editor');
+  };
+  if (slotState.title.currentVariant || slotState.intro.currentVariant) {
+    showConfirm('Открыть «' + doc.name + '» в редакторе? Текущее содержимое титульного листа и вводной части в конструкторе будет заменено.', proceed);
+  } else {
+    proceed();
+  }
+}
+function loadDocIntoEditor(doc){
+  ['title', 'intro'].forEach(function(slot){
+    var slotSnapshot = doc.snapshot && doc.snapshot[slot];
+    if (!slotSnapshot) { clearBlock(slot); return; }
+    var isIntro = slot === 'intro';
+    var variantId = (isIntro ? 'intro-fromdb-' : 'title-fromdb-') + (nextDbEditorLoadId++);
+    labels[variantId] = slotSnapshot.variantLabel;
+    variantFields[variantId] = slotSnapshot.fields.map(function(f){ return {id: f.id, label: f.label, placeholder: ''}; });
+
+    var card = document.createElement('div');
+    card.className = 'block-card';
+    card.draggable = true;
+    card.setAttribute('data-variant', variantId);
+    card.setAttribute('ondragstart', 'onDragStart(event)');
+    card.setAttribute('oncontextmenu', "return openBlockMenu(event,this,'" + variantId + "')");
+    card.innerHTML = '<svg class="icon" style="width:15px;height:15px;color:#0a84ff;" aria-hidden="true"><use href="#i-file-text"></use></svg><span>' + slotSnapshot.variantLabel + '</span>';
+    var addRow = document.querySelector((isIntro ? '#introGroup' : '#titleGroup') + ' .add-block-row');
+    addRow.parentNode.insertBefore(card, addRow);
+
+    setBlock(slot, variantId);
+    var grid = document.getElementById('fieldsGrid-' + slot);
+    slotSnapshot.fields.forEach(function(f){
+      var input = grid.querySelector('#' + CSS.escape(f.id));
+      if (input) { input.value = f.value; autoGrowField(input); }
+    });
+  });
+}
+function renameDocFromMenu(){
+  var id = docMenuTargetId;
+  closeDocMenu();
+  var found = findDbEntry(dbTree, id, null);
+  if (!found) return;
+  var currentBase = found.node.name.replace(/\.json$/i, '');
+  openTextInputModal('Переименовать документ', '', 'Сохранить', currentBase, function(text){
+    found.node.name = /\.json$/i.test(text) ? text : text + '.json';
+    refreshDbView();
+  });
+}
+function deleteDocFromMenu(){
+  var id = docMenuTargetId;
+  closeDocMenu();
+  var found = findDbEntry(dbTree, id, null);
+  if (!found) return;
+  showConfirm('Удалить документ «' + found.node.name + '»?', function(){
+    found.parent.children = found.parent.children.filter(function(c){ return c.id !== id; });
+    if (dbSelectedId === id) dbSelectedId = null;
+    refreshDbView();
+  });
+}
+
+// -- Общая модалка однострочного текстового ввода (новая папка/подпапка,
+// переименование, имя сохраняемого документа) -- параметризуется вызовом,
+// колбэк получает уже обрезанный непустой текст.
+var textInputModalCallback = null;
+function openTextInputModal(title, placeholder, confirmLabel, defaultValue, onConfirm){
+  document.getElementById('textInputModalTitle').textContent = title;
+  var input = document.getElementById('textInputModalInput');
+  input.placeholder = placeholder || '';
+  input.value = defaultValue || '';
+  document.getElementById('textInputModalConfirmBtn').textContent = confirmLabel || 'Создать';
+  textInputModalCallback = onConfirm;
+  document.getElementById('textInputModal').style.display = 'flex';
+  setTimeout(function(){ input.focus(); input.select(); }, 0);
+}
+function closeTextInputModal(){
+  document.getElementById('textInputModal').style.display = 'none';
+  textInputModalCallback = null;
+}
+function confirmTextInputModal(){
+  var input = document.getElementById('textInputModalInput');
+  var text = input.value.trim();
+  if (!text) { input.focus(); return; }
+  var cb = textInputModalCallback;
+  closeTextInputModal();
+  if (cb) cb(text);
+}
+
 // Раньше здесь были два встроенных, вручную оформленных в Word варианта
 // ("otchet"/"zaklyuchenie") -- убраны по просьбе пользователя, титульный
 // лист теперь заводится только как пользовательский вариант (кнопка
@@ -1395,8 +2116,9 @@ function renderZone(container, zoneTokens){
     hint.textContent = container === document.getElementById('formulaCanvas') ? 'нажмите на кнопку ниже, чтобы добавить' : 'пусто';
     container.appendChild(hint);
   }
+  var els = zoneTokens.map(renderFormulaToken);
   zoneTokens.forEach(function(t, i){
-    var el = renderFormulaToken(t);
+    var el = els[i];
     // Левая половина токена -- курсор ПЕРЕД ним, правая -- ПОСЛЕ. Именно
     // этот клик (а не клик по контейнеру-области) определяет точную
     // позицию вставки внутри последовательности, а не только саму область.
@@ -1409,6 +2131,70 @@ function renderZone(container, zoneTokens){
     container.appendChild(el);
     if (cursorIndex === i + 1) container.appendChild(makeFormulaCaret());
   });
+  stretchBracketPairs(container, zoneTokens, els);
+}
+// Пара "(" / ")" внутри ОДНОЙ области, обрамляющая что-то выше обычной
+// строки (в первую очередь -- дробь), растягивается под эту высоту --
+// зеркалит _ParenGlyph/_build_zone_widgets() реального редактора (см. их
+// докстринги в src/ui/formula_editor_dialog.py): плоский текстовый "("/")"
+// не масштабируется вместе с высокой дробью и визуально не "обнимает" её,
+// как в математической записи. Второй проход, ПОСЛЕ того как все токены
+// пары уже реально в DOM -- их высоту (в т.ч. у дроби, собранной из
+// num/bar/den) можно измерить только так, offsetHeight элемента, ещё не
+// вставленного в документ, всегда 0.
+function matchBracketPairs(zoneTokens){
+  var pairs = [];
+  var stack = [];
+  zoneTokens.forEach(function(t, i){
+    if (t.type !== 'op') return;
+    if (t.value === '(') stack.push(i);
+    else if (t.value === ')' && stack.length) pairs.push([stack.pop(), i]);
+  });
+  return pairs;
+}
+function measurePlainOpHeight(){
+  var probe = document.createElement('span');
+  probe.className = 'formula-token formula-token-op';
+  probe.textContent = '(';
+  probe.style.cssText = 'visibility:hidden;position:absolute;';
+  document.body.appendChild(probe);
+  var h = probe.offsetHeight;
+  document.body.removeChild(probe);
+  return h;
+}
+function stretchBracketPairs(container, zoneTokens, els){
+  var plainH = measurePlainOpHeight();
+  matchBracketPairs(zoneTokens).forEach(function(pair){
+    var openI = pair[0], closeI = pair[1];
+    var innerMax = 0;
+    for (var i = openI + 1; i < closeI; i++) innerMax = Math.max(innerMax, els[i].offsetHeight || 0);
+    if (innerMax <= plainH + 4) return; // ничего выше обычного текста внутри -- плоские скобки и так подходят
+    [openI, closeI].forEach(function(i){
+      var glyph = makeParenGlyph(zoneTokens[i].value, innerMax);
+      glyph.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        var rect = glyph.getBoundingClientRect();
+        var before = (ev.clientX - rect.left) < rect.width / 2;
+        setCursor(zoneTokens, before ? i : i + 1);
+      });
+      container.replaceChild(glyph, els[i]);
+      els[i] = glyph;
+    });
+  });
+}
+// Кривая через кубическую Безье, растянутая на нужную высоту -- то же, что
+// QPainterPath в _ParenGlyph.paintEvent() (простое увеличение font-size
+// глифа "(" большинства шрифтов на такой высоте выглядит непропорционально
+// толстым/разорванным).
+function makeParenGlyph(kind, height){
+  var h = Math.max(height, 16), w = Math.max(9, Math.round(h * 0.3));
+  var d = kind === '('
+    ? 'M' + (w * 0.8) + ' 2C' + (w * 0.05) + ' ' + (h * 0.22) + ' ' + (w * 0.05) + ' ' + (h * 0.78) + ' ' + (w * 0.8) + ' ' + (h - 2)
+    : 'M' + (w * 0.2) + ' 2C' + (w * 0.95) + ' ' + (h * 0.22) + ' ' + (w * 0.95) + ' ' + (h * 0.78) + ' ' + (w * 0.2) + ' ' + (h - 2);
+  var span = document.createElement('span');
+  span.style.cssText = 'display:inline-flex;align-items:center;cursor:pointer;flex-shrink:0;';
+  span.innerHTML = '<svg width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" aria-hidden="true"><path d="' + d + '" fill="none" stroke="#8e8e93" stroke-width="1.6" stroke-linecap="round"/></svg>';
+  return span;
 }
 // Мигающая вертикальная черта -- визуальный курсор вставки (formula-caret
 // в <style>). Рисуется ЗАНОВО при каждой перерисовке канвы ровно в одном
@@ -1616,6 +2402,10 @@ document.addEventListener('click', function(ev){
   if (cm.style.display === 'block' && !cm.contains(ev.target)) { closeChipMenu(); }
   var fpm = document.getElementById('formulaPlaceholderMenu');
   if (fpm && fpm.style.display === 'block' && !fpm.contains(ev.target)) { fpm.style.display = 'none'; }
+  var fm = document.getElementById('folderMenu');
+  if (fm.style.display === 'block' && !fm.contains(ev.target)) { closeFolderMenu(); }
+  var dm = document.getElementById('docMenu');
+  if (dm.style.display === 'block' && !dm.contains(ev.target)) { closeDocMenu(); }
 });
 
 // -- Живой пересчёт вычисляемых полей -- любой ввод в ЛЮБОМ текстовом поле

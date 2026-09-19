@@ -137,3 +137,14 @@ def get_all_title_variants(path: Path = TITLE_VARIANTS_FILE) -> Dict[str, TitleC
             document_title=variant.document_title, subtitle_fields=variant.subtitle_fields,
         )
     return variants
+
+
+# Единые имена, одинаковые во всех *_variants_store.py (title/intro/appendix)
+# -- src/ui/main_window.py выбирает нужный модуль через _slot_store(slot) и
+# дальше зовёт load_variants()/save_variants()/get_all_variants() не зная,
+# какой это слот: без этих алиасов пришлось бы на каждом вызове отдельно
+# решать, load_title_variants или load_intro_variants (или load_appendix_variants)
+# вызвать -- ровно то дублирование, которое этот приём убирает.
+load_variants = load_title_variants
+save_variants = save_title_variants
+get_all_variants = get_all_title_variants

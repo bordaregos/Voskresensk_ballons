@@ -349,3 +349,26 @@ def generate_intro_fragment(variant: TitleVariant, output_path: Union[str, Path]
     output_path.parent.mkdir(parents=True, exist_ok=True)
     doc.save(str(output_path))
     return output_path
+
+
+def generate_appendix_fragment(variant: TitleVariant, output_path: Union[str, Path]) -> Path:
+    """.docx-заготовка ОДНОГО пользовательского варианта «Приложения 1»
+    конструктора документов -- третий, независимый от титульного листа и
+    вводной части слот (см. src/ui/main_window.py). Структурно калька
+    generate_intro_fragment() (тот же принцип: без add_page_border()/
+    add_organization_letterhead(), плейсхолдеры с префиксом слота), только
+    под свой префикс "appendix1_" -- по той же причине, что и у "intro_" в
+    generate_intro_fragment(): общий каталог полей (TITLE_FIELD_LABELS) на
+    все слоты, префикс нужен, чтобы одинаковый field_id, вставленный сразу
+    в несколько слотов, не делил один и тот же self.<field_id> на несколько
+    разных виджетов реквизитов (см. docstring generate_intro_fragment())."""
+    doc = Document()
+    add_title(doc, TitleConfig(
+        document_title=variant.document_title,
+        subtitle_fields=[f"appendix1_{field_id}" for field_id in variant.subtitle_fields],
+    ))
+
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    doc.save(str(output_path))
+    return output_path
