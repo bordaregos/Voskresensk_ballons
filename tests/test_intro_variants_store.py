@@ -74,3 +74,15 @@ def test_intro_and_title_variants_stored_independently(tmp_path):
 
     assert [v.id for v in load_title_variants(title_path)] == ["t-1"]
     assert [v.id for v in load_intro_variants(intro_path)] == ["i-1"]
+
+
+def test_load_variants_save_variants_get_all_variants_aliases_match():
+    # _slot_store(slot).load_variants()/save_variants()/get_all_variants()
+    # (src/ui/main_window.py) полагаются на то, что эти алиасы -- буквально
+    # те же функции, что и load_intro_variants()/save_intro_variants()/
+    # get_all_intro_variants(), а не копии с похожим поведением.
+    from src.services import intro_variants_store as store
+
+    assert store.load_variants is load_intro_variants
+    assert store.save_variants is save_intro_variants
+    assert store.get_all_variants is get_all_intro_variants

@@ -475,17 +475,17 @@ class FileHandler:
 
         if equipment_type_id == "constructor":
             # Включённый блок слота (карточка в included_list -- title/
-            # intro-вариант, перетащенный из сайдбара) нигде в form_data не
-            # лежит -- сами реквизиты (PLAIN_TEXT_EDIT_NAMES) регистрируются
-            # динамически только пока блок включён (см.
+            # intro/appendix1-вариант, перетащенный из сайдбара) нигде в
+            # form_data не лежит -- сами реквизиты (PLAIN_TEXT_EDIT_NAMES)
+            # регистрируются динамически только пока блок включён (см.
             # MainWindow._render_slot_fields()), но САМ выбор варианта
             # для каждого слота без этого терялся бы при «Открыть проект»
             # -- includedBlockList возвращался бы в пустое состояние,
             # значения реквизитов было бы некуда класть (виджеты под них ещё
             # не созданы), см. _fill_ui_from_project()/
             # MainWindow._restore_included_variant().
-            form_data["_included_title_variant_id"] = self.main_window._filled_slot_variant("title")
-            form_data["_included_intro_variant_id"] = self.main_window._filled_slot_variant("intro")
+            for slot in self.main_window._CONSTRUCTOR_SLOTS:
+                form_data[f"_included_{slot}_variant_id"] = self.main_window._filled_slot_variant(slot)
 
         if equipment_type_id != "balloon":
             # Для не-баллонных типов таблицы уже внутри form_data (см.
@@ -524,14 +524,15 @@ class FileHandler:
         from PyQt6.QtCore import QDate, QLocale
 
         if self.main_window.equipment_type.id == "constructor":
-            # Включённые блоки (title/intro) -- ПЕРЕД генеричным циклом ниже:
+            # Включённые блоки (по всем слотам, title/intro/appendix1) --
+            # ПЕРЕД генеричным циклом ниже:
             # он раскладывает значения реквизитов по getattr(main_window,
             # key), а виджеты под эти реквизиты создаются только вместе с
             # включением блока (см. _create_project()/
             # MainWindow._restore_included_variant()) -- без восстановления
             # блока сейчас у сохранённых значений реквизитов просто не было
             # бы виджета-получателя.
-            for slot in ("title", "intro"):
+            for slot in self.main_window._CONSTRUCTOR_SLOTS:
                 variant_id = project.report_data.get(f"_included_{slot}_variant_id")
                 if variant_id:
                     self.main_window._restore_included_variant(slot, variant_id)

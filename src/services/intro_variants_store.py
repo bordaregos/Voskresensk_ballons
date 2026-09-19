@@ -61,3 +61,9 @@ def get_all_intro_variants(path: Path = INTRO_VARIANTS_FILE) -> Dict[str, TitleC
             document_title=variant.document_title, subtitle_fields=variant.subtitle_fields,
         )
     return variants
+
+
+# Единые имена -- см. их докстринг в title_variants_store.py.
+load_variants = load_intro_variants
+save_variants = save_intro_variants
+get_all_variants = get_all_intro_variants

@@ -697,3 +697,16 @@ INTRO_VARIANTS: Dict[str, TitleConfig] = {}
 # для обоих слотов -- см. src/services/title_variants_store.py,
 # get_all_field_labels().
 DEFAULT_INTRO_SUBTITLE_FIELDS: list = []
+
+# Третий, независимый слот конструктора -- «Приложение 1» (то самое "Phase 2"
+# из старого комментария у TITLE_VARIANTS выше, реализованное по аналогии с
+# INTRO_VARIANTS: свободные пункты, заводимые вручную, а не фиксированные
+# реквизиты отчёта). Встроенных вариантов нет (as-is с самого начала, в
+# отличие от title/intro, у которых их когда-то было по паре и убрали) --
+# каждый вариант заводится через UI (кнопка «Добавить» в группе
+# «Приложение 1» сайдбара конструктора).
+APPENDIX_VARIANTS: Dict[str, TitleConfig] = {}
+
+# Тот же принцип, что и у DEFAULT_INTRO_SUBTITLE_FIELDS -- пустой список,
+# каждый пункт приложения заводится вручную через «+ Новое поле».
+DEFAULT_APPENDIX_SUBTITLE_FIELDS: list = []

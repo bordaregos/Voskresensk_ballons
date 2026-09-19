@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src.config import FRAGMENTS_DIR, TEMPLATES_DIR
 from src.organization_config import DEFAULT_ORGANIZATION
 from src.services.template_generator import generate_template
-from src.services.template_schema import INTRO_VARIANTS, SCHEMAS, TITLE_VARIANTS, ReportSchema
+from src.services.template_schema import APPENDIX_VARIANTS, INTRO_VARIANTS, SCHEMAS, TITLE_VARIANTS, ReportSchema
 from src.services.template_validator import ValidationReport, validate_template
 
 _DEFAULT_TEMPLATE_NAMES = {
@@ -114,6 +114,28 @@ def cmd_generate_intro(args: argparse.Namespace) -> int:
     return 0 if report.ok else 1
 
 
+def cmd_generate_appendix(args: argparse.Namespace) -> int:
+    """Заготовка одного варианта «Приложения 1» конструктора документов --
+    та же логика, что и cmd_generate_intro(), только под третий,
+    независимый реестр (APPENDIX_VARIANTS) и свой префикс файла фрагмента."""
+    if args.variant not in APPENDIX_VARIANTS:
+        print(
+            f"Неизвестный вариант: {args.variant!r}. Доступные: {', '.join(sorted(APPENDIX_VARIANTS))}",
+            file=sys.stderr,
+        )
+        return 1
+
+    schema = ReportSchema(equipment_type_id="constructor", title=APPENDIX_VARIANTS[args.variant], sections=())
+    out_path = Path(args.out) if args.out else FRAGMENTS_DIR / f"appendix1_{args.variant}.docx"
+    path = generate_template("constructor", DEFAULT_ORGANIZATION, out_path, schema=schema)
+    print(f"Шаблон сохранён: {path}")
+    print("Это заготовка -- доработайте вёрстку/формулировки в Word, повторно не перегенерируется.\n")
+
+    report = validate_template(path, schema)
+    _print_report(report)
+    return 0 if report.ok else 1
+
+
 def cmd_validate(args: argparse.Namespace) -> int:
     if not _require_known_type(args.equipment_type):
         return 1
@@ -146,6 +168,13 @@ def main() -> None:
     gen_intro.add_argument("variant", help=f"Вариант вводной части ({', '.join(sorted(INTRO_VARIANTS))})")
     gen_intro.add_argument("--out", default=None, help="Путь сохранения (по умолчанию — templates/fragments/)")
     gen_intro.set_defaults(func=cmd_generate_intro)
+
+    gen_appendix = subparsers.add_parser(
+        "generate-appendix", help="Сгенерировать заготовку варианта приложения 1 конструктора"
+    )
+    gen_appendix.add_argument("variant", help=f"Вариант приложения 1 ({', '.join(sorted(APPENDIX_VARIANTS))})")
+    gen_appendix.add_argument("--out", default=None, help="Путь сохранения (по умолчанию — templates/fragments/)")
+    gen_appendix.set_defaults(func=cmd_generate_appendix)
 
     val = subparsers.add_parser("validate", help="Проверить .docx на соответствие схеме")
     val.add_argument("docx_path", help="Путь к .docx-файлу")

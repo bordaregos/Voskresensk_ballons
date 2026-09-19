@@ -190,3 +190,15 @@ def test_save_title_variants_does_not_clobber_field_formulas(tmp_path):
     save_title_variants([TitleVariant(id="custom-1", document_title="Акт осмотра")], path)
 
     assert load_field_formulas(path) == {"field_1": {"tokens": [], "decimals": 1}}
+
+
+def test_load_variants_save_variants_get_all_variants_aliases_match():
+    # _slot_store(slot).load_variants()/save_variants()/get_all_variants()
+    # (src/ui/main_window.py) полагаются на то, что эти алиасы -- буквально
+    # те же функции, что и load_title_variants()/save_title_variants()/
+    # get_all_title_variants(), а не копии с похожим поведением.
+    from src.services import title_variants_store as store
+
+    assert store.load_variants is load_title_variants
+    assert store.save_variants is save_title_variants
+    assert store.get_all_variants is get_all_title_variants

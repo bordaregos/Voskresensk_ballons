@@ -395,7 +395,12 @@
        клик по области делает её активной (подсвечивается рамкой,
        formula-zone-active), кнопки тулбара добавляют элемент В КОНЕЦ
        активной области -- вставка «Дробь» сразу переключает активную
-       область на новый (пустой) числитель, как в редакторе формул Word. -->
+       область на новый (пустой) числитель, как в редакторе формул Word.
+
+       Пара "(" / ")" вокруг дроби -- растянутая кривая (см.
+       stretchBracketPairs()/makeParenGlyph() в <script>), а не плоский
+       текстовый символ, зеркалит _ParenGlyph реального редактора формул
+       (src/ui/formula_editor_dialog.py). -->
   <div id="formulaModal" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.55);align-items:center;justify-content:center;z-index:30;">
     <div style="background:#2c2c2e;border:0.5px solid #48484a;border-radius:10px;padding:18px;width:420px;max-width:calc(100vw - 40px);">
       <div style="font-size:13px;font-weight:500;color:#e5e5e7;margin-bottom:2px;">Редактор формул</div>
@@ -2111,8 +2116,9 @@ function renderZone(container, zoneTokens){
     hint.textContent = container === document.getElementById('formulaCanvas') ? 'нажмите на кнопку ниже, чтобы добавить' : 'пусто';
     container.appendChild(hint);
   }
+  var els = zoneTokens.map(renderFormulaToken);
   zoneTokens.forEach(function(t, i){
-    var el = renderFormulaToken(t);
+    var el = els[i];
     // Левая половина токена -- курсор ПЕРЕД ним, правая -- ПОСЛЕ. Именно
     // этот клик (а не клик по контейнеру-области) определяет точную
     // позицию вставки внутри последовательности, а не только саму область.
@@ -2125,6 +2131,70 @@ function renderZone(container, zoneTokens){
     container.appendChild(el);
     if (cursorIndex === i + 1) container.appendChild(makeFormulaCaret());
   });
+  stretchBracketPairs(container, zoneTokens, els);
+}
+// Пара "(" / ")" внутри ОДНОЙ области, обрамляющая что-то выше обычной
+// строки (в первую очередь -- дробь), растягивается под эту высоту --
+// зеркалит _ParenGlyph/_build_zone_widgets() реального редактора (см. их
+// докстринги в src/ui/formula_editor_dialog.py): плоский текстовый "("/")"
+// не масштабируется вместе с высокой дробью и визуально не "обнимает" её,
+// как в математической записи. Второй проход, ПОСЛЕ того как все токены
+// пары уже реально в DOM -- их высоту (в т.ч. у дроби, собранной из
+// num/bar/den) можно измерить только так, offsetHeight элемента, ещё не
+// вставленного в документ, всегда 0.
+function matchBracketPairs(zoneTokens){
+  var pairs = [];
+  var stack = [];
+  zoneTokens.forEach(function(t, i){
+    if (t.type !== 'op') return;
+    if (t.value === '(') stack.push(i);
+    else if (t.value === ')' && stack.length) pairs.push([stack.pop(), i]);
+  });
+  return pairs;
+}
+function measurePlainOpHeight(){
+  var probe = document.createElement('span');
+  probe.className = 'formula-token formula-token-op';
+  probe.textContent = '(';
+  probe.style.cssText = 'visibility:hidden;position:absolute;';
+  document.body.appendChild(probe);
+  var h = probe.offsetHeight;
+  document.body.removeChild(probe);
+  return h;
+}
+function stretchBracketPairs(container, zoneTokens, els){
+  var plainH = measurePlainOpHeight();
+  matchBracketPairs(zoneTokens).forEach(function(pair){
+    var openI = pair[0], closeI = pair[1];
+    var innerMax = 0;
+    for (var i = openI + 1; i < closeI; i++) innerMax = Math.max(innerMax, els[i].offsetHeight || 0);
+    if (innerMax <= plainH + 4) return; // ничего выше обычного текста внутри -- плоские скобки и так подходят
+    [openI, closeI].forEach(function(i){
+      var glyph = makeParenGlyph(zoneTokens[i].value, innerMax);
+      glyph.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        var rect = glyph.getBoundingClientRect();
+        var before = (ev.clientX - rect.left) < rect.width / 2;
+        setCursor(zoneTokens, before ? i : i + 1);
+      });
+      container.replaceChild(glyph, els[i]);
+      els[i] = glyph;
+    });
+  });
+}
+// Кривая через кубическую Безье, растянутая на нужную высоту -- то же, что
+// QPainterPath в _ParenGlyph.paintEvent() (простое увеличение font-size
+// глифа "(" большинства шрифтов на такой высоте выглядит непропорционально
+// толстым/разорванным).
+function makeParenGlyph(kind, height){
+  var h = Math.max(height, 16), w = Math.max(9, Math.round(h * 0.3));
+  var d = kind === '('
+    ? 'M' + (w * 0.8) + ' 2C' + (w * 0.05) + ' ' + (h * 0.22) + ' ' + (w * 0.05) + ' ' + (h * 0.78) + ' ' + (w * 0.8) + ' ' + (h - 2)
+    : 'M' + (w * 0.2) + ' 2C' + (w * 0.95) + ' ' + (h * 0.22) + ' ' + (w * 0.95) + ' ' + (h * 0.78) + ' ' + (w * 0.2) + ' ' + (h - 2);
+  var span = document.createElement('span');
+  span.style.cssText = 'display:inline-flex;align-items:center;cursor:pointer;flex-shrink:0;';
+  span.innerHTML = '<svg width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" aria-hidden="true"><path d="' + d + '" fill="none" stroke="#8e8e93" stroke-width="1.6" stroke-linecap="round"/></svg>';
+  return span;
 }
 // Мигающая вертикальная черта -- визуальный курсор вставки (formula-caret
 // в <style>). Рисуется ЗАНОВО при каждой перерисовке канвы ровно в одном

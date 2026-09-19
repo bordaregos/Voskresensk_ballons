@@ -8,7 +8,9 @@ from docx.text.paragraph import Paragraph
 
 from src.models.title_variant import TitleVariant
 from src.organization_config import DEFAULT_ORGANIZATION
-from src.services.template_generator import generate_intro_fragment, generate_template, generate_title_fragment
+from src.services.template_generator import (
+    generate_appendix_fragment, generate_intro_fragment, generate_template, generate_title_fragment,
+)
 from src.services.template_schema import (
     FieldsTableSection,
     RepeatingTableSection,
@@ -306,5 +308,44 @@ def test_generate_intro_fragment_has_no_organization_letterhead(tmp_path):
 def test_generate_intro_fragment_creates_parent_directory(tmp_path):
     variant = TitleVariant(id="custom-1", document_title="Вводная часть")
     path = generate_intro_fragment(variant, tmp_path / "nested" / "intro_custom-1.docx")
+
+    assert path.exists()
+
+
+# -- generate_appendix_fragment() -- конструктор документов, третий,
+# независимый от титульного листа и вводной части слот «Приложение 1» -----
+
+
+def test_generate_appendix_fragment_writes_subtitle_fields_as_placeholders(tmp_path):
+    # Префикс "appendix1_" -- та же причина, что и у "intro_" в
+    # generate_intro_fragment(): общий с остальными слотами каталог полей,
+    # префикс нужен, чтобы одинаковый field_id не делил self.<field_id> на
+    # несколько разных виджетов реквизитов.
+    variant = TitleVariant(id="custom-1", document_title="Приложение 1", subtitle_fields=["field_1"])
+    path = generate_appendix_fragment(variant, tmp_path / "appendix1_custom-1.docx")
+    doc = Document(str(path))
+
+    idx = _heading_index(doc, "Приложение 1")
+    assert doc.paragraphs[idx + 1].text == "{{ appendix1_field_1 }}"
+
+
+def test_generate_appendix_fragment_has_no_organization_letterhead(tmp_path):
+    # Как и вводная часть -- не первая страница документа, шапку организации
+    # и рамку страницы печатает только титульный фрагмент (см. докстринг
+    # generate_appendix_fragment()).
+    variant = TitleVariant(id="custom-1", document_title="Приложение 1")
+    path = generate_appendix_fragment(variant, tmp_path / "appendix1_custom-1.docx")
+    doc = Document(str(path))
+    full_text = "\n".join(p.text for p in doc.paragraphs)
+
+    assert DEFAULT_ORGANIZATION.full_name not in full_text
+
+    sectPr = doc.sections[0]._sectPr
+    assert sectPr.find(qn('w:pgBorders')) is None
+
+
+def test_generate_appendix_fragment_creates_parent_directory(tmp_path):
+    variant = TitleVariant(id="custom-1", document_title="Приложение 1")
+    path = generate_appendix_fragment(variant, tmp_path / "nested" / "appendix1_custom-1.docx")
 
     assert path.exists()

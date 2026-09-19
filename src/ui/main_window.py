@@ -72,27 +72,31 @@ CONSTRUCTOR_QSS = """
 QMainWindow, #constructorCentral { background: #1c1c1e; }
 #constructorSidebar { background: #242426; border-right: 0.5px solid #38383a; }
 #constructorSidebar QLabel { color: #8e8e93; font-size: 11px; }
-#titleGroupToggle, #introGroupToggle {
+#titleGroupToggle, #introGroupToggle, #appendix1GroupToggle {
     background: transparent; border: none; color: #e5e5e7; font-size: 12px;
     font-weight: 500; text-align: left; padding: 6px; border-radius: 5px;
 }
-#titleGroupToggle:hover, #introGroupToggle:hover { background: #2c2c2e; }
-#addTitleVariantBtn, #addIntroVariantBtn {
+#titleGroupToggle:hover, #introGroupToggle:hover, #appendix1GroupToggle:hover { background: #2c2c2e; }
+#addTitleVariantBtn, #addIntroVariantBtn, #addAppendix1VariantBtn {
     background: transparent; border: 0.5px dashed #48484a; border-radius: 7px;
     color: #8e8e93; font-size: 11.5px; text-align: left; padding: 7px 9px;
     margin: 2px 0;
 }
-#addTitleVariantBtn:hover, #addIntroVariantBtn:hover { border-color: #0a84ff; color: #e5e5e7; }
-#appendicesSoonLabel { color: #5a5a5c; font-size: 11.5px; }
-QListWidget#availableBlocksList, QListWidget#availableIntroBlocksList {
+#addTitleVariantBtn:hover, #addIntroVariantBtn:hover, #addAppendix1VariantBtn:hover {
+    border-color: #0a84ff; color: #e5e5e7;
+}
+QListWidget#availableBlocksList, QListWidget#availableIntroBlocksList, QListWidget#availableAppendix1BlocksList {
     background: transparent; border: none; outline: none; font-size: 11.5px;
 }
-QListWidget#availableBlocksList::item, QListWidget#availableIntroBlocksList::item {
+QListWidget#availableBlocksList::item, QListWidget#availableIntroBlocksList::item,
+QListWidget#availableAppendix1BlocksList::item {
     background: #2c2c2e; border: 0.5px solid #38383a; border-radius: 7px;
     padding: 5px 8px; margin: 2px 0; color: #e5e5e7;
 }
-QListWidget#availableBlocksList::item:hover, QListWidget#availableIntroBlocksList::item:hover { border-color: #0a84ff; }
-QListWidget#availableBlocksList::item:selected, QListWidget#availableIntroBlocksList::item:selected { background: #2c2c2e; }
+QListWidget#availableBlocksList::item:hover, QListWidget#availableIntroBlocksList::item:hover,
+QListWidget#availableAppendix1BlocksList::item:hover { border-color: #0a84ff; }
+QListWidget#availableBlocksList::item:selected, QListWidget#availableIntroBlocksList::item:selected,
+QListWidget#availableAppendix1BlocksList::item:selected { background: #2c2c2e; }
 /* Карточка варианта, включённого в документ сейчас (см.
    _highlight_available_block_items()) -- тот же стиль, что и у чипа
    плейсхолдера в реквизитах (QLabel[titleChip="true"] ниже), просто
@@ -106,55 +110,74 @@ QLabel#crumbLabel {
     border-bottom: 0.5px solid #2c2c2e;
 }
 QLabel#documentSectionLabel { color: #8e8e93; font-size: 11px; }
-QListWidget#includedBlockList, QListWidget#includedIntroBlockList { background: transparent; outline: none; border: none; }
-QListWidget#includedBlockList[filled="false"], QListWidget#includedIntroBlockList[filled="false"] {
+QListWidget#includedBlockList, QListWidget#includedIntroBlockList, QListWidget#includedAppendix1BlockList {
+    background: transparent; outline: none; border: none;
+}
+QListWidget#includedBlockList[filled="false"], QListWidget#includedIntroBlockList[filled="false"],
+QListWidget#includedAppendix1BlockList[filled="false"] {
     border: 1.5px dashed #38383a; border-radius: 8px;
 }
-QListWidget#includedBlockList[filled="true"]::item, QListWidget#includedIntroBlockList[filled="true"]::item {
+QListWidget#includedBlockList[filled="true"]::item, QListWidget#includedIntroBlockList[filled="true"]::item,
+QListWidget#includedAppendix1BlockList[filled="true"]::item {
     background: #2c2c2e; border-radius: 8px; padding: 0; margin: 0;
 }
-QListWidget#includedBlockList[dragOver="true"], QListWidget#includedIntroBlockList[dragOver="true"] {
+QListWidget#includedBlockList[dragOver="true"], QListWidget#includedIntroBlockList[dragOver="true"],
+QListWidget#includedAppendix1BlockList[dragOver="true"] {
     border: 1.5px dashed #0a84ff; border-radius: 8px; background: rgba(10, 132, 255, 24);
 }
-QGroupBox#fieldsPanel, QGroupBox#introFieldsPanel {
+QGroupBox#fieldsPanel, QGroupBox#introFieldsPanel, QGroupBox#appendix1FieldsPanel {
     border: none; margin-top: 14px; padding-top: 0;
 }
-QFrame#slotSeparator { background: #545456; margin-top: 20px; margin-bottom: 12px; border-radius: 1px; }
-QGroupBox#fieldsPanel QLabel, QGroupBox#introFieldsPanel QLabel { color: #c7c7cc; font-size: 12px; }
-QGroupBox#fieldsPanel QLabel#titleFieldsSectionLabel, QGroupBox#introFieldsPanel QLabel#titleFieldsSectionLabel {
+QFrame#slotSeparator, QFrame#slotSeparator2 {
+    background: #545456; margin-top: 20px; margin-bottom: 12px; border-radius: 1px;
+}
+QGroupBox#fieldsPanel QLabel, QGroupBox#introFieldsPanel QLabel, QGroupBox#appendix1FieldsPanel QLabel {
+    color: #c7c7cc; font-size: 12px;
+}
+QGroupBox#fieldsPanel QLabel#titleFieldsSectionLabel, QGroupBox#introFieldsPanel QLabel#titleFieldsSectionLabel,
+QGroupBox#appendix1FieldsPanel QLabel#titleFieldsSectionLabel {
     color: #8e8e93; font-size: 11px; margin-top: 4px;
 }
-QGroupBox#fieldsPanel QPlainTextEdit, QGroupBox#introFieldsPanel QPlainTextEdit {
+QGroupBox#fieldsPanel QPlainTextEdit, QGroupBox#introFieldsPanel QPlainTextEdit,
+QGroupBox#appendix1FieldsPanel QPlainTextEdit {
     background: #2c2c2e; border: 0.5px solid #38383a; border-radius: 5px;
     color: #e5e5e7; font-size: 12px; padding: 6px 8px;
 }
-QGroupBox#fieldsPanel QPlainTextEdit:focus, QGroupBox#introFieldsPanel QPlainTextEdit:focus { border-color: #0a84ff; }
-QGroupBox#fieldsPanel QToolButton, QGroupBox#introFieldsPanel QToolButton {
+QGroupBox#fieldsPanel QPlainTextEdit:focus, QGroupBox#introFieldsPanel QPlainTextEdit:focus,
+QGroupBox#appendix1FieldsPanel QPlainTextEdit:focus { border-color: #0a84ff; }
+QGroupBox#fieldsPanel QToolButton, QGroupBox#introFieldsPanel QToolButton, QGroupBox#appendix1FieldsPanel QToolButton {
     background: transparent; border: none; color: #c7c7cc; font-size: 11.5px;
     padding: 4px 8px; border-radius: 5px;
 }
-QGroupBox#fieldsPanel QToolButton:hover, QGroupBox#introFieldsPanel QToolButton:hover { background: #3a3a3c; color: #e5e5e7; }
-QGroupBox#fieldsPanel QToolButton::menu-indicator, QGroupBox#introFieldsPanel QToolButton::menu-indicator {
+QGroupBox#fieldsPanel QToolButton:hover, QGroupBox#introFieldsPanel QToolButton:hover,
+QGroupBox#appendix1FieldsPanel QToolButton:hover { background: #3a3a3c; color: #e5e5e7; }
+QGroupBox#fieldsPanel QToolButton::menu-indicator, QGroupBox#introFieldsPanel QToolButton::menu-indicator,
+QGroupBox#appendix1FieldsPanel QToolButton::menu-indicator {
     width: 8px; height: 8px; subcontrol-position: right center;
     subcontrol-origin: padding; right: 4px;
 }
-QGroupBox#fieldsPanel QLabel[titleChip="true"], QGroupBox#introFieldsPanel QLabel[titleChip="true"] {
+QGroupBox#fieldsPanel QLabel[titleChip="true"], QGroupBox#introFieldsPanel QLabel[titleChip="true"],
+QGroupBox#appendix1FieldsPanel QLabel[titleChip="true"] {
     background: rgba(10, 132, 255, 40); color: #5ab4ff;
     border: 1px solid rgba(10, 132, 255, 110); border-radius: 6px;
     padding: 4px 9px; font-size: 11.5px;
 }
-QGroupBox#fieldsPanel QLabel[titleChipCopied="true"], QGroupBox#introFieldsPanel QLabel[titleChipCopied="true"] {
+QGroupBox#fieldsPanel QLabel[titleChipCopied="true"], QGroupBox#introFieldsPanel QLabel[titleChipCopied="true"],
+QGroupBox#appendix1FieldsPanel QLabel[titleChipCopied="true"] {
     background: rgba(48, 209, 88, 40); color: #30d158;
     border: 1px solid rgba(48, 209, 88, 140);
 }
-QGroupBox#fieldsPanel QLabel[chipDragOver="true"], QGroupBox#introFieldsPanel QLabel[chipDragOver="true"] {
+QGroupBox#fieldsPanel QLabel[chipDragOver="true"], QGroupBox#introFieldsPanel QLabel[chipDragOver="true"],
+QGroupBox#appendix1FieldsPanel QLabel[chipDragOver="true"] {
     border: 1.5px dashed #0a84ff; background: rgba(10, 132, 255, 70);
 }
-QGroupBox#fieldsPanel QLabel[titleChipFormula="true"], QGroupBox#introFieldsPanel QLabel[titleChipFormula="true"] {
+QGroupBox#fieldsPanel QLabel[titleChipFormula="true"], QGroupBox#introFieldsPanel QLabel[titleChipFormula="true"],
+QGroupBox#appendix1FieldsPanel QLabel[titleChipFormula="true"] {
     background: rgba(191, 90, 242, 40); color: #d29dfa;
     border: 1px solid rgba(191, 90, 242, 140);
 }
-QGroupBox#fieldsPanel QPlainTextEdit[computed="true"], QGroupBox#introFieldsPanel QPlainTextEdit[computed="true"] {
+QGroupBox#fieldsPanel QPlainTextEdit[computed="true"], QGroupBox#introFieldsPanel QPlainTextEdit[computed="true"],
+QGroupBox#appendix1FieldsPanel QPlainTextEdit[computed="true"] {
     background: rgba(191, 90, 242, 24); border-color: rgba(191, 90, 242, 140); color: #d29dfa;
 }
 QWidget#titleTemplateDropHint {
@@ -486,14 +509,14 @@ class MainWindow(QMainWindow):
             # подключена к self.calculate выше (общая кнопка для всех
             # типов) -- она же и «Собрать документ» для конструктора.
             #
-            # Два независимых слота -- «Титульные листы» (title) и «Вводная
-            # часть» (intro), см. _CONSTRUCTOR_SLOTS -- оба заполняются
-            # (или нет) независимо друг от друга, у каждого свой набор
-            # виджетов сайдбара/области документа (см. .ui:
-            # available*BlocksList/add*VariantBtn/*GroupToggle/
-            # included*BlockList/*fieldsPanel). Инициализация вынесена в
-            # generic _init_constructor_slot(), вызывается один раз на
-            # каждый слот.
+            # Три независимых слота -- «Титульные листы» (title), «Вводная
+            # часть» (intro) и «Приложение 1» (appendix1), см.
+            # _CONSTRUCTOR_SLOTS -- все заполняются (или нет) независимо
+            # друг от друга, у каждого свой набор виджетов сайдбара/области
+            # документа (см. .ui: available*BlocksList/add*VariantBtn/
+            # *GroupToggle/included*BlockList/*fieldsPanel). Инициализация
+            # вынесена в generic _init_constructor_slot(), вызывается один
+            # раз на каждый слот.
             self.setStyleSheet(CONSTRUCTOR_QSS)
             self._dynamic_field_names = {slot: [] for slot in self._CONSTRUCTOR_SLOTS}
             # (slot, variant_id) пар, для которых предпросмотр уже
@@ -514,11 +537,6 @@ class MainWindow(QMainWindow):
             # документ (иначе справа осталось бы превью уже
             # несуществующего файла).
             self._database_preview_path = None
-
-            # "Приложения — скоро" -- статичная строка-заглушка (см. .ui,
-            # appendicesSoonRow), иконки выставляются один раз и не меняются.
-            self.appendicesSoonChevron.setPixmap(icons.render("chevron-right", "#5a5a5c", 13))
-            self.appendicesSoonFiles.setPixmap(icons.render("files", "#5a5a5c", 14))
 
             for slot in self._CONSTRUCTOR_SLOTS:
                 self._init_constructor_slot(slot)
@@ -581,11 +599,20 @@ class MainWindow(QMainWindow):
             self._switch_activity_view("editor")
 
     # Имена виджетов на каждый слот конструктора -- title (титульные листы,
-    # оригинальный Phase 1) и intro (вводная часть, второй независимый
-    # слот). Ключи -- логические роли, используемые везде ниже через
+    # оригинальный Phase 1), intro (вводная часть, второй независимый слот)
+    # и appendix1 (приложение 1, третий независимый слот). Ключи --
+    # логические роли, используемые везде ниже через
     # _slot_widget()/_slot_config(); сами .ui-объекты см.
     # src/ui/designer/constructor_window.ui. Порядок словаря = порядок
-    # инициализации в __init__ -- title первым, как и раньше.
+    # инициализации в __init__ и порядок в собранном документе (см.
+    # _calculate_constructor()) -- title первым, как и раньше.
+    #
+    # text_label_attr/chevron_attr -- имена Python-атрибутов (НЕ .ui-виджетов
+    # -- те динамические, создаются в _process_block_drop(), setattr(self, ...))
+    # под подпись и шеврон уже вставленного в документ блока этого слота.
+    # title исторически без "Title" в имени (оставлено как есть, слот
+    # существовал ДО того, как появилась сама концепция "слот" -- менять
+    # имя атрибута задним числом незачем), остальные слоты -- по образцу intro.
     _CONSTRUCTOR_SLOTS = {
         "title": {
             "available_list": "availableBlocksList",
@@ -597,6 +624,8 @@ class MainWindow(QMainWindow):
             "fields_layout": "titleFieldsLayout",
             "empty_hint": "Перетащите титульный лист сюда",
             "section_label": "Реквизиты титульного листа",
+            "text_label_attr": "includedBlockTextLabel",
+            "chevron_attr": "includedBlockChevron",
         },
         "intro": {
             "available_list": "availableIntroBlocksList",
@@ -608,6 +637,21 @@ class MainWindow(QMainWindow):
             "fields_layout": "introFieldsLayout",
             "empty_hint": "Перетащите вводную часть сюда",
             "section_label": "Реквизиты вводной части",
+            "text_label_attr": "includedIntroBlockTextLabel",
+            "chevron_attr": "includedIntroBlockChevron",
+        },
+        "appendix1": {
+            "available_list": "availableAppendix1BlocksList",
+            "add_btn": "addAppendix1VariantBtn",
+            "group_toggle": "appendix1GroupToggle",
+            "group_content": "appendix1GroupContent",
+            "included_list": "includedAppendix1BlockList",
+            "fields_panel": "appendix1FieldsPanel",
+            "fields_layout": "appendix1FieldsLayout",
+            "empty_hint": "Перетащите приложение 1 сюда",
+            "section_label": "Реквизиты приложения 1",
+            "text_label_attr": "includedAppendix1BlockTextLabel",
+            "chevron_attr": "includedAppendix1BlockChevron",
         },
     }
 
@@ -629,30 +673,30 @@ class MainWindow(QMainWindow):
         сменить схему значило бы молча сломать плейсхолдеры в уже
         существующих пользовательских файлах.
 
-        Для "intro" -- с префиксом "intro_". Каталог полей (get_all_field_labels())
-        общий для обоих слотов -- один и тот же field_id можно вставить и в
-        титульный лист, и во вводную часть. Без префикса оба виджета
-        реквизитов претендовали бы на один и тот же self.<field_id>
-        (setattr в _render_slot_fields()) -- виджет, созданный вторым,
-        молча перезаписывал бы атрибут первого, и значение, введённое в
-        один из них, никогда не попадало бы в форму (get_form_data() читает
-        только то, на что сейчас указывает атрибут)."""
-        return field_id if slot == "title" else f"intro_{field_id}"
+        Для остальных слотов (intro, appendix1, ...) -- с префиксом
+        "{slot}_". Каталог полей (get_all_field_labels()) общий для всех
+        слотов -- один и тот же field_id можно вставить в любой из них. Без
+        префикса виджеты реквизитов нескольких слотов претендовали бы на
+        один и тот же self.<field_id> (setattr в _render_slot_fields()) --
+        виджет, созданный позже, молча перезаписывал бы атрибут созданного
+        раньше, и значение, введённое в один из них, никогда не попадало бы
+        в форму (get_form_data() читает только то, на что сейчас указывает
+        атрибут)."""
+        return field_id if slot == "title" else f"{slot}_{field_id}"
 
     def _cross_slot_placeholder_value(self, field_id: str) -> str:
         """Значение того же field_id, уже введённое в ДРУГОМ отрисованном
         слоте -- один и тот же плейсхолдер (например, «заводской №»)
-        нередко вставлен и в титульный лист, и во вводную часть (общий
-        каталог полей, см. _slot_placeholder_name()), и вводить его дважды
-        неудобно. Разовое предзаполнение в момент создания виджета, НЕ
-        живая привязка -- дальнейшая правка в одном слоте на другой не
-        влияет (виджеты остаются независимыми QPlainTextEdit, ничего не
-        связывает их после этого вызова).
+        нередко вставлен сразу в несколько слотов (общий каталог полей, см.
+        _slot_placeholder_name()), и вводить его в каждом отдельно неудобно.
+        Разовое предзаполнение в момент создания виджета, НЕ живая привязка
+        -- дальнейшая правка в одном слоте на другие не влияет (виджеты
+        остаются независимыми QPlainTextEdit, ничего не связывает их после
+        этого вызова).
 
-        Title хранит виджет под голым field_id, intro -- под
-        f"intro_{field_id}" (см. _slot_placeholder_name()) -- проверяем
-        оба варианта имени атрибута, не зная заранее, в каком слоте
-        плейсхолдер уже заполнен.
+        Каждый слот хранит виджет под своим именем атрибута
+        (_slot_placeholder_name()) -- проверяем все варианты, не зная
+        заранее, в каком слоте плейсхолдер уже заполнен.
 
         Проверка "attr in self.PLAIN_TEXT_EDIT_NAMES" -- не просто
         getattr(self, attr, None): удаление плейсхолдера из варианта
@@ -664,7 +708,8 @@ class MainWindow(QMainWindow):
         удаляет и сам C++-объект), а вызов .toPlainText() на нём падает
         RuntimeError'ом (см. traceback при добавлении того же поля в
         другой слот после того, как его убрали откуда-то ещё)."""
-        for attr in (field_id, f"intro_{field_id}"):
+        for slot in self._CONSTRUCTOR_SLOTS:
+            attr = self._slot_placeholder_name(slot, field_id)
             if attr not in self.PLAIN_TEXT_EDIT_NAMES:
                 continue
             widget = getattr(self, attr, None)
@@ -676,14 +721,13 @@ class MainWindow(QMainWindow):
         return ""
 
     def _placeholder_numeric_value(self, field_id: str):
-        """Сырое значение field_id, введённое ВРУЧНУЮ в реквизитах (title
-        или intro -- тот же поиск по обоим слотам, что и в
-        _cross_slot_placeholder_value(), включая ту же защиту от висячих
-        ссылок через "attr in self.PLAIN_TEXT_EDIT_NAMES"). Не учитывает
-        формулы других полей -- их обходит formula_engine.evaluate_formula()
-        сам, рекурсивно, передавая этот метод как resolve_placeholder
-        только для полей БЕЗ формулы (см. _open_formula_editor()/
-        _refresh_computed_fields()).
+        """Сырое значение field_id, введённое ВРУЧНУЮ в реквизитах (тот же
+        поиск по всем слотам, что и в _cross_slot_placeholder_value(),
+        включая ту же защиту от висячих ссылок через "attr in
+        self.PLAIN_TEXT_EDIT_NAMES"). Не учитывает формулы других полей --
+        их обходит formula_engine.evaluate_formula() сам, рекурсивно,
+        передавая этот метод как resolve_placeholder только для полей БЕЗ
+        формулы (см. _open_formula_editor()/_refresh_computed_fields()).
 
         None, если поле не найдено, пустое или не является числом (formula_engine
         показывает "—", а не падает) -- в отличие от _cross_slot_placeholder_value(),
@@ -691,7 +735,8 @@ class MainWindow(QMainWindow):
         не для арифметики)."""
         from ..services.formula_engine import parse_formula_number
 
-        for attr in (field_id, f"intro_{field_id}"):
+        for slot in self._CONSTRUCTOR_SLOTS:
+            attr = self._slot_placeholder_name(slot, field_id)
             if attr not in self.PLAIN_TEXT_EDIT_NAMES:
                 continue
             widget = getattr(self, attr, None)
@@ -706,7 +751,7 @@ class MainWindow(QMainWindow):
 
     def _refresh_computed_fields(self):
         """Живой пересчёт вычисляемых полей -- подключён к textChanged
-        КАЖДОГО обычного (не вычисляемого) поля реквизитов в обоих слотах
+        КАЖДОГО обычного (не вычисляемого) поля реквизитов во всех слотах
         (см. _render_slot_fields()), а не только тех, что реально нужны
         какой-то формуле -- заранее не известно, от какого именно поля она
         зависит. Трогает только уже отрисованные вычисляемые виджеты
@@ -717,9 +762,10 @@ class MainWindow(QMainWindow):
         from ..services.title_variants_store import load_field_formulas
 
         formulas = load_field_formulas()
-        for slot in ("title", "intro"):
+        for slot in self._CONSTRUCTOR_SLOTS:
+            prefix = "" if slot == "title" else f"{slot}_"
             for widget_name in self._dynamic_field_names.get(slot, []):
-                field_id = widget_name[len("intro_"):] if slot == "intro" else widget_name
+                field_id = widget_name[len(prefix):] if prefix else widget_name
                 formula = formulas.get(field_id)
                 if formula is None:
                     continue
@@ -745,41 +791,44 @@ class MainWindow(QMainWindow):
         """Досылает предзаполнение одинаковых плейсхолдеров между слотами
         (_cross_slot_placeholder_value()) для УЖЕ существующих виджетов --
         вызывается после «Открыть проект» (см.
-        FileHandler._fill_ui_from_project()), когда оба слота
+        FileHandler._fill_ui_from_project()), когда все слоты
         восстановлены и заполнены своими сохранёнными значениями, но
         документ мог быть сохранён ДО того, как заработало предзаполнение
-        при создании виджета, или заполнен только в одном из двух слотов.
+        при создании виджета, или заполнен только в части слотов.
         Трогает только пустые поля -- уже заполненное (в т.ч. намеренно
         оставленное пустым другим текстом при сохранении) значение не
         перезаписывает."""
-        for slot in ("title", "intro"):
+        for slot in self._CONSTRUCTOR_SLOTS:
+            prefix = "" if slot == "title" else f"{slot}_"
             for widget_name in self._dynamic_field_names.get(slot, []):
                 widget = getattr(self, widget_name, None)
                 if widget is None or widget.toPlainText():
                     continue
-                field_id = widget_name[len("intro_"):] if slot == "intro" else widget_name
+                field_id = widget_name[len(prefix):] if prefix else widget_name
                 prefill = self._cross_slot_placeholder_value(field_id)
                 if prefill:
                     widget.setPlainText(prefill)
 
     def _used_in_other_slot(self, slot: str, field_id: str) -> bool:
         """True, если field_id уже добавлен в реквизиты включённого блока
-        ДРУГОГО слота (см. _build_placeholder_menu()) -- статус "уже
-        вставлен" (✓, серым, некликабельно) в меню «Вставить плейсхолдер»
-        должен относиться ТОЛЬКО к текущему варианту текущего слота (в
-        отличие от общего каталога полей -- он один на оба слота), иначе
-        пользователь не смог бы вставить в этот слот плейсхолдер, который
-        уже стоит в другом. Использование в другом слоте -- отдельная,
-        не блокирующая пометка рядом со строкой (см. вызывающую
-        сторону)."""
-        other_slot = "intro" if slot == "title" else "title"
-        other_variant_id = self._filled_slot_variant(other_slot)
-        if other_variant_id is None:
-            return False
-        get_all_variants = self._slot_store(other_slot).get_all_title_variants if other_slot == "title" \
-            else self._slot_store(other_slot).get_all_intro_variants
-        other_variant = get_all_variants().get(other_variant_id)
-        return other_variant is not None and field_id in other_variant.subtitle_fields
+        КАКОГО-ТО ДРУГОГО слота (см. _build_placeholder_menu()) -- статус
+        "уже вставлен" (✓, серым, некликабельно) в меню «Вставить
+        плейсхолдер» должен относиться ТОЛЬКО к текущему варианту текущего
+        слота (в отличие от общего каталога полей -- он один на все
+        слоты), иначе пользователь не смог бы вставить в этот слот
+        плейсхолдер, который уже стоит в другом. Использование в другом
+        слоте -- отдельная, не блокирующая пометка рядом со строкой (см.
+        вызывающую сторону)."""
+        for other_slot in self._CONSTRUCTOR_SLOTS:
+            if other_slot == slot:
+                continue
+            other_variant_id = self._filled_slot_variant(other_slot)
+            if other_variant_id is None:
+                continue
+            other_variant = self._slot_store(other_slot).get_all_variants().get(other_variant_id)
+            if other_variant is not None and field_id in other_variant.subtitle_fields:
+                return True
+        return False
 
     def _init_constructor_slot(self, slot: str):
         """Инициализация одного слота конструктора -- вызывается по разу
@@ -1399,8 +1448,7 @@ class MainWindow(QMainWindow):
         руками, или «Удалить» после сохранения проекта) -- молча ничего не
         делает, слот остаётся в прежнем состоянии, как и было бы после
         обычного drop чужого/несуществующего id (см. _process_block_drop())."""
-        get_all_variants = self._slot_store(slot).get_all_title_variants if slot == "title" \
-            else self._slot_store(slot).get_all_intro_variants
+        get_all_variants = self._slot_store(slot).get_all_variants
         variants = get_all_variants()
         if variant_id not in variants:
             return
@@ -1413,7 +1461,9 @@ class MainWindow(QMainWindow):
         block_list.addItem(item)
         self._process_block_drop(slot)
 
-    _GENERATE_DIALOG_SLOT_LABELS = {"title": "Титульный лист", "intro": "Вводная часть"}
+    _GENERATE_DIALOG_SLOT_LABELS = {
+        "title": "Титульный лист", "intro": "Вводная часть", "appendix1": "Приложение 1",
+    }
 
     def _open_generate_dialog(self):
         """«Собрать документ» -- перед самим рендером (_calculate_constructor())
@@ -1439,8 +1489,7 @@ class MainWindow(QMainWindow):
 
         combos = {}
         for slot in self._CONSTRUCTOR_SLOTS:
-            get_all_variants = self._slot_store(slot).get_all_title_variants if slot == "title" \
-                else self._slot_store(slot).get_all_intro_variants
+            get_all_variants = self._slot_store(slot).get_all_variants
             variants = get_all_variants()
             current_variant_id = self._filled_slot_variant(slot)
 
@@ -1500,16 +1549,17 @@ class MainWindow(QMainWindow):
     def _calculate_constructor(self):
         """Сборка документа конструктора (equipment_type == "constructor").
 
-        Два независимых слота -- «Титульные листы» (title) и «Вводная
-        часть» (intro), см. _CONSTRUCTOR_SLOTS -- заполненные независимо
-        друг от друга, склеиваются в ОДИН .docx: каждый слот рендерится
-        docxtpl отдельно (свой фрагмент, свои плейсхолдеры), затем
-        содержимое всех слотов, кроме первого, дописывается в тело
-        документа первого (_append_docx_body()) в ФИКСИРОВАННОМ порядке
-        _CONSTRUCTOR_SLOTS (title, затем intro) -- порядок в документе не
-        зависит от того, в каком слот заполнили раньше. Если заполнен
-        только один слот -- результат тот же, что и в Phase 1 (просто
-        сохранённый рендер одного фрагмента, склеивать нечего)."""
+        Три независимых слота -- «Титульные листы» (title), «Вводная часть»
+        (intro) и «Приложение 1» (appendix1), см. _CONSTRUCTOR_SLOTS --
+        заполненные независимо друг от друга, склеиваются в ОДИН .docx:
+        каждый слот рендерится docxtpl отдельно (свой фрагмент, свои
+        плейсхолдеры), затем содержимое всех слотов, кроме первого,
+        дописывается в тело документа первого (_append_docx_body()) в
+        ФИКСИРОВАННОМ порядке _CONSTRUCTOR_SLOTS (title, затем intro, затем
+        appendix1) -- порядок в документе не зависит от того, в каком слот
+        заполнили раньше. Если заполнен только один слот -- результат тот
+        же, что и в Phase 1 (просто сохранённый рендер одного фрагмента,
+        склеивать нечего)."""
         filled = [
             (slot, variant_id)
             for slot in self._CONSTRUCTOR_SLOTS
@@ -1519,15 +1569,18 @@ class MainWindow(QMainWindow):
         if not filled:
             self.show_message(
                 "Нечего собирать",
-                "Перетащите титульный лист и/или вводную часть из списка слева в основную область.",
+                "Перетащите титульный лист, вводную часть и/или приложение 1 из списка слева в "
+                "основную область.",
                 QMessageBox.Icon.Warning,
             )
             return
 
         try:
-            from ..config import OUTPUT_DIR, find_intro_template, find_title_template
+            from ..config import OUTPUT_DIR, find_appendix_template, find_intro_template, find_title_template
 
-            find_template = {"title": find_title_template, "intro": find_intro_template}
+            find_template = {
+                "title": find_title_template, "intro": find_intro_template, "appendix1": find_appendix_template,
+            }
             form_data = self.get_form_data()
 
             rendered_docs = []
@@ -1590,23 +1643,55 @@ class MainWindow(QMainWindow):
     # ЛЕНИВО внутри метода (не на уровне класса) -- как и раньше в этом
     # файле, импорт services.* на верхнем уровне модуля дал бы циклический
     # импорт (см. комментарий у find_title_template() в src/config.py).
+    # Модуль-стор каждого слота (title/intro/appendix_variants_store.py)
+    # экспортирует одинаковые имена load_variants()/save_variants()/
+    # get_all_variants() (см. их докстринг в title_variants_store.py) --
+    # вызывающему коду не нужно знать, какой это слот, достаточно один раз
+    # выбрать правильный модуль здесь.
     @staticmethod
     def _slot_store(slot: str):
         if slot == "title":
             from ..services import title_variants_store as store
-        else:
+        elif slot == "intro":
             from ..services import intro_variants_store as store
+        else:
+            from ..services import appendix_variants_store as store
         return store
 
     @staticmethod
     def _slot_generate_fragment(slot: str):
-        from ..services.template_generator import generate_intro_fragment, generate_title_fragment
-        return generate_title_fragment if slot == "title" else generate_intro_fragment
+        from ..services.template_generator import (
+            generate_appendix_fragment, generate_intro_fragment, generate_title_fragment,
+        )
+        if slot == "title":
+            return generate_title_fragment
+        if slot == "intro":
+            return generate_intro_fragment
+        return generate_appendix_fragment
 
     @staticmethod
     def _slot_builtin_variants(slot: str):
-        from ..services.template_schema import INTRO_VARIANTS, TITLE_VARIANTS
-        return TITLE_VARIANTS if slot == "title" else INTRO_VARIANTS
+        from ..services.template_schema import APPENDIX_VARIANTS, INTRO_VARIANTS, TITLE_VARIANTS
+        if slot == "title":
+            return TITLE_VARIANTS
+        if slot == "intro":
+            return INTRO_VARIANTS
+        return APPENDIX_VARIANTS
+
+    @staticmethod
+    def _slot_default_fields(slot: str):
+        """Стартовый набор плейсхолдеров нового варианта этого слота (см.
+        _open_add_variant_dialog()) -- своя константа на каждый слот, та же
+        дисциплина лениво импортируемых пар, что и у соседних
+        _slot_store()/_slot_generate_fragment() выше."""
+        from ..services.template_schema import (
+            DEFAULT_APPENDIX_SUBTITLE_FIELDS, DEFAULT_INTRO_SUBTITLE_FIELDS, DEFAULT_TITLE_SUBTITLE_FIELDS,
+        )
+        if slot == "title":
+            return DEFAULT_TITLE_SUBTITLE_FIELDS
+        if slot == "intro":
+            return DEFAULT_INTRO_SUBTITLE_FIELDS
+        return DEFAULT_APPENDIX_SUBTITLE_FIELDS
 
     def _toggle_constructor_group(self, slot: str, expanded: bool):
         """Сворачивание/разворачивание группы сайдбара («Титульные листы»
@@ -1648,8 +1733,7 @@ class MainWindow(QMainWindow):
         реальной длины названия варианта. Название берётся из каталога
         по variant_id (UserRole) -- источник, который не зависит от
         того, подсвечен сейчас item или нет."""
-        get_all_variants = self._slot_store(slot).get_all_title_variants if slot == "title" \
-            else self._slot_store(slot).get_all_intro_variants
+        get_all_variants = self._slot_store(slot).get_all_variants
         variant = get_all_variants().get(item.data(Qt.ItemDataRole.UserRole))
         label = variant.document_title if variant is not None else item.text()
         width = self._slot_widget(slot, "available_list").viewport().width() or 200
@@ -1670,8 +1754,7 @@ class MainWindow(QMainWindow):
         рамкой и hover, недостижимо через QSS ::item на отдельном item'е
         одного списка)."""
         available_list = self._slot_widget(slot, "available_list")
-        get_all_variants = self._slot_store(slot).get_all_title_variants if slot == "title" \
-            else self._slot_store(slot).get_all_intro_variants
+        get_all_variants = self._slot_store(slot).get_all_variants
 
         available_list.clear()
         for variant_id, title_config in get_all_variants().items():
@@ -1724,8 +1807,7 @@ class MainWindow(QMainWindow):
         закэшированного на самом item'е."""
         included_variant_id = self._filled_slot_variant(slot)
         available_list = self._slot_widget(slot, "available_list")
-        get_all_variants = self._slot_store(slot).get_all_title_variants if slot == "title" \
-            else self._slot_store(slot).get_all_intro_variants
+        get_all_variants = self._slot_store(slot).get_all_variants
         variants = get_all_variants()
         for i in range(available_list.count()):
             item = available_list.item(i)
@@ -1776,6 +1858,7 @@ class MainWindow(QMainWindow):
     _ADD_VARIANT_DIALOG_TITLE = {
         "title": "Новый вариант титульного листа",
         "intro": "Новый вариант вводной части",
+        "appendix1": "Новый вариант приложения 1",
     }
 
     def _open_add_variant_dialog(self, slot: str):
@@ -1810,21 +1893,14 @@ class MainWindow(QMainWindow):
 
         from ..config import FRAGMENTS_DIR
         from ..models.title_variant import TitleVariant
-        from ..services.template_schema import DEFAULT_INTRO_SUBTITLE_FIELDS, DEFAULT_TITLE_SUBTITLE_FIELDS
 
         store = self._slot_store(slot)
-        default_fields = DEFAULT_TITLE_SUBTITLE_FIELDS if slot == "title" else DEFAULT_INTRO_SUBTITLE_FIELDS
         new_variant = TitleVariant(
-            id=uuid4().hex[:8], document_title=text, subtitle_fields=list(default_fields),
+            id=uuid4().hex[:8], document_title=text, subtitle_fields=list(self._slot_default_fields(slot)),
         )
-        if slot == "title":
-            variants = store.load_title_variants()
-            variants.append(new_variant)
-            store.save_title_variants(variants)
-        else:
-            variants = store.load_intro_variants()
-            variants.append(new_variant)
-            store.save_intro_variants(variants)
+        variants = store.load_variants()
+        variants.append(new_variant)
+        store.save_variants(variants)
         self._slot_generate_fragment(slot)(new_variant, FRAGMENTS_DIR / f"{slot}_{new_variant.id}.docx")
         self._refresh_available_blocks_list(slot)
 
@@ -1871,20 +1947,17 @@ class MainWindow(QMainWindow):
             return
 
         store = self._slot_store(slot)
-        variants = store.load_title_variants() if slot == "title" else store.load_intro_variants()
+        variants = store.load_variants()
         variant = next((v for v in variants if v.id == variant_id), None)
         if variant is None:
             return
         variant.document_title = new_name
-        if slot == "title":
-            store.save_title_variants(variants)
-        else:
-            store.save_intro_variants(variants)
+        store.save_variants(variants)
         self._refresh_available_blocks_list(slot)
 
         included = self._slot_widget(slot, "included_list")
         if included.count() and included.item(0).data(Qt.ItemDataRole.UserRole) == variant_id:
-            label_attr = "includedBlockTextLabel" if slot == "title" else "includedIntroBlockTextLabel"
+            label_attr = self._slot_config(slot, "text_label_attr")
             if hasattr(self, label_attr):
                 getattr(self, label_attr).setText(new_name)
             if slot == "title":
@@ -1899,12 +1972,8 @@ class MainWindow(QMainWindow):
             return
 
         store = self._slot_store(slot)
-        if slot == "title":
-            variants = [v for v in store.load_title_variants() if v.id != variant_id]
-            store.save_title_variants(variants)
-        else:
-            variants = [v for v in store.load_intro_variants() if v.id != variant_id]
-            store.save_intro_variants(variants)
+        variants = [v for v in store.load_variants() if v.id != variant_id]
+        store.save_variants(variants)
         self._refresh_available_blocks_list(slot)
 
         included = self._slot_widget(slot, "included_list")
@@ -1929,10 +1998,10 @@ class MainWindow(QMainWindow):
         ровно один блок на слот (Phase 1) -- второй drop в тот же слот
         оставляет только последний добавленный item.
 
-        Оба available_list (title и intro) настроены с dragEnabled -- Qt
-        ничего не мешает перетащить карточку ИЗ ЧУЖОГО списка (например,
-        титульный лист -- в included_list вводной части): ничего в самом
-        DnD-механизме Qt эту пару список-источник/список-назначение не
+        Все available_list (title/intro/appendix1) настроены с dragEnabled
+        -- Qt ничего не мешает перетащить карточку ИЗ ЧУЖОГО списка
+        (например, титульный лист -- в included_list вводной части):
+        ничего в самом DnD-механизме Qt эту пару список-источник/список-назначение не
         связывает. Поэтому первым делом -- проверка принадлежности
         variant_id этому слоту (get_all_title_variants()/
         get_all_intro_variants()); если карточка не отсюда -- item
@@ -1980,8 +2049,7 @@ class MainWindow(QMainWindow):
 
         new_item = block_list.item(keep_index)
         variant_id = new_item.data(Qt.ItemDataRole.UserRole)
-        get_all_variants = self._slot_store(slot).get_all_title_variants if slot == "title" \
-            else self._slot_store(slot).get_all_intro_variants
+        get_all_variants = self._slot_store(slot).get_all_variants
         if variant_id not in get_all_variants():
             # Перетащили карточку не из своей группы -- откатываем сам
             # drop (убираем только что вставленный item), оставляя слот в
@@ -2030,12 +2098,12 @@ class MainWindow(QMainWindow):
         # Сохраняется на self -- _rename_variant() обновляет текст этой
         # подписи вживую, если переименовывают вариант, который сейчас
         # лежит в документе (иначе после переименования тут осталось бы
-        # старое название до следующего drop). Имя атрибута -- на слот
-        # (includedBlockTextLabel/includedIntroBlockTextLabel), оба слота
+        # старое название до следующего drop). Имя атрибута -- на слот (см.
+        # text_label_attr/chevron_attr в _CONSTRUCTOR_SLOTS), все слоты
         # могут быть заполнены одновременно, общий атрибут потерял бы ссылку
-        # на один из них.
-        text_label_attr = "includedBlockTextLabel" if slot == "title" else "includedIntroBlockTextLabel"
-        chevron_attr = "includedBlockChevron" if slot == "title" else "includedIntroBlockChevron"
+        # на часть из них.
+        text_label_attr = self._slot_config(slot, "text_label_attr")
+        chevron_attr = self._slot_config(slot, "chevron_attr")
         setattr(self, text_label_attr, text_label)
         chevron_label = QLabel()
         chevron_label.setPixmap(icons.render("chevron-down", "#8e8e93", 13))
@@ -2160,7 +2228,7 @@ class MainWindow(QMainWindow):
         fields_panel = self._slot_widget(slot, "fields_panel")
         visible = not fields_panel.isVisible()
         fields_panel.setVisible(visible)
-        chevron_attr = "includedBlockChevron" if slot == "title" else "includedIntroBlockChevron"
+        chevron_attr = self._slot_config(slot, "chevron_attr")
         getattr(self, chevron_attr).setPixmap(
             icons.render("chevron-down" if visible else "chevron-right", "#8e8e93", 13)
         )
@@ -2213,8 +2281,7 @@ class MainWindow(QMainWindow):
         from ..services.title_variants_store import get_all_field_labels, load_field_formulas
         from ..services.formula_engine import evaluate_formula, format_formula_result
 
-        get_all_variants = self._slot_store(slot).get_all_title_variants if slot == "title" \
-            else self._slot_store(slot).get_all_intro_variants
+        get_all_variants = self._slot_store(slot).get_all_variants
         is_custom = variant_id not in self._slot_builtin_variants(slot)
         field_ids = get_all_variants()[variant_id].subtitle_fields
 
@@ -2433,7 +2500,7 @@ class MainWindow(QMainWindow):
         наборе полей варианта -- иначе (устаревший drag, поле успели
         удалить за время перетаскивания) молча ничего не делает."""
         store = self._slot_store(slot)
-        variants = store.load_title_variants() if slot == "title" else store.load_intro_variants()
+        variants = store.load_variants()
         variant = next((v for v in variants if v.id == variant_id), None)
         if variant is None:
             return
@@ -2445,10 +2512,7 @@ class MainWindow(QMainWindow):
         insert_at = fields.index(target_field_id) + (1 if insert_after else 0)
         fields.insert(insert_at, dragged_field_id)
 
-        if slot == "title":
-            store.save_title_variants(variants)
-        else:
-            store.save_intro_variants(variants)
+        store.save_variants(variants)
         self._render_slot_fields(slot, variant_id)
 
     def _build_placeholder_catalog(self, slot: str, variant_id: str, field_ids) -> QWidget:
@@ -2496,7 +2560,7 @@ class MainWindow(QMainWindow):
         # урезанный TitleConfig (для единообразия со встроенными в списке
         # сайдбара), без template_filename -- он есть только на самом
         # TitleVariant, поэтому здесь нужен именно load_*_variants().
-        variants = store.load_title_variants() if slot == "title" else store.load_intro_variants()
+        variants = store.load_variants()
         variant = next((v for v in variants if v.id == variant_id), None)
         template_filename = variant.template_filename if variant else ""
 
@@ -2745,7 +2809,7 @@ class MainWindow(QMainWindow):
         from ..config import FRAGMENTS_DIR
 
         store = self._slot_store(slot)
-        variants = store.load_title_variants() if slot == "title" else store.load_intro_variants()
+        variants = store.load_variants()
         variant = next((v for v in variants if v.id == variant_id), None)
         if variant is None:
             return
@@ -2760,10 +2824,7 @@ class MainWindow(QMainWindow):
             return
 
         variant.template_filename = ""
-        if slot == "title":
-            store.save_title_variants(variants)
-        else:
-            store.save_intro_variants(variants)
+        store.save_variants(variants)
         self._slot_generate_fragment(slot)(variant, FRAGMENTS_DIR / f"{slot}_{variant_id}.docx")
         self._render_slot_fields(slot, variant_id)
 
@@ -2801,7 +2862,7 @@ class MainWindow(QMainWindow):
         "удаление" встроенного поля -- не правка кода, а его id в
         отдельном списке-исключении hidden_builtin_fields, см.
         _delete_catalog_field()/title_variants_store.get_all_field_labels()).
-        Удаление действует сразу для обоих слотов -- каталог общий.
+        Удаление действует сразу для всех слотов -- каталог общий.
 
         Каждая строка -- QWidgetAction с ручной QWidget-разметкой, а не
         обычный QAction (тот не умеет два независимых клика в одной
@@ -2883,10 +2944,10 @@ class MainWindow(QMainWindow):
         """Корзина у поля в меню «Вставить плейсхолдер» -- удаляет поле из
         ОБЩЕГО каталога, а не из реквизитов какого-то конкретного варианта.
         Поле пропадёт из списка «Вставить плейсхолдер» для ЛЮБОГО варианта
-        (и титульных листов, и вводной части -- каталог общий, см.
-        _build_placeholder_menu()). Уже вставленный в чей-то вариант
+        (титульных листов, вводной части, приложения 1 -- каталог общий,
+        см. _build_placeholder_menu()). Уже вставленный в чей-то вариант
         плейсхолдер с этим id при этом тоже удаляется -- из
-        variant.subtitle_fields ВСЕХ вариантов обоих слотов (не только
+        variant.subtitle_fields ВСЕХ вариантов всех слотов (не только
         текущего), чтобы висящий чип с подписью-фоллбэком на голый id
         (см. _render_slot_fields()) не оставался в интерфейсе после того,
         как поле пропало из каталога.
@@ -2915,7 +2976,8 @@ class MainWindow(QMainWindow):
         answer = QMessageBox.question(
             self, "Удалить поле?",
             f"Удалить поле «{label}» из каталога плейсхолдеров? Оно пропадёт из списка «Вставить "
-            "плейсхолдер» для всех вариантов (и титульных листов, и вводной части) — каталог общий.",
+            "плейсхолдер» для всех вариантов (титульных листов, вводной части, приложения 1) — "
+            "каталог общий.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if answer != QMessageBox.StandardButton.Yes:
@@ -2925,9 +2987,7 @@ class MainWindow(QMainWindow):
             load_field_catalog, save_field_catalog,
             load_hidden_builtin_fields, save_hidden_builtin_fields,
             load_field_formulas, save_field_formulas,
-            load_title_variants, save_title_variants,
         )
-        from ..services.intro_variants_store import load_intro_variants, save_intro_variants
 
         catalog = load_field_catalog()
         if field_id in catalog:
@@ -2944,18 +3004,16 @@ class MainWindow(QMainWindow):
             formulas.pop(field_id, None)
             save_field_formulas(formulas)
 
-        for load_variants, save_variants in (
-            (load_title_variants, save_title_variants),
-            (load_intro_variants, save_intro_variants),
-        ):
-            variants = load_variants()
+        for slot_key in self._CONSTRUCTOR_SLOTS:
+            slot_store = self._slot_store(slot_key)
+            variants = slot_store.load_variants()
             changed = False
             for variant in variants:
                 if field_id in variant.subtitle_fields:
                     variant.subtitle_fields.remove(field_id)
                     changed = True
             if changed:
-                save_variants(variants)
+                slot_store.save_variants(variants)
 
         QTimer.singleShot(0, functools.partial(self._render_slot_fields, slot, variant_id))
 
@@ -2973,29 +3031,23 @@ class MainWindow(QMainWindow):
 
     def _add_variant_placeholder(self, slot: str, variant_id: str, field_id: str):
         store = self._slot_store(slot)
-        variants = store.load_title_variants() if slot == "title" else store.load_intro_variants()
+        variants = store.load_variants()
         variant = next((v for v in variants if v.id == variant_id), None)
         if variant is None or field_id in variant.subtitle_fields:
             return
         variant.subtitle_fields.append(field_id)
-        if slot == "title":
-            store.save_title_variants(variants)
-        else:
-            store.save_intro_variants(variants)
+        store.save_variants(variants)
         self._ensure_fragment_exists(slot, variant)
         self._render_slot_fields(slot, variant_id)
 
     def _remove_variant_placeholder(self, slot: str, variant_id: str, field_id: str):
         store = self._slot_store(slot)
-        variants = store.load_title_variants() if slot == "title" else store.load_intro_variants()
+        variants = store.load_variants()
         variant = next((v for v in variants if v.id == variant_id), None)
         if variant is None:
             return
         variant.subtitle_fields = [f for f in variant.subtitle_fields if f != field_id]
-        if slot == "title":
-            store.save_title_variants(variants)
-        else:
-            store.save_intro_variants(variants)
+        store.save_variants(variants)
         self._render_slot_fields(slot, variant_id)
 
     def _create_and_add_variant_field(self, slot: str, variant_id: str):
@@ -3160,14 +3212,11 @@ class MainWindow(QMainWindow):
         if source_path != target_path.resolve():
             shutil.copyfile(source_path, target_path)
 
-        variants = store.load_title_variants() if slot == "title" else store.load_intro_variants()
+        variants = store.load_variants()
         variant = next((v for v in variants if v.id == variant_id), None)
         if variant is not None:
             variant.template_filename = source_path.name
-            if slot == "title":
-                store.save_title_variants(variants)
-            else:
-                store.save_intro_variants(variants)
+            store.save_variants(variants)
 
         open_with_prompt(target_path, self)
         self._render_slot_fields(slot, variant_id)
@@ -3242,8 +3291,12 @@ class MainWindow(QMainWindow):
         self._install_variant_template(slot, variant_id, Path(urls[0].toLocalFile()))
 
     def _find_slot_template(self, slot: str, variant_id: str):
-        from ..config import find_intro_template, find_title_template
-        return find_title_template(variant_id) if slot == "title" else find_intro_template(variant_id)
+        from ..config import find_appendix_template, find_intro_template, find_title_template
+        if slot == "title":
+            return find_title_template(variant_id)
+        if slot == "intro":
+            return find_intro_template(variant_id)
+        return find_appendix_template(variant_id)
 
     def _open_variant_preview(self, slot: str, variant_id: str):
         """«Открыть предпросмотр» -- рендерит .docx-файл варианта
@@ -4823,8 +4876,8 @@ class MainWindow(QMainWindow):
 
     def _reset_constructor_form(self):
         """Сбрасывает конструктор документов под другой/новый документ
-        дерева -- аналог _reset_form() для остальных типов, но по слотам
-        title/intro (см. _CONSTRUCTOR_SLOTS): у конструктора нет
+        дерева -- аналог _reset_form() для остальных типов, но по всем
+        слотам (см. _CONSTRUCTOR_SLOTS): у конструктора нет
         фиксированного списка виджетов реквизитов, они создаются заново
         под набор полей конкретного варианта (_render_slot_fields()).
 
@@ -4908,8 +4961,7 @@ class MainWindow(QMainWindow):
             variant_id = project.report_data.get(f"_included_{slot}_variant_id")
             if not variant_id:
                 continue
-            get_all_variants = self._slot_store(slot).get_all_title_variants if slot == "title" \
-                else self._slot_store(slot).get_all_intro_variants
+            get_all_variants = self._slot_store(slot).get_all_variants
             variant = get_all_variants().get(variant_id)
             if variant is None:
                 continue
