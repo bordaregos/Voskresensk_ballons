@@ -2000,9 +2000,13 @@ class MainWindow(QMainWindow):
     def _build_table_element(self, table: Dict):
         """Строит НАСТОЯЩУЮ .docx-таблицу из содержимого редактора таблиц
         (field_tables[field_id] -- {"has_header":.., "rows": [[токены
-        ячейки, ...], ...]}, см. table_editor_dialog.py) и возвращает её
-        как независимый OXML-элемент <w:tbl>, готовый быть вставленным в
-        ЛЮБОЙ документ (_splice_table_placeholders() ниже).
+        ячейки, ...], ...], "merges": [{"r","c","row_span","col_span"},...],
+        "align": [[bool,...],...]}, см. table_editor_dialog.py) и
+        возвращает её как независимый OXML-элемент <w:tbl>, готовый быть
+        вставленным в ЛЮБОЙ документ (_splice_table_placeholders() ниже).
+        "merges"/"align" -- необязательные ключи (`.get(..., [])`), таблицы,
+        сохранённые до появления этой возможности, читаются как есть, без
+        объединений/центрирования.
 
         Таблица строится в отдельном, ни с чем не связанном python-docx
         Document() -- ЕГО собственный table.style = "Table Grid" работает
@@ -2022,8 +2026,22 @@ class MainWindow(QMainWindow):
         _render_slot_fields()). Ссылка на ДРУГОЕ табличное поле внутри
         ячейки не разворачивается рекурсивно (вернёт "") -- вложенные
         таблицы вне охвата, тот же принцип, что и запрет ссылки таблицы на
-        саму себя в TableEditorDialog."""
+        саму себя в TableEditorDialog.
+
+        Объединения применяются В САМОМ КОНЦЕ, после текста/центрирования
+        всех ячеек -- table.cell(r, c) адресует РЕАЛЬНЫЕ grid-координаты
+        только пока объединения ещё не тронуты; TableEditorDialog гарантирует
+        (_selection_is_mergeable()), что сохранённые объединения никогда не
+        пересекаются, поэтому порядок применения между собой не важен.
+        Ячейки, накрытые объединением (не верхний левый угол), в
+        TableEditorDialog всегда очищены (rows[r][c] == []) -- cell.merge()
+        у python-docx при этом всё равно переносит их собственный (пустой)
+        параграф в объединённую ячейку; лишние ПУСТЫЕ параграфы после
+        первого убираются явно, иначе в готовом .docx внутри объединённой
+        ячейки остаются видимые пустые строки под текстом."""
         from docx import Document as _ScratchDocument
+        from docx.enum.table import WD_ALIGN_VERTICAL
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
 
         rows = table.get("rows", [])
         n_rows = len(rows)
@@ -2038,6 +2056,7 @@ class MainWindow(QMainWindow):
         doc_table = scratch.add_table(rows=n_rows, cols=n_cols)
         doc_table.style = "Table Grid"
         has_header = bool(table.get("has_header"))
+        align = table.get("align") or []
         for r, row in enumerate(rows):
             for c, cell_tokens in enumerate(row):
                 text = "".join(
@@ -2051,6 +2070,19 @@ class MainWindow(QMainWindow):
                     for paragraph in cell.paragraphs:
                         for run in paragraph.runs:
                             run.bold = True
+                if r < len(align) and c < len(align[r]) and align[r][c]:
+                    cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+                    for paragraph in cell.paragraphs:
+                        paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        for merge in table.get("merges") or []:
+            top_left = doc_table.cell(merge["r"], merge["c"])
+            bottom_right = doc_table.cell(
+                merge["r"] + merge["row_span"] - 1, merge["c"] + merge["col_span"] - 1
+            )
+            merged_cell = top_left.merge(bottom_right)
+            for paragraph in merged_cell.paragraphs[1:]:
+                if not paragraph.text:
+                    paragraph._p.getparent().remove(paragraph._p)
         return copy.deepcopy(doc_table._tbl)
 
     def _splice_table_placeholders(self, doc):
@@ -3815,7 +3847,12 @@ class MainWindow(QMainWindow):
         if dialog.removed:
             tables.pop(field_id, None)
         else:
-            tables[field_id] = {"has_header": dialog.has_header, "rows": dialog.rows}
+            tables[field_id] = {
+                "has_header": dialog.has_header,
+                "rows": dialog.rows,
+                "merges": dialog.merges,
+                "align": dialog.align,
+            }
         save_field_tables(tables)
 
         for refresh_slot in self._CONSTRUCTOR_SLOTS:

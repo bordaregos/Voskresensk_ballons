@@ -12,12 +12,20 @@ from PyQt6.QtWidgets import QLayout
 
 
 class FlowLayout(QLayout):
-    def __init__(self, parent=None, margin: int = 0, spacing: int = 6):
+    def __init__(self, parent=None, margin: int = 0, spacing: int = 6, center: bool = False):
         super().__init__(parent)
         if parent is not None:
             self.setContentsMargins(margin, margin, margin, margin)
         self.setSpacing(spacing)
         self._items = []
+        # По умолчанию -- False, старое поведение (прижато к левому верхнему
+        # углу) не меняется нигде, где center= не передан явно (редактор
+        # формул конструктора документов, formula_editor_dialog.py, этот
+        # параметр не использует вовсе). Нужен редактору таблиц
+        # (table_editor_dialog.py) для чекбокса «По центру» -- см. её
+        # докстринг насчёт того, почему центрирование сделано именно здесь,
+        # а не через QSS/text-align (у QLayout такого нет).
+        self._center = center
 
     def addItem(self, item):
         # Виджет, добавленный в этот layout уже ПОСЛЕ того, как его окно
@@ -115,14 +123,37 @@ class FlowLayout(QLayout):
             x = next_x
             line_height = max(line_height, hint.height())
 
+        # Суммарная высота содержимого -- нужна заранее (до расстановки
+        # виджетов), чтобы вертикально отцентрировать блок целиком внутри
+        # rect, когда rect выше, чем контенту реально нужно (см. ниже) --
+        # это отдельная величина от line_height (высоты ОДНОЙ строки).
+        total_height = -spacing
+        for line in lines:
+            if not line:
+                continue
+            total_height += max(hint.height() for _, hint in line) + spacing
+
         y = effective.y()
+        # rect выше effective-контента, только когда контейнер реально
+        # растянут родительским layout'ом сверх минимально нужной высоты --
+        # у QGridLayout так происходит с объединённой (rowSpan>1) ячейкой
+        # редактора таблиц: она получает высоту НЕСКОЛЬКИХ строк сетки, а не
+        # только своего контента. В heightForWidth()-проходе (test_only)
+        # rect.height() всегда 0 -- здесь это условие само по себе не
+        # включается, добавочный отступ вычисляется только на РЕАЛЬНОМ проходе.
+        if self._center and not test_only:
+            y += max(0, (effective.height() - total_height) // 2)
         content_bottom = effective.y()
         for line in lines:
             if not line:
                 continue
             line_height = max(hint.height() for _, hint in line)
             if not test_only:
-                x = effective.x()
+                if self._center:
+                    line_width = sum(hint.width() for _, hint in line) + spacing * (len(line) - 1)
+                    x = effective.x() + max(0, (effective.width() - line_width) // 2)
+                else:
+                    x = effective.x()
                 for item, hint in line:
                     item_y = y + (line_height - hint.height()) // 2
                     item.setGeometry(QRect(QPoint(x, item_y), hint))

@@ -405,7 +405,29 @@
        же принцип курсора/токенов, что и в редакторе формул выше, но проще
        -- нет операторов и дробей, курсор общий на весь редактор
        (tableEditorState.activeR/activeC), а не выбирается кликом отдельно
-       для каждой ячейки. «+ Новое поле…» внизу списка плейсхолдеров -- тот
+       для каждой ячейки. Shift+клик по ячейке расширяет выделение в
+       прямоугольный диапазон от последнего обычного клика (selAnchorR/C)
+       до shift-клика -- «Объединить» превращает весь диапазон в одну
+       ячейку (colspan/rowspan), содержимое берётся из верхней левой
+       ячейки диапазона, остальные теряются (как в Word/Excel, не
+       склеиваются). «Разъединить» возвращает активную объединённую
+       ячейку к исходной сетке, текст остаётся в бывшей верхней левой
+       ячейке. Нельзя объединить диапазон, который лишь частично
+       перекрывает уже существующее объединение (см.
+       selectionIsMergeable()) -- кнопка в этом случае молча ничего не
+       делает, без модалки/алерта, тот же минимализм, что у «− Строка»/
+       «− Столбец» на границе минимального размера. Чекбокс «По центру» --
+       ещё один слой поверх той же сетки, независимый от merges
+       (tableEditorState.align, матрица той же формы, что и rows) --
+       центрирует содержимое активной ячейки или всего выделенного
+       диапазона по горизонтали И вертикали разом (justify-content +
+       align-content на том же флексовом .table-editor-cell, текст по
+       умолчанию прижат к левому краю); состояние чекбокса на каждый
+       renderTableGrid() пересинхронизируется с align[верхний левый угол
+       текущего выделения] -- в отличие от «Первая строка — шапка», это
+       НЕ разовая настройка всей таблицы, а меняется от клика к клику.
+
+       «+ Новое поле…» внизу списка плейсхолдеров -- тот
        же паттерн, что и в «Вставить плейсхолдер» реквизитов (см.
        renderNewFieldForm()) -- поле сразу попадает в общий каталог, не
        только в эту таблицу. Первая строка как шапка -- только визуальная
@@ -423,6 +445,7 @@
         Первая строка — шапка таблицы
       </label>
 
+      <div style="font-size:11px;color:#636366;margin-bottom:6px;">Shift+клик по ячейке — выделить диапазон для объединения</div>
       <div class="table-editor-scroll">
         <table class="table-editor-grid" id="tableEditorGrid"></table>
       </div>
@@ -432,6 +455,14 @@
         <button class="formula-op-btn" onclick="addTableColumn()">+ Столбец</button>
         <button class="formula-op-btn" onclick="removeActiveTableRow()" title="Удалить строку активной ячейки">− Строка</button>
         <button class="formula-op-btn" onclick="removeActiveTableColumn()" title="Удалить столбец активной ячейки">− Столбец</button>
+        <span style="width:1px;align-self:stretch;background:#38383a;"></span>
+        <button class="formula-op-btn" onclick="mergeSelectedCells()" title="Объединить ячейки выделенного диапазона (Shift+клик — выделить диапазон)">⊞ Объединить</button>
+        <button class="formula-op-btn" onclick="unmergeActiveCell()" title="Разбить объединённую ячейку (активную) обратно на исходные">⊟ Разъединить</button>
+        <span style="width:1px;align-self:stretch;background:#38383a;"></span>
+        <label style="display:flex;align-items:center;gap:5px;font-size:11.5px;color:#8e8e93;cursor:pointer;" title="Отцентрировать содержимое активной ячейки (или всего выделенного диапазона) по горизонтали и вертикали">
+          <input id="tableCellCenterCheckbox" type="checkbox" onchange="setCellAlign(this.checked)" />
+          По центру
+        </label>
         <span style="width:1px;align-self:stretch;background:#38383a;"></span>
         <button class="formula-op-btn" style="display:inline-flex;align-items:center;gap:5px;" onclick="toggleTablePlaceholderMenu(event)"><svg class="icon" style="width:13px;height:13px;" aria-hidden="true"><use href="#i-tag"></use></svg>Вставить плейсхолдер</button>
         <div id="tablePlaceholderMenu" style="display:none;position:absolute;top:calc(100% + 4px);left:184px;background:#2c2c2e;border:0.5px solid #48484a;border-radius:8px;overflow:hidden;min-width:220px;max-height:220px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:5;"></div>
@@ -610,6 +641,15 @@ textarea.fld.fld-computed{background:rgba(191,90,242,.10);border-color:rgba(191,
 .table-editor-cell{min-width:120px;max-width:240px;min-height:36px;box-sizing:border-box;padding:7px 8px;font-size:11.5px;color:#e5e5e7;line-height:1.5;cursor:text;display:flex;flex-wrap:wrap;align-items:center;gap:2px;}
 .table-editor-cell-header{background:#232325;font-weight:600;color:#c7c7cc;}
 .table-editor-cell-active{outline:1.5px solid #0a84ff;outline-offset:-1.5px;background:rgba(10,132,255,.08);}
+.table-editor-cell-selected{background:rgba(10,132,255,.18);}
+/* Объединённая ячейка -- <td> реально становится шире/выше (colspan/
+   rowspan), но у .table-editor-cell (div внутри) без этого класса нет
+   width/height:100% -- она осталась бы размером с одну обычную ячейку
+   (min-width/max-width/min-height рассчитаны на одиночную клетку), а
+   подсветка/фон визуально "не дотягивались" бы до реальных границ
+   объединённой <td> -- выглядело бы так же, как до объединения. */
+.table-editor-cell-merged{width:100%;height:100%;max-width:none;box-sizing:border-box;}
+.table-editor-cell-centered{justify-content:center;align-content:center;text-align:center;}
 .table-token-text{white-space:pre-wrap;}
 .table-token-placeholder{display:inline-flex;align-items:center;background:rgba(100,210,255,.16);color:#64d2ff;border:0.5px solid rgba(100,210,255,.4);padding:2px 7px;border-radius:5px;font-size:11px;white-space:nowrap;}
 .table-editor-addrow-btn{width:100%;background:#242426;border:0.5px dashed #48484a;color:#8e8e93;font-size:11.5px;padding:6px;border-radius:6px;cursor:pointer;margin-top:6px;}
@@ -2823,9 +2863,33 @@ function formulaClearAll(){
 // Только у активной ячейки вообще виден курсор и работает клик по половине
 // токена (см. renderCellContent()) -- остальные ячейки рисуются статично,
 // упрощение против canvas формулы, где вся формула разом одна "область".
-var tableEditorState = null; // {fieldId, hasHeader, rows: [[tokens,...],...], activeR, activeC, cursorIndex}
+//
+// Объединение ячеек (merges) -- отдельный массив прямоугольников
+// {r, c, rowSpan, colSpan} поверх той же матрицы rows; сама rows НЕ
+// сжимается при объединении -- ячейки, накрытые объединением, но не
+// являющиеся его верхним левым углом, просто не рисуются как отдельная
+// <td> (colspan/rowspan родителя их перекрывает, см. renderTableGrid()) --
+// это позволяет не трогать addTableRow/addTableColumn и почти не трогать
+// remove*-функции (см. adjustMergesForRowRemoval/ColumnRemoval). Выделение
+// диапазона -- selAnchorR/C (последняя обычная, не-shift, клетка) вместе с
+// activeR/C (последний клик, в т.ч. shift) образуют прямоугольник
+// (см. selectionRect()); и anchor, и active всегда указывают на верхний
+// левый угол ячейки (обычной или уже объединённой) -- кликнуть по
+// "скрытой" части объединения невозможно, у неё просто нет своего DOM-узла.
+var tableEditorState = null; // {fieldId, hasHeader, rows: [[tokens,...],...], merges: [{r,c,rowSpan,colSpan},...], align: [[bool,...],...], activeR, activeC, selAnchorR, selAnchorC, cursorIndex}
 function cloneCellTokens(tokens){
   return tokens.map(function(t){ return Object.assign({}, t); });
+}
+// Пустая матрица той же формы, что rows, с false по умолчанию -- используется
+// и для таблиц без сохранённого align вовсе (обратная совместимость со
+// старыми fieldTables без этого поля), и для подстраховки при рассинхроне
+// формы (существующий align короче/длиннее текущих rows).
+function buildAlignMatrix(rows, existingAlign){
+  return rows.map(function(row, r){
+    return row.map(function(_, c){
+      return !!(existingAlign && existingAlign[r] && existingAlign[r][c]);
+    });
+  });
 }
 function openTableEditor(fieldId){
   var existing = fieldTables[fieldId];
@@ -2836,8 +2900,14 @@ function openTableEditor(fieldId){
     fieldId: fieldId,
     hasHeader: existing ? !!existing.hasHeader : false,
     rows: rows,
+    merges: existing && existing.merges
+      ? existing.merges.map(function(m){ return Object.assign({}, m); })
+      : [],
+    align: buildAlignMatrix(rows, existing && existing.align),
     activeR: 0,
     activeC: 0,
+    selAnchorR: 0,
+    selAnchorC: 0,
     cursorIndex: rows[0][0].length,
   };
   document.getElementById('tableEditorFieldLabel').textContent =
@@ -2857,6 +2927,8 @@ function saveTableEditor(){
   fieldTables[tableEditorState.fieldId] = {
     hasHeader: tableEditorState.hasHeader,
     rows: tableEditorState.rows.map(function(row){ return row.map(cloneCellTokens); }),
+    merges: tableEditorState.merges.map(function(m){ return Object.assign({}, m); }),
+    align: tableEditorState.align.map(function(row){ return row.slice(); }),
   };
   closeTableEditor();
   refreshSlotsAfterFormulaChange();
@@ -2874,6 +2946,18 @@ function activeCellTokens(){
   return tableEditorState.rows[tableEditorState.activeR][tableEditorState.activeC];
 }
 function setActiveTableCell(r, c){
+  // Обычный (не-shift) клик -- всегда схлопывает выделение в одну ячейку,
+  // якорь и активная ячейка совпадают.
+  tableEditorState.activeR = r;
+  tableEditorState.activeC = c;
+  tableEditorState.selAnchorR = r;
+  tableEditorState.selAnchorC = c;
+  tableEditorState.cursorIndex = tableEditorState.rows[r][c].length;
+  renderTableGrid();
+}
+function extendTableSelection(r, c){
+  // Shift+клик -- якорь (последняя обычная клетка) не трогаем, двигаем
+  // только активную ячейку; прямоугольник между ними см. selectionRect().
   tableEditorState.activeR = r;
   tableEditorState.activeC = c;
   tableEditorState.cursorIndex = tableEditorState.rows[r][c].length;
@@ -2886,46 +2970,185 @@ function setActiveCellCursor(index){
 function addTableRow(){
   var cols = tableEditorState.rows[0].length;
   var row = [];
-  for (var i = 0; i < cols; i++) row.push([]);
+  var alignRow = [];
+  for (var i = 0; i < cols; i++) { row.push([]); alignRow.push(false); }
   tableEditorState.rows.push(row);
+  tableEditorState.align.push(alignRow);
   setActiveTableCell(tableEditorState.rows.length - 1, 0);
 }
 function addTableColumn(){
   tableEditorState.rows.forEach(function(row){ row.push([]); });
+  tableEditorState.align.forEach(function(row){ row.push(false); });
   setActiveTableCell(tableEditorState.activeR, tableEditorState.rows[0].length - 1);
+}
+// Объединение, у которого удаляемая строка/столбец -- строго выше/левее
+// верхнего левого угла, сдвигается на 1; объединение, чей диапазон
+// ВКЛЮЧАЕТ удаляемую строку/столбец, просто теряет 1 из своего span;
+// объединение целиком ниже/правее не трогаем. Если после этого у
+// объединения rowSpan или colSpan опустился до 1 и оно перестало быть
+// объединением (1×1) -- выбрасываем его из merges, дальше это обычная
+// ячейка. Индексы -- старые (до splice), см. комментарий у tableEditorState.
+function adjustMergesForRowRemoval(removedR){
+  tableEditorState.merges = tableEditorState.merges.filter(function(m){
+    var bottom = m.r + m.rowSpan - 1;
+    if (removedR < m.r) m.r -= 1;
+    else if (removedR <= bottom) m.rowSpan -= 1;
+    return m.rowSpan >= 1 && m.colSpan >= 1 && (m.rowSpan > 1 || m.colSpan > 1);
+  });
+}
+function adjustMergesForColumnRemoval(removedC){
+  tableEditorState.merges = tableEditorState.merges.filter(function(m){
+    var right = m.c + m.colSpan - 1;
+    if (removedC < m.c) m.c -= 1;
+    else if (removedC <= right) m.colSpan -= 1;
+    return m.rowSpan >= 1 && m.colSpan >= 1 && (m.rowSpan > 1 || m.colSpan > 1);
+  });
 }
 function removeActiveTableRow(){
   if (tableEditorState.rows.length <= 1) return; // хотя бы одна строка остаётся всегда
+  adjustMergesForRowRemoval(tableEditorState.activeR);
   tableEditorState.rows.splice(tableEditorState.activeR, 1);
+  tableEditorState.align.splice(tableEditorState.activeR, 1);
   var r = Math.min(tableEditorState.activeR, tableEditorState.rows.length - 1);
   setActiveTableCell(r, Math.min(tableEditorState.activeC, tableEditorState.rows[0].length - 1));
 }
 function removeActiveTableColumn(){
   if (tableEditorState.rows[0].length <= 1) return; // хотя бы один столбец остаётся всегда
   var c = tableEditorState.activeC;
+  adjustMergesForColumnRemoval(c);
   tableEditorState.rows.forEach(function(row){ row.splice(c, 1); });
+  tableEditorState.align.forEach(function(row){ row.splice(c, 1); });
   setActiveTableCell(tableEditorState.activeR, Math.min(c, tableEditorState.rows[0].length - 1));
+}
+// Объединение, покрывающее (r,c) -- т.е. r,c внутри его прямоугольника,
+// независимо от того, верхний это левый угол или нет.
+function getCoveringMerge(r, c){
+  for (var i = 0; i < tableEditorState.merges.length; i++){
+    var m = tableEditorState.merges[i];
+    if (r >= m.r && r <= m.r + m.rowSpan - 1 && c >= m.c && c <= m.c + m.colSpan - 1) return m;
+  }
+  return null;
+}
+// То же, но только если (r,c) -- именно верхний левый угол (единственная
+// координата объединения, у которой вообще есть свой DOM-узел/<td>).
+function getMergeAt(r, c){
+  var m = getCoveringMerge(r, c);
+  return (m && m.r === r && m.c === c) ? m : null;
+}
+// Ячейка "накрыта" объединением, но сама не является его верхним левым
+// углом -- для неё в renderTableGrid() не рисуется отдельная <td>.
+function isCellHidden(r, c){
+  var m = getCoveringMerge(r, c);
+  return !!m && !(m.r === r && m.c === c);
+}
+// Прямоугольник (r,c) объединения, если оно верхний левый угол там, иначе
+// сама ячейка как прямоугольник 1×1.
+function expandToMergeFootprint(r, c){
+  var m = getMergeAt(r, c);
+  if (m) return {r0: m.r, c0: m.c, r1: m.r + m.rowSpan - 1, c1: m.c + m.colSpan - 1};
+  return {r0: r, c0: c, r1: r, c1: c};
+}
+// Прямоугольник выделения -- объединение footprint'ов якоря и активной
+// ячейки (обе всегда указывают на верхний левый угол своей области, см.
+// комментарий у tableEditorState).
+function selectionRect(){
+  var a = expandToMergeFootprint(tableEditorState.selAnchorR, tableEditorState.selAnchorC);
+  var b = expandToMergeFootprint(tableEditorState.activeR, tableEditorState.activeC);
+  return {
+    r0: Math.min(a.r0, b.r0), r1: Math.max(a.r1, b.r1),
+    c0: Math.min(a.c0, b.c0), c1: Math.max(a.c1, b.c1),
+  };
+}
+// Диапазон можно объединить, если в нём больше одной ячейки и ни одно уже
+// существующее объединение не пересекает границу диапазона частично --
+// полностью лежащие внутри существующие объединения ОК (поглощаются новым,
+// более крупным, см. mergeSelectedCells()).
+function selectionIsMergeable(){
+  var rect = selectionRect();
+  if (rect.r0 === rect.r1 && rect.c0 === rect.c1) return false;
+  for (var r = rect.r0; r <= rect.r1; r++){
+    for (var c = rect.c0; c <= rect.c1; c++){
+      var m = getCoveringMerge(r, c);
+      if (m && (m.r < rect.r0 || m.c < rect.c0 || m.r + m.rowSpan - 1 > rect.r1 || m.c + m.colSpan - 1 > rect.c1)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+function mergeSelectedCells(){
+  if (!selectionIsMergeable()) return; // частичное пересечение с существующим объединением -- молча ничего не делаем
+  var rect = selectionRect();
+  // Существующие объединения, целиком лежащие внутри диапазона, поглощаются
+  // новым -- убираем их, иначе они останутся "внутри" большего merge.
+  tableEditorState.merges = tableEditorState.merges.filter(function(m){
+    return !(m.r >= rect.r0 && m.c >= rect.c0 && m.r + m.rowSpan - 1 <= rect.r1 && m.c + m.colSpan - 1 <= rect.c1);
+  });
+  // Содержимое объединённой ячейки -- содержимое верхней левой ячейки
+  // диапазона, остальное теряется (как при объединении в Word/Excel, не
+  // склеивается).
+  for (var r = rect.r0; r <= rect.r1; r++){
+    for (var c = rect.c0; c <= rect.c1; c++){
+      if (r === rect.r0 && c === rect.c0) continue;
+      tableEditorState.rows[r][c] = [];
+    }
+  }
+  tableEditorState.merges.push({r: rect.r0, c: rect.c0, rowSpan: rect.r1 - rect.r0 + 1, colSpan: rect.c1 - rect.c0 + 1});
+  setActiveTableCell(rect.r0, rect.c0); // заодно схлопывает выделение к одной ячейке
+}
+function unmergeActiveCell(){
+  var m = getMergeAt(tableEditorState.activeR, tableEditorState.activeC);
+  if (!m) return; // активная ячейка не является верхним левым углом объединения -- нечего разъединять
+  tableEditorState.merges = tableEditorState.merges.filter(function(x){ return x !== m; });
+  renderTableGrid();
+}
+// Центрирование -- применяется ко всем ячейкам текущего выделения (для
+// одной активной ячейки это диапазон из одной клетки, ничем не отличается
+// от общего случая). Скрытые (накрытые чужим объединением) координаты
+// внутри диапазона пропускаются -- у них нет своего визуального представления.
+function setCellAlign(checked){
+  var rect = selectionRect();
+  for (var r = rect.r0; r <= rect.r1; r++){
+    for (var c = rect.c0; c <= rect.c1; c++){
+      if (isCellHidden(r, c)) continue;
+      tableEditorState.align[r][c] = checked;
+    }
+  }
+  renderTableGrid();
 }
 function renderTableGrid(){
   var table = document.getElementById('tableEditorGrid');
   table.innerHTML = '';
+  var rect = selectionRect();
+  var isSingleCellSelection = rect.r0 === rect.r1 && rect.c0 === rect.c1;
+  document.getElementById('tableCellCenterCheckbox').checked = !!tableEditorState.align[rect.r0][rect.c0];
   tableEditorState.rows.forEach(function(row, r){
     var tr = document.createElement('tr');
     row.forEach(function(tokens, c){
+      if (isCellHidden(r, c)) return; // накрыта объединением слева/сверху -- своей <td> нет, colspan/rowspan родителя её перекрывает
+      var merge = getMergeAt(r, c);
       var isActive = tableEditorState.activeR === r && tableEditorState.activeC === c;
+      var isSelected = !isSingleCellSelection && r >= rect.r0 && r <= rect.r1 && c >= rect.c0 && c <= rect.c1;
       var td = document.createElement('td');
+      if (merge) { td.rowSpan = merge.rowSpan; td.colSpan = merge.colSpan; }
       var cell = document.createElement('div');
       cell.className = 'table-editor-cell' +
         (tableEditorState.hasHeader && r === 0 ? ' table-editor-cell-header' : '') +
-        (isActive ? ' table-editor-cell-active' : '');
-      // Клик по свободному месту активной ячейки -- курсор в конец (как
-      // клик по свободному месту области в renderZone() формулы); клик по
-      // ещё неактивной ячейке сперва просто выбирает её -- точная позиция
+        (merge ? ' table-editor-cell-merged' : '') +
+        (tableEditorState.align[r][c] ? ' table-editor-cell-centered' : '') +
+        (isActive ? ' table-editor-cell-active' : (isSelected ? ' table-editor-cell-selected' : ''));
+      // Shift+клик расширяет выделение (не трогая якорь). Обычный клик по
+      // свободному месту активной ЕДИНСТВЕННОЙ выбранной ячейки -- курсор в
+      // конец (как клик по свободному месту области в renderZone() формулы);
+      // клик по ещё неактивной ячейке (или когда выделен целый диапазон)
+      // сперва просто схлопывает выделение и выбирает её -- точная позиция
       // курсора кликом по половине токена доступна вторым кликом, когда
-      // ячейка уже активна и у токенов есть свои обработчики (см. ниже).
+      // ячейка уже единственная активная и у токенов есть свои обработчики
+      // (см. ниже).
       cell.onclick = function(ev){
         ev.stopPropagation();
-        if (isActive) setActiveCellCursor(tokens.length);
+        if (ev.shiftKey) { extendTableSelection(r, c); return; }
+        if (isActive && isSingleCellSelection) setActiveCellCursor(tokens.length);
         else setActiveTableCell(r, c);
       };
       renderCellContent(cell, tokens, isActive);
