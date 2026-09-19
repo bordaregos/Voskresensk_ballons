@@ -8,17 +8,23 @@ instruments_store.py -- не зависит от Qt.
 (uuid4().hex[:8], тот же приём, что src/ui/employees_tab.py) и поэтому не
 пересекается с "otchet"/"zaklyuchenie".
 
-Файл хранит ТРИ независимые секции -- "title_variants" (сами варианты),
+Файл хранит ЧЕТЫРЕ независимые секции -- "title_variants" (сами варианты),
 "field_catalog" (id -> человекочитаемая подпись поля-плейсхолдера,
 переиспользуется между вариантами при вставке через каталог плейсхолдеров,
-см. src/ui/main_window.py, _build_placeholder_menu()) и
-"hidden_builtin_fields" (id встроенных полей TITLE_FIELD_LABELS, скрытых
-оператором через корзину в том же меню -- сама константа в коде не
-трогается, "удаление" встроенного поля -- это его id в списке-исключении,
-см. get_all_field_labels()). save_title_variants()/save_field_catalog()/
-save_hidden_builtin_fields() поэтому читают-правят-пишут файл целиком
-(read-modify-write), а не перезаписывают его слепо целиком своей секцией --
-иначе сохранение одной секции стирало бы другие."""
+см. src/ui/main_window.py, _build_placeholder_menu()), "hidden_builtin_fields"
+(id встроенных полей TITLE_FIELD_LABELS, скрытых оператором через корзину в
+том же меню -- сама константа в коде не трогается, "удаление" встроенного
+поля -- это его id в списке-исключении, см. get_all_field_labels()) и
+"field_formulas" (id -> {"tokens":.., "decimals":..} -- формула
+вычисляемого поля, см. src/services/formula_engine.py и редактор формул,
+src/ui/formula_editor_dialog.py; открывается через ПКМ на чипе плейсхолдера
+в реквизитах, «Создать формулу»). Формула, как и подпись поля,
+привязана к field_id в общем каталоге -- одна формула действует везде, где
+встречается этот плейсхолдер (любой слот, любой вариант), а не только там,
+где её создали. save_title_variants()/save_field_catalog()/
+save_hidden_builtin_fields()/save_field_formulas() поэтому читают-правят-
+пишут файл целиком (read-modify-write), а не перезаписывают его слепо
+целиком своей секцией -- иначе сохранение одной секции стирало бы другие."""
 
 import json
 from pathlib import Path
@@ -91,6 +97,22 @@ def save_hidden_builtin_fields(field_ids: List[str], path: Path = TITLE_VARIANTS
     title_variants/field_catalog."""
     data = _load_raw(path)
     data['hidden_builtin_fields'] = list(field_ids)
+    _save_raw(data, path)
+
+
+def load_field_formulas(path: Path = TITLE_VARIANTS_FILE) -> Dict[str, Dict]:
+    """field_id -> {"tokens": [...токены...], "decimals": int} -- формулы
+    вычисляемых полей (см. src/services/formula_engine.py). Тот же общий
+    охват, что и у field_catalog: один каталог формул на оба слота и все
+    варианты, не привязан к конкретному варианту/слоту."""
+    data = _load_raw(path)
+    return dict(data.get('field_formulas', {}))
+
+
+def save_field_formulas(formulas: Dict[str, Dict], path: Path = TITLE_VARIANTS_FILE) -> None:
+    """Сохраняет формулы вычисляемых полей, не трогая остальные секции файла."""
+    data = _load_raw(path)
+    data['field_formulas'] = dict(formulas)
     _save_raw(data, path)
 
 

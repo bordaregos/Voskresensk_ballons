@@ -4,6 +4,7 @@ from src.services.title_variants_store import (
     load_title_variants, save_title_variants, get_all_title_variants,
     load_field_catalog, save_field_catalog, get_all_field_labels,
     load_hidden_builtin_fields, save_hidden_builtin_fields,
+    load_field_formulas, save_field_formulas,
 )
 
 
@@ -152,3 +153,40 @@ def test_hidden_builtin_fields_does_not_clobber_other_sections(tmp_path):
 
     assert [v.id for v in load_title_variants(path)] == ["custom-1"]
     assert load_field_catalog(path) == {"field_1": "Дата составления"}
+
+
+def test_load_field_formulas_missing_file_returns_empty_dict(tmp_path):
+    path = tmp_path / "title_variants.json"
+
+    assert load_field_formulas(path) == {}
+
+
+def test_save_and_load_field_formulas_round_trip(tmp_path):
+    path = tmp_path / "title_variants.json"
+    formulas = {
+        "obem": {"tokens": [{"type": "placeholder", "id": "diametr"}], "decimals": 2},
+    }
+
+    save_field_formulas(formulas, path)
+
+    assert load_field_formulas(path) == formulas
+
+
+def test_save_field_formulas_does_not_clobber_other_sections(tmp_path):
+    path = tmp_path / "title_variants.json"
+    save_title_variants([TitleVariant(id="custom-1", document_title="Акт осмотра")], path)
+    save_field_catalog({"field_1": "Дата составления"}, path)
+
+    save_field_formulas({"field_1": {"tokens": [], "decimals": 1}}, path)
+
+    assert [v.id for v in load_title_variants(path)] == ["custom-1"]
+    assert load_field_catalog(path) == {"field_1": "Дата составления"}
+
+
+def test_save_title_variants_does_not_clobber_field_formulas(tmp_path):
+    path = tmp_path / "title_variants.json"
+    save_field_formulas({"field_1": {"tokens": [], "decimals": 1}}, path)
+
+    save_title_variants([TitleVariant(id="custom-1", document_title="Акт осмотра")], path)
+
+    assert load_field_formulas(path) == {"field_1": {"tokens": [], "decimals": 1}}

@@ -6,8 +6,8 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QPlainTextEdit, QComboBo
                              QTreeWidgetItem, QInputDialog, QMenu, QListWidgetItem,
                              QDialog, QLineEdit, QVBoxLayout, QHBoxLayout, QDialogButtonBox,
                              QLabel, QWidget, QToolButton, QWidgetAction)
-from PyQt6.QtCore import QLocale, Qt, QDate, QPointF, QTimer, QSize
-from PyQt6.QtGui import QPixmap, QIcon, QPainter, QColor, QPen, QGuiApplication
+from PyQt6.QtCore import QLocale, Qt, QDate, QPointF, QTimer, QSize, QMimeData, QSignalBlocker
+from PyQt6.QtGui import QPixmap, QIcon, QPainter, QColor, QPen, QGuiApplication, QDrag
 from PyQt6.uic import loadUi
 from typing import Dict, Union
 from pathlib import Path
@@ -55,6 +55,7 @@ from ..services import workspace
 from . import icons
 from .open_with import open_with_prompt
 from .growable_placeholder_field import GrowablePlaceholderField
+from .formula_editor_dialog import FormulaEditorDialog
 from ..models.project import Project
 from ..config import NK_SCHEME_DIR, PNEVMO_GRAPH_DIR
 from .widget_names_pipeline import SEGMENT_TYPES, PROGRAM_DEFAULT_ITEMS, AE_CLASS_TYPES
@@ -137,6 +138,16 @@ QGroupBox#fieldsPanel QLabel[titleChip="true"], QGroupBox#introFieldsPanel QLabe
 QGroupBox#fieldsPanel QLabel[titleChipCopied="true"], QGroupBox#introFieldsPanel QLabel[titleChipCopied="true"] {
     background: rgba(48, 209, 88, 40); color: #30d158;
     border: 1px solid rgba(48, 209, 88, 140);
+}
+QGroupBox#fieldsPanel QLabel[chipDragOver="true"], QGroupBox#introFieldsPanel QLabel[chipDragOver="true"] {
+    border: 1.5px dashed #0a84ff; background: rgba(10, 132, 255, 70);
+}
+QGroupBox#fieldsPanel QLabel[titleChipFormula="true"], QGroupBox#introFieldsPanel QLabel[titleChipFormula="true"] {
+    background: rgba(191, 90, 242, 40); color: #d29dfa;
+    border: 1px solid rgba(191, 90, 242, 140);
+}
+QGroupBox#fieldsPanel QPlainTextEdit[computed="true"], QGroupBox#introFieldsPanel QPlainTextEdit[computed="true"] {
+    background: rgba(191, 90, 242, 24); border-color: rgba(191, 90, 242, 140); color: #d29dfa;
 }
 QWidget#titleTemplateDropHint {
     border: 1.5px dashed #38383a; border-radius: 8px;
@@ -518,14 +529,94 @@ class MainWindow(QMainWindow):
         Title хранит виджет под голым field_id, intro -- под
         f"intro_{field_id}" (см. _slot_placeholder_name()) -- проверяем
         оба варианта имени атрибута, не зная заранее, в каком слоте
-        плейсхолдер уже заполнен."""
+        плейсхолдер уже заполнен.
+
+        Проверка "attr in self.PLAIN_TEXT_EDIT_NAMES" -- не просто
+        getattr(self, attr, None): удаление плейсхолдера из варианта
+        (_remove_variant_placeholder()) вычёркивает имя из
+        PLAIN_TEXT_EDIT_NAMES, но НЕ трогает сам Python-атрибут self.<attr>
+        (setattr() никогда не выставляется заново для убранного поля) --
+        без этой проверки getattr() возвращал бы висячую ссылку на уже
+        удалённый Qt-виджет (QFormLayout.removeRow() в _render_slot_fields()
+        удаляет и сам C++-объект), а вызов .toPlainText() на нём падает
+        RuntimeError'ом (см. traceback при добавлении того же поля в
+        другой слот после того, как его убрали откуда-то ещё)."""
         for attr in (field_id, f"intro_{field_id}"):
+            if attr not in self.PLAIN_TEXT_EDIT_NAMES:
+                continue
             widget = getattr(self, attr, None)
-            if widget is not None and hasattr(widget, "toPlainText"):
-                text = widget.toPlainText()
-                if text:
-                    return text
+            if widget is None:
+                continue
+            text = widget.toPlainText()
+            if text:
+                return text
         return ""
+
+    def _placeholder_numeric_value(self, field_id: str):
+        """Сырое значение field_id, введённое ВРУЧНУЮ в реквизитах (title
+        или intro -- тот же поиск по обоим слотам, что и в
+        _cross_slot_placeholder_value(), включая ту же защиту от висячих
+        ссылок через "attr in self.PLAIN_TEXT_EDIT_NAMES"). Не учитывает
+        формулы других полей -- их обходит formula_engine.evaluate_formula()
+        сам, рекурсивно, передавая этот метод как resolve_placeholder
+        только для полей БЕЗ формулы (см. _open_formula_editor()/
+        _refresh_computed_fields()).
+
+        None, если поле не найдено, пустое или не является числом (formula_engine
+        показывает "—", а не падает) -- в отличие от _cross_slot_placeholder_value(),
+        которая возвращает "" (эта нужна для текстового предзаполнения, а
+        не для арифметики)."""
+        from ..services.formula_engine import parse_formula_number
+
+        for attr in (field_id, f"intro_{field_id}"):
+            if attr not in self.PLAIN_TEXT_EDIT_NAMES:
+                continue
+            widget = getattr(self, attr, None)
+            if widget is None:
+                continue
+            text = widget.toPlainText().strip()
+            if text:
+                value = parse_formula_number(text)
+                if value is not None:
+                    return value
+        return None
+
+    def _refresh_computed_fields(self):
+        """Живой пересчёт вычисляемых полей -- подключён к textChanged
+        КАЖДОГО обычного (не вычисляемого) поля реквизитов в обоих слотах
+        (см. _render_slot_fields()), а не только тех, что реально нужны
+        какой-то формуле -- заранее не известно, от какого именно поля она
+        зависит. Трогает только уже отрисованные вычисляемые виджеты
+        (QPlainTextEdit[computed="true"]) -- добавление/удаление самого
+        поля или его формулы идёт через _render_slot_fields()/
+        _open_formula_editor()."""
+        from ..services.formula_engine import evaluate_formula, format_formula_result
+        from ..services.title_variants_store import load_field_formulas
+
+        formulas = load_field_formulas()
+        for slot in ("title", "intro"):
+            for widget_name in self._dynamic_field_names.get(slot, []):
+                field_id = widget_name[len("intro_"):] if slot == "intro" else widget_name
+                formula = formulas.get(field_id)
+                if formula is None:
+                    continue
+                widget = getattr(self, widget_name, None)
+                if widget is None:
+                    continue
+                value = evaluate_formula(formula.get("tokens", []), self._placeholder_numeric_value, formulas)
+                # QSignalBlocker -- обязателен: widget тут не всегда уже
+                # пересобранный "вычисляемый" (readOnly, без textChanged на
+                # этот же метод, см. _render_slot_fields()) -- на выходе из
+                # _open_formula_editor() формула сохраняется, ДО того как
+                # пересобран слот, которому она реально принадлежит (порядок
+                # цикла по self._CONSTRUCTOR_SLOTS): пока не дошла очередь
+                # до его пересборки, здесь ещё ЖИВОЙ старый обычный виджет
+                # с textChanged.connect(self._refresh_computed_fields) --
+                # без блокировки setPlainText() ниже сам вызывал бы этот же
+                # метод повторно через textChanged, и так до
+                # RecursionError (воспроизведено).
+                with QSignalBlocker(widget):
+                    widget.setPlainText(format_formula_result(value, formula.get("decimals", 2)))
 
     def _sync_cross_slot_placeholders(self):
         """Досылает предзаполнение одинаковых плейсхолдеров между слотами
@@ -1908,7 +1999,8 @@ class MainWindow(QMainWindow):
         (_build_placeholder_catalog()), которые только для
         пользовательских: предпросмотр с подставленными значениями
         одинаково полезен и для готовых встроенных вариантов."""
-        from ..services.title_variants_store import get_all_field_labels
+        from ..services.title_variants_store import get_all_field_labels, load_field_formulas
+        from ..services.formula_engine import evaluate_formula, format_formula_result
 
         get_all_variants = self._slot_store(slot).get_all_title_variants if slot == "title" \
             else self._slot_store(slot).get_all_intro_variants
@@ -1951,8 +2043,10 @@ class MainWindow(QMainWindow):
             layout.addRow(empty)
 
         labels = get_all_field_labels()
+        formulas = load_field_formulas()
         for field_id in field_ids:
             widget_name = self._slot_placeholder_name(slot, field_id)
+            formula = formulas.get(field_id)
             # GrowablePlaceholderField, а не голый QPlainTextEdit -- значения
             # бывают длиной в целый абзац (см. содержательные пункты вводной
             # части вроде «1.1. На основании требований п.198 ФНП ТТ ...»).
@@ -1961,16 +2055,35 @@ class MainWindow(QMainWindow):
             # строки, пока не в фокусе или не закреплено шевроном -- см.
             # docs/design/вводная_часть.html и src/ui/growable_placeholder_field.py.
             widget = GrowablePlaceholderField()
-            if widget_name in previous_values:
-                widget.setPlainText(previous_values[widget_name])
+            if formula is not None:
+                # Вычисляемое поле -- readOnly (не disabled: значение всё
+                # ещё можно выделить и скопировать), значение ВСЕГДА
+                # пересчитывается заново, а не восстанавливается из
+                # previous_values -- формула, а не то, что тут было
+                # напечатано руками ДО того, как на поле повесили формулу,
+                # теперь единственный источник истины (см. _open_formula_editor()).
+                widget.setReadOnly(True)
+                widget.setProperty("computed", True)
+                value = evaluate_formula(formula.get("tokens", []), self._placeholder_numeric_value, formulas)
+                widget.setPlainText(format_formula_result(value, formula.get("decimals", 2)))
             else:
-                prefill = self._cross_slot_placeholder_value(field_id)
-                if prefill:
-                    widget.setPlainText(prefill)
+                if widget_name in previous_values:
+                    widget.setPlainText(previous_values[widget_name])
+                else:
+                    prefill = self._cross_slot_placeholder_value(field_id)
+                    if prefill:
+                        widget.setPlainText(prefill)
+                # Живой пересчёт вычисляемых полей -- любое обычное (не
+                # вычисляемое) поле реквизитов, в любом слоте, может
+                # оказаться операндом чьей-то формулы; заранее не известно,
+                # чьей именно, поэтому пересчитываем все видимые
+                # вычисляемые поля на любое изменение любого обычного (см.
+                # _refresh_computed_fields()), а не только то, что рядом.
+                widget.textChanged.connect(self._refresh_computed_fields)
             # Для пользовательских вариантов подпись строки -- тоже сам чип
             # плейсхолдера (QLabel[titleChip="true"]), ПОЛНОСТЬЮ интерактивный
-            # (клик копирует и подсвечивает -- _copy_chip(), ПКМ удаляет
-            # -- _show_chip_context_menu()), а не просто стилизованная
+            # (клик копирует и подсвечивает -- _copy_chip(), ПКМ открывает
+            # меню -- _show_chip_context_menu()), а не просто стилизованная
             # под чип надпись. Раньше такой же чип рисовался ОТДЕЛЬНЫМ
             # списком в _build_placeholder_catalog() над реквизитами --
             # пользователь поправил: список дублировал поля реквизитов
@@ -1983,27 +2096,149 @@ class MainWindow(QMainWindow):
             # варианты каталога не имеют -- для них подпись остаётся
             # обычным некликабельным текстом, как раньше.
             if is_custom:
-                row_label = QLabel(labels.get(field_id, field_id))
-                row_label.setToolTip(
-                    f"{{{{ {widget_name} }}}}\nКлик — скопировать для Word. ПКМ — удалить."
-                )
+                chip_text = labels.get(field_id, field_id) + (" ƒ" if formula is not None else "")
+                row_label = QLabel(chip_text)
+                tooltip = f"{{{{ {widget_name} }}}}"
+                if formula is not None:
+                    tooltip += "\nВычисляется по формуле — правка недоступна, см. ПКМ."
+                tooltip += "\nКлик — скопировать для Word. ПКМ — меню. Перетащите на другое поле — переставить порядок."
+                row_label.setToolTip(tooltip)
                 row_label.setProperty("titleChip", True)
+                if formula is not None:
+                    row_label.setProperty("titleChipFormula", True)
                 row_label.setCursor(Qt.CursorShape.PointingHandCursor)
-                row_label.mousePressEvent = (
-                    lambda event, name=widget_name, w=row_label: self._copy_chip(name, w)
-                )
                 row_label.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
                 row_label.customContextMenuRequested.connect(
                     lambda pos, fid=field_id, w=row_label: self._show_chip_context_menu(
                         slot, variant_id, fid, w.mapToGlobal(pos)
                     )
                 )
+                self._wire_chip_drag_reorder(row_label, slot, variant_id, field_id, widget_name)
             else:
                 row_label = labels.get(field_id, field_id)
             layout.addRow(row_label, widget)
             setattr(self, widget_name, widget)
             self.PLAIN_TEXT_EDIT_NAMES.append(widget_name)
             self._dynamic_field_names[slot].append(widget_name)
+
+        # Программные setPlainText() выше (previous_values/cross-slot
+        # prefill) не проходят через textChanged.connect(self._refresh_computed_fields)
+        # -- та подписка ставится ПОСЛЕ них, на уже готовое значение, чтобы
+        # не тратить пересчёт на каждый промежуточный setPlainText() при
+        # самой перестройке. Один пересчёт в конце гарантирует, что
+        # вычисляемые поля (в т.ч. в ДРУГОМ слоте, если ссылаются на поле
+        # этого) отражают то, что реально сейчас в реквизитах, а не только
+        # то, что было на момент их собственного рендера.
+        self._refresh_computed_fields()
+
+    _CHIP_DRAG_MIME = "application/x-titlechip-field-id"
+
+    def _wire_chip_drag_reorder(self, row_label: QLabel, slot: str, variant_id: str, field_id: str, widget_name: str):
+        """Перетаскивание чипа плейсхолдера -- переставляет порядок полей
+        в variant.subtitle_fields (см. _reorder_variant_placeholder()).
+        Только для пользовательских вариантов (см. вызывающую сторону) --
+        у встроенных чипов нет вовсе, порядок полей там не через UI.
+
+        Клик (копирование, _copy_chip()) и начало перетаскивания различаем
+        порогом смещения (QApplication.startDragDistance()) между press и
+        move -- иначе обычный клик почти всегда включал бы в себя микро-
+        сдвиг мыши и запускал drag вместо копирования. Само копирование
+        поэтому перенесено на mouseReleaseEvent (срабатывает, только если
+        drag не запускался) вместо mousePressEvent, как было раньше.
+
+        Тот же чип служит и источником, и целью drop'а -- перетащить можно
+        на любой другой чип в том же fields_layout; вставка -- до или
+        после чипа-цели, в зависимости от того, в верхнюю или нижнюю
+        половину его высоты попал курсор при отпускании (тот же принцип,
+        что и в _process_block_drop() у самого документа)."""
+        row_label._chip_drag_start_pos = None
+
+        def mouse_press(event, w=row_label):
+            if event.button() == Qt.MouseButton.LeftButton:
+                w._chip_drag_start_pos = event.position().toPoint()
+
+        def mouse_move(event, w=row_label, fid=field_id):
+            if w._chip_drag_start_pos is None or not (event.buttons() & Qt.MouseButton.LeftButton):
+                return
+            moved = (event.position().toPoint() - w._chip_drag_start_pos).manhattanLength()
+            if moved < QApplication.startDragDistance():
+                return
+            w._chip_drag_start_pos = None
+            drag = QDrag(w)
+            mime = QMimeData()
+            mime.setData(self._CHIP_DRAG_MIME, fid.encode("utf-8"))
+            drag.setMimeData(mime)
+            drag.exec(Qt.DropAction.MoveAction)
+
+        def mouse_release(event, w=row_label, name=widget_name):
+            if w._chip_drag_start_pos is not None:
+                # Курсор не сдвинулся достаточно для drag -- обычный клик.
+                self._copy_chip(name, w)
+            w._chip_drag_start_pos = None
+
+        row_label.mousePressEvent = mouse_press
+        row_label.mouseMoveEvent = mouse_move
+        row_label.mouseReleaseEvent = mouse_release
+
+        row_label.setAcceptDrops(True)
+
+        def drag_enter(event, w=row_label):
+            if event.mimeData().hasFormat(self._CHIP_DRAG_MIME):
+                event.acceptProposedAction()
+                w.setProperty("chipDragOver", True)
+                w.style().unpolish(w)
+                w.style().polish(w)
+
+        def drag_leave(event, w=row_label):
+            w.setProperty("chipDragOver", False)
+            w.style().unpolish(w)
+            w.style().polish(w)
+
+        def drop_event(event, w=row_label, s=slot, vid=variant_id, target_fid=field_id):
+            w.setProperty("chipDragOver", False)
+            w.style().unpolish(w)
+            w.style().polish(w)
+            if not event.mimeData().hasFormat(self._CHIP_DRAG_MIME):
+                return
+            dragged_fid = bytes(event.mimeData().data(self._CHIP_DRAG_MIME)).decode("utf-8")
+            event.acceptProposedAction()
+            if dragged_fid == target_fid:
+                return
+            insert_after = event.position().y() > w.height() / 2
+            self._reorder_variant_placeholder(s, vid, dragged_fid, target_fid, insert_after)
+
+        row_label.dragEnterEvent = drag_enter
+        row_label.dragLeaveEvent = drag_leave
+        row_label.dropEvent = drop_event
+
+    def _reorder_variant_placeholder(
+        self, slot: str, variant_id: str, dragged_field_id: str, target_field_id: str, insert_after: bool,
+    ):
+        """Переставляет dragged_field_id рядом с target_field_id в
+        variant.subtitle_fields (до или после, см. insert_after) --
+        сохраняет в store слота и перестраивает fields_layout заново
+        (_render_slot_fields()), тем же путём, что и добавление/удаление
+        плейсхолдера через каталог. Оба id должны реально быть в текущем
+        наборе полей варианта -- иначе (устаревший drag, поле успели
+        удалить за время перетаскивания) молча ничего не делает."""
+        store = self._slot_store(slot)
+        variants = store.load_title_variants() if slot == "title" else store.load_intro_variants()
+        variant = next((v for v in variants if v.id == variant_id), None)
+        if variant is None:
+            return
+        fields = variant.subtitle_fields
+        if dragged_field_id not in fields or target_field_id not in fields:
+            return
+
+        fields.remove(dragged_field_id)
+        insert_at = fields.index(target_field_id) + (1 if insert_after else 0)
+        fields.insert(insert_at, dragged_field_id)
+
+        if slot == "title":
+            store.save_title_variants(variants)
+        else:
+            store.save_intro_variants(variants)
+        self._render_slot_fields(slot, variant_id)
 
     def _build_placeholder_catalog(self, slot: str, variant_id: str, field_ids) -> QWidget:
         """Верхняя панель пользовательского варианта -- кнопка «Вставить
@@ -2239,6 +2474,22 @@ class MainWindow(QMainWindow):
         text_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         layout.addWidget(text_label, stretch=1)
 
+        # «Показать в Finder» -- рядом с крестиком, СВОЯ кнопка, а не пункт
+        # контекстного меню (в отличие от objectsTree, см.
+        # _show_document_context_menu()/_reveal_in_finder()): карточка
+        # варианта ПКМ пока ничем не занята, но кнопка виднее и не
+        # требует знать про ПКМ. Открывает файловый менеджер с уже
+        # выделенным файлом -- в дополнение к клику по самой карточке
+        # (открывает файл В ПРИЛОЖЕНИИ, см. card.mousePressEvent выше), а
+        # не вместо него.
+        reveal_btn = QPushButton()
+        reveal_btn.setIcon(icons.icon("files", "#8e8e93", 14))
+        reveal_btn.setFixedSize(22, 22)
+        reveal_btn.setFlat(True)
+        reveal_btn.setToolTip("Показать в Finder")
+        reveal_btn.clicked.connect(functools.partial(self._reveal_variant_template, slot, variant_id))
+        layout.addWidget(reveal_btn)
+
         remove_btn = QPushButton()
         remove_btn.setIcon(icons.icon("x", "#8e8e93", 14))
         remove_btn.setFixedSize(22, 22)
@@ -2248,6 +2499,23 @@ class MainWindow(QMainWindow):
         layout.addWidget(remove_btn)
 
         return card
+
+    def _reveal_variant_template(self, slot: str, variant_id: str):
+        """Кнопка-папка на карточке загруженного шаблона -- показывает сам
+        .docx-файл варианта в Finder (_reveal_in_finder(), macOS-специфично,
+        как и остальные вызовы в приложении), не открывая его ни в
+        приложении, ни во внешнем редакторе -- в дополнение к клику по
+        карточке (_open_variant_raw_file())."""
+        try:
+            template_path = self._find_slot_template(slot, variant_id)
+        except FileNotFoundError:
+            self.show_message(
+                "Нет файла шаблона",
+                "У этого варианта пока нет сгенерированного .docx-файла.",
+                QMessageBox.Icon.Warning,
+            )
+            return
+        self._reveal_in_finder(template_path)
 
     def _remove_variant_template(self, slot: str, variant_id: str):
         """Крестик на карточке загруженного шаблона -- отвязывает файл и
@@ -2419,6 +2687,13 @@ class MainWindow(QMainWindow):
         список-исключение, который get_all_field_labels() вычитает при
         сборке итогового каталога, см. title_variants_store.py).
 
+        Формула этого поля (если была, см. field_formulas/
+        _open_formula_editor()) удаляется вместе с ним -- без самого поля
+        в каталоге она бессмысленна. Формулы ДРУГИХ полей, ссылавшихся на
+        field_id, не правятся -- просто перестанут считаться
+        (evaluate_formula() вернёт None, "—"), тот же принцип деградации,
+        что и у голого id вместо подписи.
+
         _render_slot_fields() (перестраивает fields_layout, включая
         свежий _build_placeholder_menu() без удалённого поля) отложена на
         следующий тик цикла событий -- тот же приём и по той же причине,
@@ -2438,6 +2713,7 @@ class MainWindow(QMainWindow):
         from ..services.title_variants_store import (
             load_field_catalog, save_field_catalog,
             load_hidden_builtin_fields, save_hidden_builtin_fields,
+            load_field_formulas, save_field_formulas,
             load_title_variants, save_title_variants,
         )
         from ..services.intro_variants_store import load_intro_variants, save_intro_variants
@@ -2451,6 +2727,11 @@ class MainWindow(QMainWindow):
             if field_id not in hidden:
                 hidden.append(field_id)
                 save_hidden_builtin_fields(hidden)
+
+        formulas = load_field_formulas()
+        if field_id in formulas:
+            formulas.pop(field_id, None)
+            save_field_formulas(formulas)
 
         for load_variants, save_variants in (
             (load_title_variants, save_title_variants),
@@ -2520,8 +2801,16 @@ class MainWindow(QMainWindow):
         self._add_variant_placeholder(slot, variant_id, field_id)
 
     def _show_chip_context_menu(self, slot: str, variant_id: str, field_id: str, global_pos):
-        """ПКМ по плейсхолдеру -- «Переименовать» и «Удалить» (копирование
-        по-прежнему по левому клику, см. _copy_chip()).
+        """ПКМ по плейсхолдеру -- «Создать формулу»/«Редактировать формулу»,
+        «Переименовать» и «Удалить» (копирование по-прежнему по левому
+        клику, см. _copy_chip()).
+
+        «Создать формулу» -- ПЕРВЫЙ пункт, всегда доступен (формула --
+        свойство самого поля-в-документе, привязанное к field_id в общем
+        каталоге, а не пользовательского/встроенного статуса поля, в
+        отличие от «Переименовать» ниже, см. _open_formula_editor()).
+        Подпись переключается на «Редактировать формулу», если формула для
+        этого field_id уже задана.
 
         «Переименовать» меняет подпись поля в ОБЩЕМ каталоге
         (field_catalog, см. _rename_catalog_field()) -- у чипа нет
@@ -2536,18 +2825,56 @@ class MainWindow(QMainWindow):
         «Удалить» -- убирает плейсхолдер из РЕКВИЗИТОВ этого варианта
         (variant.subtitle_fields), а не из каталога -- другая операция,
         см. _remove_variant_placeholder()."""
-        from ..services.title_variants_store import load_field_catalog
+        from ..services.title_variants_store import load_field_catalog, load_field_formulas
 
         menu = QMenu(self)
+        formula_label = "Редактировать формулу" if field_id in load_field_formulas() else "Создать формулу"
+        formula_action = menu.addAction(icons.icon("formula", "#bf5af2", 13), formula_label)
         rename_action = None
         if field_id in load_field_catalog():
             rename_action = menu.addAction(icons.icon("edit", "#c7c7cc", 13), "Переименовать")
         delete_action = menu.addAction(icons.icon("trash", "#ff453a", 13), "Удалить")
         chosen = menu.exec(global_pos)
-        if chosen == delete_action:
+        if chosen == formula_action:
+            self._open_formula_editor(slot, variant_id, field_id)
+        elif chosen == delete_action:
             self._remove_variant_placeholder(slot, variant_id, field_id)
         elif rename_action is not None and chosen == rename_action:
             self._rename_catalog_field(slot, variant_id, field_id)
+
+    def _open_formula_editor(self, slot: str, variant_id: str, field_id: str):
+        """Открывает FormulaEditorDialog для field_id -- на успешном
+        сохранении/удалении правит ОБЩИЙ каталог формул (field_formulas,
+        title_variants_store.py), а не что-то в этом конкретном варианте:
+        формула, как и подпись поля, действует везде, где встречается этот
+        плейсхолдер (см. _show_chip_context_menu()). После любого исхода,
+        кроме «Отмена», перестраивает ОБА слота (не только текущий) -- в
+        другом слоте могла быть открыта форма с тем же полем."""
+        from ..services.title_variants_store import get_all_field_labels, load_field_formulas, save_field_formulas
+
+        formulas = load_field_formulas()
+        dialog = FormulaEditorDialog(
+            field_id=field_id,
+            field_label=get_all_field_labels().get(field_id, field_id),
+            all_fields=get_all_field_labels(),
+            all_formulas=formulas,
+            existing_formula=formulas.get(field_id),
+            resolve_placeholder=self._placeholder_numeric_value,
+            parent=self,
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        if dialog.removed:
+            formulas.pop(field_id, None)
+        else:
+            formulas[field_id] = {"tokens": dialog.tokens, "decimals": dialog.decimals}
+        save_field_formulas(formulas)
+
+        for refresh_slot in self._CONSTRUCTOR_SLOTS:
+            refresh_variant_id = self._filled_slot_variant(refresh_slot)
+            if refresh_variant_id is not None:
+                self._render_slot_fields(refresh_slot, refresh_variant_id)
 
     def _rename_catalog_field(self, slot: str, variant_id: str, field_id: str):
         """«Переименовать» из контекстного меню чипа -- правит подпись

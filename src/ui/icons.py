@@ -20,6 +20,7 @@ from PyQt6.QtSvg import QSvgRenderer
 _PATHS = {
     "chevron-right": '<polyline points="9 6 15 12 9 18"/>',
     "chevron-down": '<polyline points="6 9 12 15 18 9"/>',
+    "chevron-up": '<polyline points="6 15 12 9 18 15"/>',
     "files": (
         '<rect x="3" y="7" width="13" height="13" rx="2"/>'
         '<path d="M8 7V4a1 1 0 0 1 1-1h11a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-3"/>'
@@ -69,6 +70,12 @@ _PATHS = {
         '<path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>'
         '<polyline points="7 9 12 4 17 9"/><line x1="12" y1="4" x2="12" y2="15"/>'
     ),
+    # Дробная черта с точкой-числителем/точкой-знаменателем -- «Создать
+    # формулу»/«Редактировать формулу» в ПКМ-меню чипа плейсхолдера (см.
+    # src/ui/main_window.py, _show_chip_context_menu()). Точки -- такие же
+    # незалитые кружки-контуры, как у "tag" выше, по той же причине
+    # (fill="currentColor" не резолвится через этот рендерер).
+    "formula": '<line x1="4" y1="12" x2="20" y2="12"/><circle cx="8" cy="6" r="1.3"/><circle cx="16" cy="18" r="1.3"/>',
 }
 
 

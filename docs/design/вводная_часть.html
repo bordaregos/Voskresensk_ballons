@@ -12,6 +12,7 @@
 <symbol id="i-tag" viewBox="0 0 24 24"><path d="M20.59 13.41L11 3.83A2 2 0 0 0 9.59 3.24L4 3a1 1 0 0 0-1 1l.24 5.59a2 2 0 0 0 .59 1.41l9.58 9.58a2 2 0 0 0 2.83 0l4.35-4.35a2 2 0 0 0 0-2.82z"/><circle cx="7.5" cy="7.5" r="1.2" fill="currentColor" stroke="none"/></symbol>
 <symbol id="i-upload" viewBox="0 0 24 24"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><polyline points="7 9 12 4 17 9"/><line x1="12" y1="4" x2="12" y2="15"/></symbol>
 <symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
+<symbol id="i-formula" viewBox="0 0 24 24"><line x1="4" y1="12" x2="20" y2="12"/><circle cx="8" cy="6" r="1.3" fill="currentColor" stroke="none"/><circle cx="16" cy="18" r="1.3" fill="currentColor" stroke="none"/></symbol>
 </defs>
 </svg>
 <div style="background:#eeeeef;min-height:100vh;box-sizing:border-box;padding:32px 20px;display:flex;align-items:flex-start;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,sans-serif;">
@@ -119,7 +120,13 @@
           <div class="field-grid" id="fieldsGrid-title"></div>
         </div>
 
-        <div id="dropZone-intro" class="drop-zone" style="margin-top:14px;" ondragover="onDragOver('intro',event)" ondragleave="onDragLeave('intro',event)" ondrop="onDrop('intro',event)">
+        <!-- Визуальный разделитель между блоком титула и блоком вводной части
+             (QFrame#slotSeparator в реальном коде) -- оба слота независимы и
+             могут быть заполнены одновременно, разделитель просто отделяет их
+             друг от друга на канве, чтобы не сливались визуально. -->
+        <div id="slotSeparator" style="height:1px;background:#545456;margin:20px 0 12px;border-radius:1px;"></div>
+
+        <div id="dropZone-intro" class="drop-zone" ondragover="onDragOver('intro',event)" ondragleave="onDragLeave('intro',event)" ondrop="onDrop('intro',event)">
           <div id="dropEmpty-intro" style="display:flex;flex-direction:column;align-items:center;gap:6px;color:#5a5a5c;font-size:12px;padding:18px 0;">
             <svg class="icon" style="width:22px;height:22px;" aria-hidden="true"><use href="#i-drag-drop"/></svg>
             Перетащите вводную часть сюда
@@ -159,9 +166,33 @@
   </div>
 
   <div style="display:flex;border-top:0.5px solid #38383a;">
-    <div id="assembleBtn" onclick="assemble()" style="flex:1;text-align:center;padding:9px;font-size:12px;color:#5a5a5c;border-right:0.5px solid #38383a;cursor:default;">Собрать документ</div>
+    <div id="assembleBtn" onclick="openGenerateDialog()" style="flex:1;text-align:center;padding:9px;font-size:12px;color:#c7c7cc;border-right:0.5px solid #38383a;cursor:pointer;">Собрать документ</div>
     <div style="flex:1;text-align:center;padding:9px;font-size:12px;color:#c7c7cc;border-right:0.5px solid #38383a;cursor:pointer;">Сохранить проект</div>
     <div style="flex:1;text-align:center;padding:9px;font-size:12px;color:#c7c7cc;cursor:pointer;">Открыть проект</div>
+  </div>
+
+  <!-- «Собрать документ» больше не молча собирает из того, что уже
+       перетащено в слоты -- сначала спрашивает явный выбор варианта по
+       каждому слоту (см. MainWindow._open_generate_dialog()). По умолчанию
+       в каждом списке уже стоит вариант, включённый в этот слот сейчас
+       (или «— не включать —», если слот пуст) -- открыть диалог и сразу
+       нажать «Собрать» равносильно прежнему поведению без диалога. Выбор
+       здесь ПРИМЕНЯЕТСЯ к самим слотам (setBlock()/clearBlock()), поэтому
+       после закрытия диалога канвас отражает именно то, что попало в
+       документ, а не расходится с ним. -->
+  <div id="generateModal" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.55);align-items:center;justify-content:center;z-index:10;">
+    <div style="background:#2c2c2e;border:0.5px solid #48484a;border-radius:10px;padding:18px;width:290px;">
+      <div style="font-size:13px;font-weight:500;color:#e5e5e7;margin-bottom:12px;">Собрать документ</div>
+      <div style="font-size:11.5px;color:#8e8e93;margin-bottom:12px;">Выберите, из каких шаблонов собрать документ:</div>
+      <div style="font-size:11px;color:#8e8e93;margin-bottom:4px;">Титульный лист</div>
+      <select id="generateTitleSelect" style="width:100%;box-sizing:border-box;background:#1c1c1e;border:0.5px solid #48484a;border-radius:6px;padding:6px 8px;font-size:12px;color:#e5e5e7;margin-bottom:12px;"></select>
+      <div style="font-size:11px;color:#8e8e93;margin-bottom:4px;">Вводная часть</div>
+      <select id="generateIntroSelect" style="width:100%;box-sizing:border-box;background:#1c1c1e;border:0.5px solid #48484a;border-radius:6px;padding:6px 8px;font-size:12px;color:#e5e5e7;margin-bottom:14px;"></select>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button onclick="closeGenerateDialog()" style="background:transparent;border:0.5px solid #48484a;color:#c7c7cc;font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;">Отмена</button>
+        <button onclick="confirmGenerateDialog()" style="background:#0a84ff;border:none;color:#fff;font-size:12px;font-weight:500;padding:6px 12px;border-radius:6px;cursor:pointer;">Собрать</button>
+      </div>
+    </div>
   </div>
 
   <!-- ПКМ по карточке в сайдбаре -- только «Удалить» вариант из палитры.
@@ -173,9 +204,19 @@
     <div class="menu-row" style="color:#ff453a;" onclick="deleteBlockFromMenu()"><svg class="icon" style="width:14px;height:14px;color:#ff453a;" aria-hidden="true"><use href="#i-trash"/></svg>Удалить</div>
   </div>
 
-  <!-- ПКМ по чипу-плейсхолдеру в реквизитах -- только «Удалить» (копирование
-       теперь по левому клику на самом чипе, не через меню). -->
-  <div id="chipMenu" style="display:none;position:absolute;z-index:20;background:#2c2c2e;border:0.5px solid #48484a;border-radius:8px;overflow:hidden;min-width:170px;box-shadow:0 8px 24px rgba(0,0,0,.4);">
+  <!-- ПКМ по чипу-плейсхолдеру в реквизитах (копирование -- по левому
+       клику на самом чипе, не через меню, см. copyChipInline()).
+       «Создать формулу» -- ПЕРВЫЙ пункт, всегда доступен (формула --
+       свойство самого поля-в-документе, а не каталога, поэтому не завязана
+       на builtIn, в отличие от «Переименовать» ниже). Подпись пункта
+       переключается на «Редактировать формулу», если формула для этого
+       field_id уже задана (openChipMenu() смотрит fieldFormulas).
+       «Переименовать» -- только для пользовательских полей каталога (не
+       builtIn, тот же принцип, что и у корзинки в «Вставить плейсхолдер»)
+       -- скрывается/показывается тоже в openChipMenu(). -->
+  <div id="chipMenu" style="display:none;position:absolute;z-index:20;background:#2c2c2e;border:0.5px solid #48484a;border-radius:8px;overflow:hidden;min-width:190px;box-shadow:0 8px 24px rgba(0,0,0,.4);">
+    <div class="menu-row" onclick="openFormulaEditorFromMenu()"><svg class="icon" style="width:14px;height:14px;color:#bf5af2;" aria-hidden="true"><use href="#i-formula"/></svg><span id="chipMenuFormulaLabel">Создать формулу</span></div>
+    <div class="menu-row" id="chipMenuRenameRow" onclick="renameChipFromMenu()"><svg class="icon" style="width:14px;height:14px;color:#c7c7cc;" aria-hidden="true"><use href="#i-edit"/></svg>Переименовать</div>
     <div class="menu-row" style="color:#ff453a;" onclick="deleteChipFromMenu()"><svg class="icon" style="width:14px;height:14px;color:#ff453a;" aria-hidden="true"><use href="#i-trash"/></svg>Удалить</div>
   </div>
 
@@ -201,6 +242,79 @@
       <div style="display:flex;gap:8px;justify-content:flex-end;">
         <button onclick="closeConfirmModal()" style="background:transparent;border:0.5px solid #48484a;color:#c7c7cc;font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;">Отмена</button>
         <button onclick="confirmModalAccept()" style="background:#ff453a;border:none;color:#fff;font-size:12px;font-weight:500;padding:6px 12px;border-radius:6px;cursor:pointer;">Удалить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Редактор формул -- «Создать формулу» на чипе-плейсхолдере в реквизитах
+       превращает поле в вычисляемое: значение больше не печатается вручную,
+       а получается по формуле, которая может ссылаться на другие
+       плейсхолдеры (общий каталог, любой слот) и на введённые здесь числа.
+       Формула хранится по field_id в общем каталоге (fieldFormulas) -- тот
+       же охват, что и у «Переименовать»: одна формула действует везде, где
+       встречается этот плейсхолдер, а не только в текущем варианте.
+
+       Дробь -- НАСТОЯЩАЯ визуальная конструкция (числитель/черта/
+       знаменатель, formula-fraction в <style>), а не просто символ «÷» --
+       числитель и знаменатель каждый может содержать свою последовательность
+       токенов (числа, плейсхолдеры, операторы). Курсор -- это "активная
+       область" (formulaEditorState.activeZone, один из массивов токенов:
+       верхний уровень формулы либо числитель/знаменатель какой-то дроби);
+       клик по области делает её активной (подсвечивается рамкой,
+       formula-zone-active), кнопки тулбара добавляют элемент В КОНЕЦ
+       активной области -- вставка «Дробь» сразу переключает активную
+       область на новый (пустой) числитель, как в редакторе формул Word. -->
+  <div id="formulaModal" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.55);align-items:center;justify-content:center;z-index:30;">
+    <div style="background:#2c2c2e;border:0.5px solid #48484a;border-radius:10px;padding:18px;width:420px;max-width:calc(100vw - 40px);">
+      <div style="font-size:13px;font-weight:500;color:#e5e5e7;margin-bottom:2px;">Редактор формул</div>
+      <div style="font-size:11.5px;color:#8e8e93;margin-bottom:12px;">Поле «<span id="formulaEditorFieldLabel" style="color:#c7c7cc;"></span>» — значение будет вычисляться автоматически</div>
+
+      <div id="formulaCanvas" class="formula-canvas"></div>
+
+      <div style="display:flex;align-items:baseline;gap:6px;margin-top:10px;font-size:12px;">
+        <span style="color:#8e8e93;">Результат:</span>
+        <span id="formulaResultValue" style="color:#e5e5e7;font-weight:500;"></span>
+      </div>
+
+      <!-- Округление -- своё значение на каждую формулу (formulaEditorState.decimals),
+           не общая настройка приложения. Меняет ФИКСИРОВАННОЕ число знаков в
+           результате (toFixed, см. formatRuNumber()) -- округлили до 2 знаков,
+           значит и "12,50" останется с двумя, а не схлопнется до "12,5". -->
+      <div style="display:flex;align-items:center;gap:8px;margin:6px 0 14px;font-size:12px;color:#8e8e93;">
+        <span>Округление: до</span>
+        <input id="formulaDecimalsInput" type="number" min="0" max="6" step="1" value="2" style="width:48px;box-sizing:border-box;background:#1c1c1e;border:0.5px solid #48484a;border-radius:6px;padding:5px 6px;font-size:12px;color:#e5e5e7;text-align:center;" oninput="formulaSetDecimals(this.value)" />
+        <span>знаков после запятой</span>
+      </div>
+
+      <div style="position:relative;margin-bottom:8px;">
+        <button class="formula-op-btn" style="display:inline-flex;align-items:center;gap:5px;" onclick="toggleFormulaPlaceholderMenu(event)"><svg class="icon" style="width:13px;height:13px;" aria-hidden="true"><use href="#i-tag"></use></svg>Вставить плейсхолдер</button>
+        <div id="formulaPlaceholderMenu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;background:#2c2c2e;border:0.5px solid #48484a;border-radius:8px;overflow:hidden;min-width:220px;max-height:220px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:5;"></div>
+      </div>
+
+      <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
+        <input id="formulaNumberInput" type="text" inputmode="decimal" placeholder="напр. 3,5 или 3.5" style="width:96px;box-sizing:border-box;background:#1c1c1e;border:0.5px solid #48484a;border-radius:6px;padding:6px 7px;font-size:12px;color:#e5e5e7;" onkeydown="if(event.key==='Enter'){event.preventDefault();formulaInsertNumber();}" />
+        <button class="formula-op-btn" onclick="formulaInsertNumber()" title="Вставить введённое число в активную область формулы">Число</button>
+        <span style="width:1px;align-self:stretch;background:#38383a;"></span>
+        <button class="formula-op-btn" onclick="formulaInsertOp('+')">+</button>
+        <button class="formula-op-btn" onclick="formulaInsertOp('-')">−</button>
+        <button class="formula-op-btn" onclick="formulaInsertOp('×')">×</button>
+        <button class="formula-op-btn" onclick="formulaInsertOp('÷')">÷</button>
+        <button class="formula-op-btn" onclick="formulaInsertOp('(')">(</button>
+        <button class="formula-op-btn" onclick="formulaInsertOp(')')">)</button>
+        <button class="formula-op-btn" onclick="formulaInsertFraction()" title="Вставить дробь — числитель над чертой, знаменатель под ней">Дробь</button>
+      </div>
+
+      <div style="display:flex;gap:6px;margin-bottom:16px;">
+        <button class="formula-op-btn" onclick="formulaRemoveLast()" title="Удаляет элемент слева от курсора — кликните по формуле, чтобы поставить курсор в нужное место">⌫ Удалить перед курсором</button>
+        <button class="formula-op-btn" onclick="formulaClearAll()" title="Очистить формулу целиком">Очистить всё</button>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <button id="formulaRemoveBtn" onclick="removeFormulaFromField()" style="display:none;background:transparent;border:none;color:#ff453a;font-size:12px;cursor:pointer;padding:6px 0;">Убрать формулу</button>
+        <div style="display:flex;gap:8px;margin-left:auto;">
+          <button onclick="closeFormulaEditor()" style="background:transparent;border:0.5px solid #48484a;color:#c7c7cc;font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;">Отмена</button>
+          <button onclick="saveFormulaEditor()" style="background:#0a84ff;border:none;color:#fff;font-size:12px;font-weight:500;padding:6px 12px;border-radius:6px;cursor:pointer;">Сохранить</button>
+        </div>
       </div>
     </div>
   </div>
@@ -284,6 +398,41 @@ textarea.fld::placeholder{color:#5a5a5c;}
 .ph-chip-block{display:inline-block;background:rgba(10,132,255,.16);color:#5ab4ff;border:0.5px solid rgba(10,132,255,.4);border-radius:6px;padding:4px 9px;font-size:11.5px;cursor:pointer;white-space:normal;word-break:break-word;transition:background .15s,color .15s,border-color .15s;}
 .ph-chip-block:hover{border-color:#0a84ff;}
 .ph-chip-block.copied{background:rgba(48,209,88,.16);color:#30d158;border-color:rgba(48,209,88,.4);}
+/* Перетаскивание другого чипа поверх этого -- цель drop'а для перестановки
+   порядка (QLabel[chipDragOver="true"] в реальном коде). */
+.ph-chip-block.chip-drag-over{border:1.5px dashed #0a84ff;background:rgba(10,132,255,.27);}
+/* Чип вычисляемого (по формуле) поля -- отдельный акцент (фиолетовый),
+   чтобы визуально отличать от обычных, вручную заполняемых плейсхолдеров
+   (синие). Правка значения недоступна -- см. textarea.fld.fld-computed. */
+.ph-chip-block.ph-chip-computed{background:rgba(191,90,242,.16);color:#d29dfa;border-color:rgba(191,90,242,.45);}
+.ph-chip-block.ph-chip-computed:hover{border-color:#bf5af2;}
+textarea.fld.fld-computed{background:rgba(191,90,242,.10);border-color:rgba(191,90,242,.4);color:#d29dfa;cursor:default;}
+
+/* -- Редактор формул -------------------------------------------------- */
+.formula-canvas{display:flex;flex-wrap:wrap;align-items:center;gap:6px;min-height:44px;background:#1c1c1e;border:0.5px solid #38383a;border-radius:8px;padding:10px;}
+.formula-zone-active{outline:1.5px solid #0a84ff;outline-offset:2px;border-radius:6px;}
+.formula-empty-hint{font-size:11px;color:#5a5a5c;font-style:italic;}
+.formula-token{display:inline-flex;align-items:center;font-size:12.5px;white-space:nowrap;}
+.formula-token-placeholder{background:rgba(10,132,255,.16);color:#5ab4ff;border:0.5px solid rgba(10,132,255,.4);padding:3px 8px;border-radius:6px;}
+.formula-token-number{color:#e5e5e7;padding:2px 3px;}
+.formula-token-op{color:#8e8e93;font-weight:600;padding:0 3px;}
+/* Настоящая дробь -- числитель/черта/знаменатель, каждый из num/den может
+   содержать свою последовательность токенов (не просто число). Клик по
+   числителю или знаменателю делает его активной областью вставки (см.
+   renderZone()/formulaEditorState.activeZone в <script>) -- рамка каждой
+   области всегда видна пунктиром, чтобы было понятно, куда можно кликнуть,
+   даже когда область ещё пустая. */
+.formula-fraction{display:inline-flex;flex-direction:column;align-items:stretch;vertical-align:middle;margin:0 2px;}
+.formula-fraction .frac-zone{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px;min-width:24px;min-height:20px;padding:3px 5px;border:1px dashed #38383a;border-radius:4px;}
+.formula-fraction .frac-bar{height:1.5px;background:#c7c7cc;margin:3px 0;}
+.formula-op-btn{background:#242426;border:0.5px solid #38383a;color:#c7c7cc;font-size:12.5px;padding:5px 10px;border-radius:6px;cursor:pointer;}
+.formula-op-btn:hover{background:#3a3a3c;color:#e5e5e7;}
+/* Курсор вставки -- показывает, куда именно попадёт следующий токен
+   (formula-caret, см. makeFormulaCaret() в <script>). Клик по любому месту
+   формулы (свободному месту области или по левой/правой половине
+   конкретного токена) переставляет его сюда. */
+.formula-caret{display:inline-block;width:1.5px;align-self:stretch;background:#0a84ff;margin:0 1px;animation:formula-caret-blink 1s steps(1,end) infinite;}
+@keyframes formula-caret-blink{0%,49%{opacity:1;}50%,100%{opacity:0;}}
 </style>
 
 <script>
@@ -301,6 +450,35 @@ var labels = {};
 var slotState = { title: { currentVariant: null }, intro: { currentVariant: null } };
 function variantGroup(variantId){
   return variantId && variantId.indexOf('intro-') === 0 ? 'intro' : 'title';
+}
+function otherSlot(slot){
+  return slot === 'title' ? 'intro' : 'title';
+}
+// -- Одинаковые плейсхолдеры (общий каталог, см. fieldCatalog) в разных
+// слотах предзаполняются значением из другого слота, если оно там уже
+// введено (_cross_slot_placeholder_value() в реальном коде) -- разовое
+// предзаполнение В МОМЕНТ вставки поля, не живая связь: дальнейшая правка
+// в одном слоте на другой не влияет, поля остаются независимыми. Читаем
+// значение из грида ДРУГОГО слота -- getElementById() не годится, т.к.
+// id полей общие между слотами (тот же field_id может стоять и в title, и
+// в intro одновременно), и вернул бы не тот элемент.
+function crossSlotValue(slot, fieldId){
+  var other = otherSlot(slot);
+  var otherVariant = slotState[other].currentVariant;
+  if (!otherVariant) return '';
+  var grid = document.getElementById('fieldsGrid-' + other);
+  var input = grid.querySelector('#' + CSS.escape(fieldId));
+  return input ? input.value : '';
+}
+// -- Пометка "уже в другом шаблоне" в меню «Вставить плейсхолдер»
+// (_used_in_other_slot() в реальном коде) -- НЕ блокирует вставку (тот же
+// плейсхолдер может стоять сразу в обоих слотах), в отличие от "✓ уже
+// вставлен", который относится только к текущему варианту текущего слота.
+function usedInOtherSlot(slot, fieldId){
+  var other = otherSlot(slot);
+  var otherVariant = slotState[other].currentVariant;
+  if (!otherVariant) return false;
+  return (variantFields[otherVariant] || []).some(function(f){ return f.id === fieldId; });
 }
 
 // Реквизиты титульного листа -- свой набор полей под каждый вариант, все
@@ -342,6 +520,131 @@ var fieldCatalog = {};
 fieldCatalog['signer_name'] = {id:'signer_name', label:'ФИО подписанта', placeholder:'Михайлов С.А.', builtIn:true};
 var nextCatalogFieldId = 1;
 
+// -- Вычисляемые поля (формулы) -----------------------------------------
+// field id -> {tokens: [...]}. Формула привязана к field_id в ОБЩЕМ
+// каталоге -- тот же охват, что и у «Переименовать»: одна формула
+// действует везде, где встречается этот плейсхолдер (в любом варианте,
+// в любом слоте), а не только там, где её создали. Токен --
+// {type:'placeholder', id} | {type:'number', value: '3,5'} |
+// {type:'op', value: '+'|'-'|'×'|'÷'|'('|')'} |
+// {type:'fraction', num: [...токены...], den: [...токены...]}.
+var fieldFormulas = {};
+
+// -- Разбор/форматирование чисел -- ввод не чувствителен к разделителю
+// (точка или запятая, см. formulaInsertNumber()), в итоговом виде -- везде
+// запятая (тот же контракт, что и format_ru()/format_ru_fixed() в реальном
+// коде, src/services/formatting.py).
+function parseRuNumber(str){
+  return parseFloat(String(str).trim().replace(',', '.'));
+}
+// decimals -- сколько знаков после запятой показывать, настраивается
+// пользователем на само́й формуле (formulaEditorState.decimals /
+// fieldFormulas[id].decimals, см. редактор формул) -- ФИКСИРОВАННОЕ число
+// знаков (toFixed), а не "не больше N, лишние нули обрезать": если явно
+// попросили округлить до 2 знаков, результат "12,50", а не "12,5" -- иначе
+// само число округляемых знаков было бы не всегда видно на глаз. Без
+// decimals (напр. вызов из мест, ещё не привязанных к формуле) -- 3 знака,
+// прежнее поведение по умолчанию.
+function formatRuNumber(n, decimals){
+  if (typeof n !== 'number' || isNaN(n) || !isFinite(n)) return '—';
+  var d = (typeof decimals === 'number' && decimals >= 0) ? decimals : 3;
+  return n.toFixed(d).replace('.', ',');
+}
+
+// -- Значение плейсхолдера, введённое ВРУЧНУЮ в реквизитах (title или
+// intro, см. crossSlotValue() выше -- тот же принцип поиска по обоим
+// слотам). Не учитывает формулы других полей -- их обходит tokensToExpr()
+// отдельно, рекурсивно.
+function placeholderNumericValue(fieldId){
+  for (var i = 0; i < 2; i++){
+    var s = i === 0 ? 'title' : 'intro';
+    if (!slotState[s].currentVariant) continue;
+    var grid = document.getElementById('fieldsGrid-' + s);
+    var input = grid && grid.querySelector('#' + CSS.escape(fieldId));
+    if (input && input.value.trim() !== '') {
+      var n = parseRuNumber(input.value);
+      if (!isNaN(n)) return n;
+    }
+  }
+  return NaN;
+}
+
+// -- Вычисление формулы -- собирает список токенов в JS-выражение
+// (tokensToExpr) и считает его. visiting -- защита от циклических ссылок
+// (поле А ссылается на Б, Б ссылается на А) -- при обнаружении цикла вся
+// формула возвращает NaN («—»), а не зависает в бесконечной рекурсии.
+function evaluateFormula(tokens, visiting){
+  var expr = tokensToExpr(tokens, visiting || {});
+  if (expr === null) return NaN;
+  try { return Function('"use strict"; return (' + expr + ');')(); } catch (e) { return NaN; }
+}
+function tokensToExpr(tokens, visiting){
+  var parts = [];
+  for (var i = 0; i < tokens.length; i++){
+    var t = tokens[i];
+    if (t.type === 'number') {
+      var n = parseRuNumber(t.value);
+      if (isNaN(n)) return null;
+      parts.push(String(n));
+    } else if (t.type === 'placeholder') {
+      if (visiting[t.id]) return null; // цикл формул
+      var value;
+      if (fieldFormulas[t.id]) {
+        visiting[t.id] = true;
+        value = evaluateFormula(fieldFormulas[t.id].tokens, visiting);
+        delete visiting[t.id];
+      } else {
+        value = placeholderNumericValue(t.id);
+      }
+      if (isNaN(value)) return null;
+      parts.push(String(value));
+    } else if (t.type === 'op') {
+      parts.push(t.value === '×' ? '*' : t.value === '÷' ? '/' : t.value);
+    } else if (t.type === 'fraction') {
+      var numExpr = tokensToExpr(t.num, visiting);
+      var denExpr = tokensToExpr(t.den, visiting);
+      if (numExpr === null || denExpr === null) return null;
+      parts.push('((' + numExpr + ')/(' + denExpr + '))');
+    }
+  }
+  if (!parts.length) return null;
+  return parts.join(' ');
+}
+function cloneTokens(tokens){
+  return tokens.map(function(t){
+    if (t.type === 'fraction') return {type: 'fraction', num: cloneTokens(t.num), den: cloneTokens(t.den)};
+    return Object.assign({}, t);
+  });
+}
+
+// -- Живой пересчёт видимых вычисляемых полей -- вызывается на КАЖДЫЙ ввод
+// в любом текстовом поле реквизитов (см. слушатель 'input' в конце файла),
+// а не только в том поле, что реально нужно формуле, т.к. заранее не
+// известно, от чего именно она зависит. Трогает только textarea с
+// data-computed="1" -- обычные поля не переписываются.
+function refreshComputedFieldValues(){
+  ['title', 'intro'].forEach(function(s){
+    var grid = document.getElementById('fieldsGrid-' + s);
+    if (!grid) return;
+    grid.querySelectorAll('textarea.fld[data-computed="1"]').forEach(function(ta){
+      var fieldId = ta.dataset.fieldId;
+      var formula = fieldFormulas[fieldId];
+      ta.value = formula ? formatRuNumber(evaluateFormula(formula.tokens), formula.decimals) : '—';
+      autoGrowField(ta);
+    });
+  });
+}
+// -- Полная перерисовка формы реквизитов обоих открытых слотов -- нужна
+// после сохранения/удаления формулы (у поля меняется САМА СТРУКТУРА --
+// readonly/обычное, ƒ-бейдж на чипе), одного refreshComputedFieldValues()
+// (который только правит .value уже существующих textarea) недостаточно.
+function refreshSlotsAfterFormulaChange(){
+  ['title', 'intro'].forEach(function(s){
+    var cv = slotState[s].currentVariant;
+    if (cv) renderFields(s, cv);
+  });
+}
+
 function isCustom(variant){
   // Встроенных вариантов больше нет -- каждый добавленный блок пользовательский.
   return true;
@@ -378,6 +681,7 @@ function renderFields(slot, variant){
         '<div style="display:flex;align-items:center;gap:8px;background:#2c2c2e;border:0.5px solid #38383a;border-radius:7px;padding:7px 9px;cursor:pointer;" onclick="viewTemplate(\'' + slot + '\')" title="Открыть файл варианта как есть — в том состоянии, в котором его оставили в Word по завершении редактирования">' +
         '<svg class="icon" style="width:15px;height:15px;color:#0a84ff;flex-shrink:0;" aria-hidden="true"><use href="#i-file-text"></use></svg>' +
         '<span style="flex:1;font-size:11.5px;color:#e5e5e7;word-break:break-word;">Файл шаблона: ' + filename + '</span>' +
+        '<button class="remove-btn" onclick="event.stopPropagation(); revealTemplate(\'' + slot + '\')" title="Показать в Finder — не открывая сам файл ни в приложении, ни во внешнем редакторе"><svg class="icon" style="width:14px;height:14px;" aria-hidden="true"><use href="#i-files"></use></svg></button>' +
         '<button class="remove-btn" onclick="event.stopPropagation(); removeTemplate(\'' + slot + '\')" title="Убрать привязанный файл — вернуться к автосгенерированной заготовке"><svg class="icon" style="width:14px;height:14px;" aria-hidden="true"><use href="#i-x"></use></svg></button>' +
         '</div>';
     } else {
@@ -421,14 +725,18 @@ function renderFields(slot, variant){
   }
 
   fields.forEach(function(f){
+    var formula = fieldFormulas[f.id];
     var lbl;
     if (custom) {
       lbl = document.createElement('span');
-      lbl.className = 'ph-chip-block';
-      lbl.textContent = f.label;
-      lbl.title = f.label + '  {{ ' + f.id + ' }}\nКлик — скопировать для Word. ПКМ — удалить.';
+      lbl.className = 'ph-chip-block' + (formula ? ' ph-chip-computed' : '');
+      lbl.textContent = f.label + (formula ? ' ƒ' : '');
+      lbl.title = f.label + '  {{ ' + f.id + ' }}' +
+        (formula ? '\nВычисляется по формуле — правка недоступна, см. ПКМ.' : '') +
+        '\nКлик — скопировать для Word. ПКМ — меню. Перетащите на другое поле — переставить порядок.';
       lbl.onclick = function(){ copyChipInline(f.id, lbl); };
       lbl.oncontextmenu = function(ev){ return openChipMenu(ev, slot, variant, f); };
+      wireChipDragReorder(lbl, slot, variant, f.id);
     } else {
       lbl = document.createElement('span');
       lbl.className = 'lbl';
@@ -442,11 +750,22 @@ function renderFields(slot, variant){
     // вместе с переносом строк, без ручного resize-уголка (.fld его
     // скрывает через resize:none, см. <style>).
     var input = document.createElement('textarea');
-    input.className = 'fld';
+    input.className = 'fld' + (formula ? ' fld-computed' : '');
     input.id = f.id;
     input.rows = 1;
-    input.placeholder = f.placeholder || '';
-    if (prevValues.hasOwnProperty(f.id)) input.value = prevValues[f.id];
+    if (formula) {
+      // Вычисляемое поле -- readOnly (не disabled: значение всё ещё можно
+      // выделить и скопировать), значение всегда пересчитывается заново,
+      // а не восстанавливается из prevValues (формула, а не то, что тут
+      // было напечатано руками, теперь единственный источник истины).
+      input.readOnly = true;
+      input.dataset.computed = '1';
+      input.dataset.fieldId = f.id;
+      input.value = formatRuNumber(evaluateFormula(formula.tokens), formula.decimals);
+    } else {
+      input.placeholder = f.placeholder || '';
+      if (prevValues.hasOwnProperty(f.id)) input.value = prevValues[f.id];
+    }
     input.addEventListener('input', function(){ autoGrowField(input); });
 
     // Шеврон -- ручной, независимый от фокуса переключатель "свёрнуто/
@@ -552,7 +871,6 @@ function setBlock(slot, variant){
   document.getElementById('fieldsPanel-' + slot).style.display = 'block';
   document.getElementById('fieldsChev-' + slot).classList.add('chev-open');
   if (slot === 'title') document.getElementById('crumbBlock').textContent = labels[variant];
-  updateAssembleButtonState();
 }
 function toggleFields(slot){
   if (!slotState[slot].currentVariant) return;
@@ -568,16 +886,46 @@ function clearBlock(slot){
   document.getElementById('dropFilled-' + slot).style.display = 'none';
   document.getElementById('fieldsPanel-' + slot).style.display = 'none';
   if (slot === 'title') document.getElementById('crumbBlock').textContent = 'без титульного листа';
-  updateAssembleButtonState();
 }
-// -- Кнопка «Собрать документ» активна, если заполнен хотя бы один слот --
-function updateAssembleButtonState(){
-  var anyFilled = !!(slotState.title.currentVariant || slotState.intro.currentVariant);
-  var btn = document.getElementById('assembleBtn');
-  btn.style.color = anyFilled ? '#c7c7cc' : '#5a5a5c';
-  btn.style.cursor = anyFilled ? 'pointer' : 'default';
+
+// -- Диалог «Собрать документ» (_open_generate_dialog() в реальном коде) --
+// Не молча собирает из того, что уже перетащено в слоты -- сначала
+// показывает по одному выпадающему списку на слот, давая явно выбрать
+// нужную комбинацию (можно и без предварительного drag-and-drop по канве
+// вообще). Выбор применяется к самим слотам через setBlock()/clearBlock()
+// -- те же функции, что и обычное перетаскивание.
+function openGenerateDialog(){
+  populateGenerateSelect('title', document.getElementById('generateTitleSelect'));
+  populateGenerateSelect('intro', document.getElementById('generateIntroSelect'));
+  document.getElementById('generateModal').style.display = 'flex';
 }
-function assemble(){
+function populateGenerateSelect(slot, select){
+  select.innerHTML = '';
+  var noneOpt = document.createElement('option');
+  noneOpt.value = '';
+  noneOpt.textContent = '— не включать —';
+  select.appendChild(noneOpt);
+  Object.keys(labels).filter(function(vid){ return variantGroup(vid) === slot; }).forEach(function(vid){
+    var opt = document.createElement('option');
+    opt.value = vid;
+    opt.textContent = labels[vid];
+    select.appendChild(opt);
+  });
+  select.value = slotState[slot].currentVariant || '';
+}
+function closeGenerateDialog(){
+  document.getElementById('generateModal').style.display = 'none';
+}
+function confirmGenerateDialog(){
+  var titleSel = document.getElementById('generateTitleSelect').value || null;
+  var introSel = document.getElementById('generateIntroSelect').value || null;
+  closeGenerateDialog();
+  if (titleSel !== slotState.title.currentVariant) {
+    if (titleSel) setBlock('title', titleSel); else clearBlock('title');
+  }
+  if (introSel !== slotState.intro.currentVariant) {
+    if (introSel) setBlock('intro', introSel); else clearBlock('intro');
+  }
   var parts = [];
   if (slotState.title.currentVariant) parts.push(labels[slotState.title.currentVariant]);
   if (slotState.intro.currentVariant) parts.push(labels[slotState.intro.currentVariant]);
@@ -647,12 +995,17 @@ function renderPlaceholderMenuList(slot){
   Object.keys(fieldCatalog).forEach(function(id){
     var f = fieldCatalog[id];
     var already = current.some(function(cf){ return cf.id === id; });
+    var usedElsewhere = !already && usedInOtherSlot(slot, id);
     var row = document.createElement('div');
     row.className = 'menu-row';
     row.style.opacity = already ? '.4' : '1';
     var label = document.createElement('span');
     label.style.cssText = 'flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
-    label.textContent = f.label + (already ? ' ✓' : '');
+    if (usedElsewhere) {
+      label.innerHTML = f.label + ' <span style="color:#5a5a5c;font-size:10.5px;">· уже в другом шаблоне</span>';
+    } else {
+      label.textContent = f.label + (already ? ' ✓' : '');
+    }
     row.appendChild(label);
     row.onclick = function(e){ e.stopPropagation(); if (!already) addPlaceholder(slot, f); document.getElementById('placeholderMenu-' + slot).style.display = 'none'; };
     // Удалить поле из каталога целиком -- только для пользовательских
@@ -672,8 +1025,26 @@ function renderPlaceholderMenuList(slot){
       del.innerHTML = '<svg class="icon" style="width:12px;height:12px;" aria-hidden="true"><use href="#i-trash"></use></svg>';
       del.onclick = function(e){
         e.stopPropagation();
-        showConfirm('Удалить поле «' + f.label + '» из каталога плейсхолдеров? Оно пропадёт из списка «Вставить плейсхолдер» для всех вариантов (и титульных листов, и вводной части) — каталог общий.', function(){
+        showConfirm('Удалить поле «' + f.label + '» из каталога плейсхолдеров? Оно пропадёт из списка «Вставить плейсхолдер», а его чип — из реквизитов ВСЕХ вариантов, где уже вставлен (и титульных листов, и вводной части) — каталог общий.', function(){
           delete fieldCatalog[f.id];
+          // Формула этого поля (если была) больше не имеет смысла без
+          // самого поля в каталоге -- убираем вместе с ним. Формулы
+          // ДРУГИХ полей, ссылавшиеся на f.id, не правим -- просто
+          // перестанут считаться (evaluateFormula() вернёт NaN, «—»),
+          // тот же принцип деградации, что и у голого id вместо подписи.
+          delete fieldFormulas[f.id];
+          // Убираем чип не только из каталога, но и из subtitle_fields
+          // каждого варианта обоих слотов -- иначе повисший чип с
+          // подписью-фоллбэком на голый id остался бы в интерфейсе после
+          // того, как поле пропало из каталога (см. _delete_catalog_field()
+          // в реальном коде).
+          Object.keys(variantFields).forEach(function(vid){
+            variantFields[vid] = (variantFields[vid] || []).filter(function(cf){ return cf.id !== f.id; });
+          });
+          ['title', 'intro'].forEach(function(s){
+            var cv = slotState[s].currentVariant;
+            if (cv) renderFields(s, cv);
+          });
           renderPlaceholderMenuList(slot);
         });
       };
@@ -718,6 +1089,15 @@ function addPlaceholder(slot, f){
   if (!variantFields[variant]) variantFields[variant] = [];
   variantFields[variant].push(f);
   renderFields(slot, variant);
+  // Тот же field_id уже мог быть заполнен в другом слоте -- предзаполняем
+  // новое поле его значением (crossSlotValue()), не заставляя вводить то
+  // же самое дважды. Разовое копирование значения, не живая привязка.
+  var grid = document.getElementById('fieldsGrid-' + slot);
+  var input = grid.querySelector('#' + CSS.escape(f.id));
+  if (input && !input.value) {
+    var prefill = crossSlotValue(slot, f.id);
+    if (prefill) { input.value = prefill; autoGrowField(input); }
+  }
 }
 function uploadTemplate(slot){
   var name = prompt('Мокап: выберите .docx-файл (введите имя файла)', 'шаблон_титул_конструктор.docx');
@@ -772,6 +1152,16 @@ function viewTemplate(slot){
   var variant = slotState[slot].currentVariant;
   alert('Здесь MainWindow._open_title_variant_raw_file() откроет templates/fragments/title_' + variant + '.docx как есть — с "{{ field }}" там, где плейсхолдеры ещё не вписаны в текст руками.');
 }
+// -- Папочная иконка на карточке загруженного шаблона -- ПОКАЗЫВАЕТ файл в
+// Finder, не открывая его ни в приложении, ни во внешнем редакторе (в
+// дополнение к клику по самой карточке, который открывает файл именно В
+// ПРИЛОЖЕНИИ, см. viewTemplate() выше) -- см. _reveal_variant_template()/
+// _reveal_in_finder() в реальном коде (macOS-специфично, как и вся
+// остальная работа с внешними приложениями в этом конструкторе).
+function revealTemplate(slot){
+  var variant = slotState[slot].currentVariant;
+  alert('Здесь MainWindow._reveal_variant_template() покажет templates/fragments/title_' + variant + '.docx в Finder, не открывая сам файл.');
+}
 function openPreview(slot){
   var variant = slotState[slot].currentVariant;
   previewGenerated[variant] = true;
@@ -819,13 +1209,63 @@ function copyChipInline(id, el){
   el._copyTimer = setTimeout(function(){ el.classList.remove('copied'); }, 900);
 }
 
-// -- ПКМ по чипу-подписи: удалить ------------------------------------------
+// -- Перетаскивание чипа-плейсхолдера на другой чип -- переставляет порядок
+// полей в variantFields[variant] (_reorder_variant_placeholder() /
+// _wire_chip_drag_reorder() в реальном коде). Тот же чип служит и
+// источником, и целью drop'а; вставка -- до или после чипа-цели, в
+// зависимости от того, в верхнюю или нижнюю половину его высоты попал
+// курсор при отпускании (тот же принцип, что и у самого дропзона документа,
+// см. onDrop() выше). Только для пользовательских вариантов -- у встроенных
+// чипов такого перетаскивания нет вовсе.
+function wireChipDragReorder(lbl, slot, variant, fieldId){
+  lbl.draggable = true;
+  lbl.ondragstart = function(ev){
+    ev.dataTransfer.setData('text/x-chip-field', fieldId);
+    ev.dataTransfer.effectAllowed = 'move';
+  };
+  lbl.ondragover = function(ev){
+    if (!ev.dataTransfer.types || Array.prototype.indexOf.call(ev.dataTransfer.types, 'text/x-chip-field') === -1) return;
+    ev.preventDefault();
+    lbl.classList.add('chip-drag-over');
+  };
+  lbl.ondragleave = function(){
+    lbl.classList.remove('chip-drag-over');
+  };
+  lbl.ondrop = function(ev){
+    ev.preventDefault();
+    lbl.classList.remove('chip-drag-over');
+    var draggedId = ev.dataTransfer.getData('text/x-chip-field');
+    if (!draggedId || draggedId === fieldId) return;
+    var insertAfter = ev.offsetY > lbl.offsetHeight / 2;
+    reorderPlaceholder(slot, variant, draggedId, fieldId, insertAfter);
+  };
+}
+function reorderPlaceholder(slot, variant, draggedFieldId, targetFieldId, insertAfter){
+  var fields = variantFields[variant] || [];
+  var draggedIdx = fields.findIndex(function(f){ return f.id === draggedFieldId; });
+  if (draggedIdx === -1) return;
+  var dragged = fields.splice(draggedIdx, 1)[0];
+  var targetIdx = fields.findIndex(function(f){ return f.id === targetFieldId; });
+  fields.splice(targetIdx === -1 ? fields.length : targetIdx + (insertAfter ? 1 : 0), 0, dragged);
+  renderFields(slot, variant);
+}
+
+// -- ПКМ по чипу-подписи: создать формулу / переименовать / удалить -------
 var chipMenuTarget = null; // {slot, variant, field}
 function openChipMenu(ev, slot, variant, f){
   ev.preventDefault();
   ev.stopPropagation();
   chipMenuTarget = {slot: slot, variant: variant, field: f};
   var menu = document.getElementById('chipMenu');
+  // Подпись первого пункта -- «Создать формулу» либо «Редактировать
+  // формулу», в зависимости от того, задана ли уже формула для этого
+  // field_id (fieldFormulas -- общий каталог, не завязан на variant/slot).
+  document.getElementById('chipMenuFormulaLabel').textContent =
+    fieldFormulas[f.id] ? 'Редактировать формулу' : 'Создать формулу';
+  // «Переименовать» -- только для пользовательских полей каталога (не
+  // builtIn), тот же принцип, что и у корзинки в «Вставить плейсхолдер».
+  var canRename = fieldCatalog[f.id] && !fieldCatalog[f.id].builtIn;
+  document.getElementById('chipMenuRenameRow').style.display = canRename ? 'flex' : 'none';
   var frame = menu.parentElement.getBoundingClientRect();
   menu.style.left = (ev.clientX - frame.left) + 'px';
   menu.style.top = (ev.clientY - frame.top) + 'px';
@@ -835,12 +1275,282 @@ function openChipMenu(ev, slot, variant, f){
 function closeChipMenu(){
   document.getElementById('chipMenu').style.display = 'none';
 }
+function openFormulaEditorFromMenu(){
+  if (!chipMenuTarget) { closeChipMenu(); return; }
+  var fieldId = chipMenuTarget.field.id;
+  closeChipMenu();
+  openFormulaEditor(fieldId);
+}
+function renameChipFromMenu(){
+  if (!chipMenuTarget) { closeChipMenu(); return; }
+  var fieldId = chipMenuTarget.field.id;
+  closeChipMenu();
+  if (!fieldCatalog[fieldId] || fieldCatalog[fieldId].builtIn) return;
+  var newLabel = prompt('Новое название поля:', fieldCatalog[fieldId].label);
+  if (newLabel === null) return;
+  newLabel = newLabel.trim();
+  if (!newLabel || newLabel === fieldCatalog[fieldId].label) return;
+  fieldCatalog[fieldId].label = newLabel;
+  refreshSlotsAfterFormulaChange();
+}
 function deleteChipFromMenu(){
   if (!chipMenuTarget) { closeChipMenu(); return; }
   var slot = chipMenuTarget.slot, variant = chipMenuTarget.variant, fieldId = chipMenuTarget.field.id;
   variantFields[variant] = (variantFields[variant] || []).filter(function(f){ return f.id !== fieldId; });
   if (variant === slotState[slot].currentVariant) renderFields(slot, variant);
   closeChipMenu();
+}
+
+// -- Редактор формул -------------------------------------------------------
+// formulaEditorState.activeZone -- ссылка на конкретный массив токенов
+// (верхний уровень формулы либо num/den какой-то дроби внутри неё), в
+// который сейчас вставляем; cursorIndex -- позиция ВНУТРИ этого массива
+// (0..zoneTokens.length, как индекс вставки в Array.splice()). Клик по
+// формуле выбирает и то, и другое: клик по свободному месту области --
+// activeZone = эта область, cursorIndex = в конец; клик по конкретному
+// токену -- activeZone = область, где он лежит, cursorIndex = перед ним
+// или после (левая/правая половина токена, см. renderZone()). Кнопки
+// тулбара вставляют новый токен РОВНО в cursorIndex (Array.splice), а не
+// всегда в конец -- курсор передвигается за только что вставленным
+// элементом, так что серия кликов по кнопкам печатает подряд, как в любом
+// текстовом поле.
+// decimals -- сколько знаков после запятой показывать в результате этой
+// формулы (formatRuNumber()), настраивается тут же, в редакторе -- своё
+// значение на каждую формулу, а не глобальная настройка приложения.
+var formulaEditorState = null; // {fieldId, tokens, activeZone, cursorIndex, decimals}
+var FORMULA_DEFAULT_DECIMALS = 2;
+
+function openFormulaEditor(fieldId){
+  var existing = fieldFormulas[fieldId];
+  var tokens = existing ? cloneTokens(existing.tokens) : [];
+  var decimals = existing && typeof existing.decimals === 'number' ? existing.decimals : FORMULA_DEFAULT_DECIMALS;
+  formulaEditorState = {fieldId: fieldId, tokens: tokens, activeZone: tokens, cursorIndex: tokens.length, decimals: decimals};
+  document.getElementById('formulaEditorFieldLabel').textContent =
+    fieldCatalog[fieldId] ? fieldCatalog[fieldId].label : fieldId;
+  document.getElementById('formulaRemoveBtn').style.display = existing ? 'inline-flex' : 'none';
+  document.getElementById('formulaNumberInput').value = '';
+  document.getElementById('formulaDecimalsInput').value = decimals;
+  renderFormulaCanvas();
+  document.getElementById('formulaModal').style.display = 'flex';
+}
+// -- Округление результата -- меняет только formulaEditorState.decimals и
+// сразу пересчитывает предпросмотр (updateFormulaResult()), сами токены
+// формулы не трогает. Значение зажимается в разумных пределах (0..6) --
+// отрицательное число знаков бессмысленно, а десятки знаков после запятой
+// никому не нужны и просто ломают вёрстку строки результата.
+function formulaSetDecimals(rawValue){
+  var n = parseInt(rawValue, 10);
+  if (isNaN(n)) n = FORMULA_DEFAULT_DECIMALS;
+  n = Math.max(0, Math.min(6, n));
+  formulaEditorState.decimals = n;
+  updateFormulaResult();
+}
+function closeFormulaEditor(){
+  document.getElementById('formulaModal').style.display = 'none';
+  document.getElementById('formulaPlaceholderMenu').style.display = 'none';
+  formulaEditorState = null;
+}
+function saveFormulaEditor(){
+  if (!formulaEditorState.tokens.length) {
+    alert('Формула пустая — добавьте хотя бы один элемент (плейсхолдер, число или дробь).');
+    return;
+  }
+  fieldFormulas[formulaEditorState.fieldId] = {
+    tokens: cloneTokens(formulaEditorState.tokens),
+    decimals: formulaEditorState.decimals,
+  };
+  closeFormulaEditor();
+  refreshSlotsAfterFormulaChange();
+}
+function removeFormulaFromField(){
+  delete fieldFormulas[formulaEditorState.fieldId];
+  closeFormulaEditor();
+  refreshSlotsAfterFormulaChange();
+}
+
+// -- Отрисовка канвы формулы -- рекурсивная: у дроби num/den отрисовываются
+// той же renderZone(), просто в свою собственную вложенную обёртку.
+function renderFormulaCanvas(){
+  var canvas = document.getElementById('formulaCanvas');
+  canvas.innerHTML = '';
+  renderZone(canvas, formulaEditorState.tokens);
+  updateFormulaResult();
+}
+function renderZone(container, zoneTokens){
+  var isActive = formulaEditorState.activeZone === zoneTokens;
+  container.classList.toggle('formula-zone-active', isActive);
+  // Клик по СВОБОДНОМУ месту области (не по конкретному токену -- те
+  // перехватывают клик своим собственным обработчиком и останавливают
+  // всплытие, см. ниже) -- курсор становится в конец этой области.
+  container.onclick = function(ev){
+    ev.stopPropagation();
+    setCursor(zoneTokens, zoneTokens.length);
+  };
+  var cursorIndex = isActive ? formulaEditorState.cursorIndex : -1;
+
+  if (cursorIndex === 0) container.appendChild(makeFormulaCaret());
+  if (!zoneTokens.length) {
+    var hint = document.createElement('span');
+    hint.className = 'formula-empty-hint';
+    hint.textContent = container === document.getElementById('formulaCanvas') ? 'нажмите на кнопку ниже, чтобы добавить' : 'пусто';
+    container.appendChild(hint);
+  }
+  zoneTokens.forEach(function(t, i){
+    var el = renderFormulaToken(t);
+    // Левая половина токена -- курсор ПЕРЕД ним, правая -- ПОСЛЕ. Именно
+    // этот клик (а не клик по контейнеру-области) определяет точную
+    // позицию вставки внутри последовательности, а не только саму область.
+    el.addEventListener('click', function(ev){
+      ev.stopPropagation();
+      var rect = el.getBoundingClientRect();
+      var before = (ev.clientX - rect.left) < rect.width / 2;
+      setCursor(zoneTokens, before ? i : i + 1);
+    });
+    container.appendChild(el);
+    if (cursorIndex === i + 1) container.appendChild(makeFormulaCaret());
+  });
+}
+// Мигающая вертикальная черта -- визуальный курсор вставки (formula-caret
+// в <style>). Рисуется ЗАНОВО при каждой перерисовке канвы ровно в одном
+// месте -- там, где formulaEditorState.cursorIndex внутри активной области.
+function makeFormulaCaret(){
+  var caret = document.createElement('span');
+  caret.className = 'formula-caret';
+  return caret;
+}
+function renderFormulaToken(t){
+  if (t.type === 'fraction') {
+    var wrap = document.createElement('span');
+    wrap.className = 'formula-fraction';
+    var num = document.createElement('span');
+    num.className = 'frac-zone';
+    var bar = document.createElement('span');
+    bar.className = 'frac-bar';
+    var den = document.createElement('span');
+    den.className = 'frac-zone';
+    wrap.appendChild(num);
+    wrap.appendChild(bar);
+    wrap.appendChild(den);
+    renderZone(num, t.num);
+    renderZone(den, t.den);
+    // Клик по числителю/знаменателю сам решает свою позицию курсора (см.
+    // renderZone() выше) и останавливает всплытие -- клик прямо по обёртке
+    // дроби (её пустому полю вокруг num/bar/den, чаще всего -- по самой
+    // черте) не всплывает В НЕЁ (у дроби нет собственного cursorIndex), а
+    // обрабатывается на уровне РОДИТЕЛЬСКОЙ области кодом выше (клик по
+    // самому этому <span> как по обычному токену, before/after дроби
+    // целиком) -- отдельного обработчика тут поэтому не нужно.
+    return wrap;
+  }
+  var el = document.createElement('span');
+  el.className = 'formula-token ' +
+    (t.type === 'placeholder' ? 'formula-token-placeholder' : t.type === 'number' ? 'formula-token-number' : 'formula-token-op');
+  el.textContent = t.type === 'placeholder' ? (fieldCatalog[t.id] ? fieldCatalog[t.id].label : t.id) : t.value;
+  return el;
+}
+function setCursor(zoneTokens, index){
+  formulaEditorState.activeZone = zoneTokens;
+  formulaEditorState.cursorIndex = index;
+  renderFormulaCanvas();
+}
+function updateFormulaResult(){
+  var result = formulaEditorState.tokens.length ? evaluateFormula(formulaEditorState.tokens) : NaN;
+  document.getElementById('formulaResultValue').textContent = formatRuNumber(result, formulaEditorState.decimals);
+}
+
+// -- Тулбар редактора формул -------------------------------------------
+function toggleFormulaPlaceholderMenu(ev){
+  ev.stopPropagation();
+  var menu = document.getElementById('formulaPlaceholderMenu');
+  if (menu.style.display === 'block') { menu.style.display = 'none'; return; }
+  renderFormulaPlaceholderMenuList();
+  menu.style.display = 'block';
+}
+function renderFormulaPlaceholderMenuList(){
+  var menu = document.getElementById('formulaPlaceholderMenu');
+  menu.innerHTML = '';
+  // Само поле, для которого создаётся формула, исключено из списка --
+  // ссылка на само себя всегда была бы циклом (см. evaluateFormula()).
+  var ids = Object.keys(fieldCatalog).filter(function(id){ return id !== formulaEditorState.fieldId; });
+  if (!ids.length) {
+    var empty = document.createElement('div');
+    empty.style.cssText = 'padding:8px 10px;font-size:11.5px;color:#5a5a5c;';
+    empty.textContent = 'Нет доступных плейсхолдеров';
+    menu.appendChild(empty);
+    return;
+  }
+  ids.forEach(function(id){
+    var f = fieldCatalog[id];
+    var row = document.createElement('div');
+    row.className = 'menu-row';
+    var label = document.createElement('span');
+    label.style.cssText = 'flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+    label.textContent = f.label + (fieldFormulas[id] ? ' (ƒ)' : '');
+    row.appendChild(label);
+    row.onclick = function(e){ e.stopPropagation(); formulaInsertPlaceholder(id); };
+    menu.appendChild(row);
+  });
+}
+// -- Общая вставка токена РОВНО в позицию курсора (Array.splice, не push в
+// конец) -- курсор сдвигается на позицию сразу за вставленным элементом,
+// поэтому несколько нажатий кнопок подряд печатают последовательность в
+// том же порядке, в котором на них нажали, независимо от того, где именно
+// в формуле сейчас стоит курсор.
+function insertFormulaToken(token){
+  var zone = formulaEditorState.activeZone;
+  var index = formulaEditorState.cursorIndex;
+  zone.splice(index, 0, token);
+  formulaEditorState.cursorIndex = index + 1;
+  renderFormulaCanvas();
+}
+function formulaInsertPlaceholder(fieldId){
+  insertFormulaToken({type: 'placeholder', id: fieldId});
+  document.getElementById('formulaPlaceholderMenu').style.display = 'none';
+}
+function formulaInsertOp(op){
+  insertFormulaToken({type: 'op', value: op});
+}
+function formulaInsertFraction(){
+  var frac = {type: 'fraction', num: [], den: []};
+  insertFormulaToken(frac);
+  // Курсор сразу переходит в числитель новой дроби, как в редакторе формул
+  // Word -- отдельно от insertFormulaToken() выше, т.к. это смена и области,
+  // и позиции курсора, а не просто "сдвинуть курсор в той же области".
+  formulaEditorState.activeZone = frac.num;
+  formulaEditorState.cursorIndex = 0;
+  renderFormulaCanvas();
+}
+// -- Ввод пользовательского числа -- разделитель дробной части (точка или
+// запятая) не важен на входе (regex ниже принимает оба), везде дальше в
+// формуле и в итоговом результате -- запятая (formatRuNumber()).
+function formulaInsertNumber(){
+  var input = document.getElementById('formulaNumberInput');
+  var raw = input.value.trim();
+  if (!raw) { input.focus(); return; }
+  if (!/^-?\d+([.,]\d+)?$/.test(raw)) {
+    input.style.borderColor = '#ff453a';
+    return;
+  }
+  input.style.borderColor = '';
+  insertFormulaToken({type: 'number', value: raw.replace('.', ',')});
+  input.value = '';
+}
+// -- Backspace -- удаляет элемент СЛЕВА от курсора (а не последний элемент
+// области как таковой) и ставит курсор на его место -- симметрично тому,
+// как ⌫ работает в любом текстовом поле.
+function formulaRemoveLast(){
+  var zone = formulaEditorState.activeZone;
+  var index = formulaEditorState.cursorIndex;
+  if (index <= 0) return; // курсор в начале области -- удалять нечего
+  zone.splice(index - 1, 1);
+  formulaEditorState.cursorIndex = index - 1;
+  renderFormulaCanvas();
+}
+function formulaClearAll(){
+  formulaEditorState.tokens.length = 0;
+  formulaEditorState.activeZone = formulaEditorState.tokens;
+  formulaEditorState.cursorIndex = 0;
+  renderFormulaCanvas();
 }
 
 // -- Переименование/удаление варианта правой кнопкой мыши (только карточки
@@ -904,5 +1614,17 @@ document.addEventListener('click', function(ev){
   });
   var cm = document.getElementById('chipMenu');
   if (cm.style.display === 'block' && !cm.contains(ev.target)) { closeChipMenu(); }
+  var fpm = document.getElementById('formulaPlaceholderMenu');
+  if (fpm && fpm.style.display === 'block' && !fpm.contains(ev.target)) { fpm.style.display = 'none'; }
+});
+
+// -- Живой пересчёт вычисляемых полей -- любой ввод в ЛЮБОМ текстовом поле
+// реквизитов (в любом слоте) может повлиять на чью-то формулу, заранее не
+// известно, на чью именно, поэтому пересчитываем все видимые вычисляемые
+// поля на каждое событие 'input', а не только в том поле, где печатают.
+document.addEventListener('input', function(ev){
+  if (ev.target.classList && ev.target.classList.contains('fld') && !ev.target.readOnly) {
+    refreshComputedFieldValues();
+  }
 });
 </script>
