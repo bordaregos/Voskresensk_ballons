@@ -5,7 +5,8 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QPlainTextEdit, QComboBo
                              QMessageBox, QFileDialog, QGroupBox,
                              QTreeWidgetItem, QInputDialog, QMenu, QListWidgetItem,
                              QDialog, QLineEdit, QVBoxLayout, QHBoxLayout, QDialogButtonBox,
-                             QLabel, QWidget, QToolButton, QWidgetAction, QFormLayout)
+                             QLabel, QWidget, QToolButton, QWidgetAction, QFormLayout,
+                             QListWidget, QListView, QFrame, QAbstractItemView, QSizePolicy)
 from PyQt6.QtCore import QLocale, Qt, QDate, QPointF, QTimer, QSize, QMimeData, QSignalBlocker
 from PyQt6.QtGui import QPixmap, QIcon, QPainter, QColor, QPen, QGuiApplication, QDrag
 from PyQt6.uic import loadUi
@@ -24,6 +25,7 @@ import html
 import math
 import tempfile
 import functools
+from types import SimpleNamespace
 
 from ..equipment_types import EquipmentType, REGISTRY
 from ..services.calculations import (
@@ -52,6 +54,7 @@ from ..services.employees_store import (
 )
 from ..services.docx_layout import float_drawings_behind_text
 from ..services import workspace
+from ..services import custom_sections_store
 from . import icons
 from .open_with import open_with_prompt
 from .growable_placeholder_field import GrowablePlaceholderField
@@ -72,31 +75,46 @@ CONSTRUCTOR_QSS = """
 QMainWindow, #constructorCentral { background: #1c1c1e; }
 #constructorSidebar { background: #242426; border-right: 0.5px solid #38383a; }
 #constructorSidebar QLabel { color: #8e8e93; font-size: 11px; }
-#titleGroupToggle, #introGroupToggle, #appendix1GroupToggle {
+QPushButton[role="groupToggle"] {
     background: transparent; border: none; color: #e5e5e7; font-size: 12px;
     font-weight: 500; text-align: left; padding: 6px; border-radius: 5px;
 }
-#titleGroupToggle:hover, #introGroupToggle:hover, #appendix1GroupToggle:hover { background: #2c2c2e; }
-#addTitleVariantBtn, #addIntroVariantBtn, #addAppendix1VariantBtn {
+QPushButton[role="groupToggle"]:hover { background: #2c2c2e; }
+QPushButton[role="addVariantBtn"] {
     background: transparent; border: 0.5px dashed #48484a; border-radius: 7px;
     color: #8e8e93; font-size: 11.5px; text-align: left; padding: 7px 9px;
     margin: 2px 0;
 }
-#addTitleVariantBtn:hover, #addIntroVariantBtn:hover, #addAppendix1VariantBtn:hover {
+QPushButton[role="addVariantBtn"]:hover {
     border-color: #0a84ff; color: #e5e5e7;
 }
-QListWidget#availableBlocksList, QListWidget#availableIntroBlocksList, QListWidget#availableAppendix1BlocksList {
+/* «+ Добавить раздел» (см. __init__/_open_add_section_dialog()) -- сплошная
+   (не пунктирная) синяя рамка, чтобы визуально отличаться от «Добавить»
+   ВНУТРИ раздела (тот пунктирный, role="addVariantBtn" выше) -- тот же
+   приём, что и в мокапе (docs/design/вводная_часть.html). */
+#addSectionBtn {
+    background: transparent; border: 0.5px solid rgba(10, 132, 255, 110); border-radius: 7px;
+    color: #0a84ff; font-size: 11.5px; text-align: left; padding: 7px 9px;
+    margin: 2px 0 10px;
+}
+#addSectionBtn:hover { background: rgba(10, 132, 255, 24); }
+/* [role="..."] вместо перечисления #titleFoo, #introFoo, #appendix1Foo --
+   раздел конструктора теперь не фиксированная тройка (см. MainWindow.
+   _create_section()/_build_custom_section_widgets()), а произвольный набор
+   слотов, заранее не известный на момент написания этого QSS -- имя
+   объекта каждого нового раздела уникально ("section1FieldsPanel" и т.п.),
+   а вот role -- одна из фиксированных ролей ("fieldsPanel" и т.п.),
+   выставляется программно на КАЖДЫЙ слот одинаково в _init_constructor_slot()
+   независимо от того, встроенный он или добавлен пользователем. */
+QListWidget[role="availableBlocksList"] {
     background: transparent; border: none; outline: none; font-size: 11.5px;
 }
-QListWidget#availableBlocksList::item, QListWidget#availableIntroBlocksList::item,
-QListWidget#availableAppendix1BlocksList::item {
+QListWidget[role="availableBlocksList"]::item {
     background: #2c2c2e; border: 0.5px solid #38383a; border-radius: 7px;
     padding: 5px 8px; margin: 2px 0; color: #e5e5e7;
 }
-QListWidget#availableBlocksList::item:hover, QListWidget#availableIntroBlocksList::item:hover,
-QListWidget#availableAppendix1BlocksList::item:hover { border-color: #0a84ff; }
-QListWidget#availableBlocksList::item:selected, QListWidget#availableIntroBlocksList::item:selected,
-QListWidget#availableAppendix1BlocksList::item:selected { background: #2c2c2e; }
+QListWidget[role="availableBlocksList"]::item:hover { border-color: #0a84ff; }
+QListWidget[role="availableBlocksList"]::item:selected { background: #2c2c2e; }
 /* Карточка варианта, включённого в документ сейчас (см.
    _highlight_available_block_items()) -- тот же стиль, что и у чипа
    плейсхолдера в реквизитах (QLabel[titleChip="true"] ниже), просто
@@ -110,74 +128,61 @@ QLabel#crumbLabel {
     border-bottom: 0.5px solid #2c2c2e;
 }
 QLabel#documentSectionLabel { color: #8e8e93; font-size: 11px; }
-QListWidget#includedBlockList, QListWidget#includedIntroBlockList, QListWidget#includedAppendix1BlockList {
+QListWidget[role="includedBlockList"] {
     background: transparent; outline: none; border: none;
 }
-QListWidget#includedBlockList[filled="false"], QListWidget#includedIntroBlockList[filled="false"],
-QListWidget#includedAppendix1BlockList[filled="false"] {
+QListWidget[role="includedBlockList"][filled="false"] {
     border: 1.5px dashed #38383a; border-radius: 8px;
 }
-QListWidget#includedBlockList[filled="true"]::item, QListWidget#includedIntroBlockList[filled="true"]::item,
-QListWidget#includedAppendix1BlockList[filled="true"]::item {
+QListWidget[role="includedBlockList"][filled="true"]::item {
     background: #2c2c2e; border-radius: 8px; padding: 0; margin: 0;
 }
-QListWidget#includedBlockList[dragOver="true"], QListWidget#includedIntroBlockList[dragOver="true"],
-QListWidget#includedAppendix1BlockList[dragOver="true"] {
+QListWidget[role="includedBlockList"][dragOver="true"] {
     border: 1.5px dashed #0a84ff; border-radius: 8px; background: rgba(10, 132, 255, 24);
 }
-QGroupBox#fieldsPanel, QGroupBox#introFieldsPanel, QGroupBox#appendix1FieldsPanel {
+QGroupBox[role="fieldsPanel"] {
     border: none; margin-top: 14px; padding-top: 0;
 }
-QFrame#slotSeparator, QFrame#slotSeparator2 {
+QFrame[role="slotSeparator"] {
     background: #545456; margin-top: 20px; margin-bottom: 12px; border-radius: 1px;
 }
-QGroupBox#fieldsPanel QLabel, QGroupBox#introFieldsPanel QLabel, QGroupBox#appendix1FieldsPanel QLabel {
+QGroupBox[role="fieldsPanel"] QLabel {
     color: #c7c7cc; font-size: 12px;
 }
-QGroupBox#fieldsPanel QLabel#titleFieldsSectionLabel, QGroupBox#introFieldsPanel QLabel#titleFieldsSectionLabel,
-QGroupBox#appendix1FieldsPanel QLabel#titleFieldsSectionLabel {
+QGroupBox[role="fieldsPanel"] QLabel#titleFieldsSectionLabel {
     color: #8e8e93; font-size: 11px; margin-top: 4px;
 }
-QGroupBox#fieldsPanel QPlainTextEdit, QGroupBox#introFieldsPanel QPlainTextEdit,
-QGroupBox#appendix1FieldsPanel QPlainTextEdit {
+QGroupBox[role="fieldsPanel"] QPlainTextEdit {
     background: #2c2c2e; border: 0.5px solid #38383a; border-radius: 5px;
     color: #e5e5e7; font-size: 12px; padding: 6px 8px;
 }
-QGroupBox#fieldsPanel QPlainTextEdit:focus, QGroupBox#introFieldsPanel QPlainTextEdit:focus,
-QGroupBox#appendix1FieldsPanel QPlainTextEdit:focus { border-color: #0a84ff; }
-QGroupBox#fieldsPanel QToolButton, QGroupBox#introFieldsPanel QToolButton, QGroupBox#appendix1FieldsPanel QToolButton {
+QGroupBox[role="fieldsPanel"] QPlainTextEdit:focus { border-color: #0a84ff; }
+QGroupBox[role="fieldsPanel"] QToolButton {
     background: transparent; border: none; color: #c7c7cc; font-size: 11.5px;
     padding: 4px 8px; border-radius: 5px;
 }
-QGroupBox#fieldsPanel QToolButton:hover, QGroupBox#introFieldsPanel QToolButton:hover,
-QGroupBox#appendix1FieldsPanel QToolButton:hover { background: #3a3a3c; color: #e5e5e7; }
-QGroupBox#fieldsPanel QToolButton::menu-indicator, QGroupBox#introFieldsPanel QToolButton::menu-indicator,
-QGroupBox#appendix1FieldsPanel QToolButton::menu-indicator {
+QGroupBox[role="fieldsPanel"] QToolButton:hover { background: #3a3a3c; color: #e5e5e7; }
+QGroupBox[role="fieldsPanel"] QToolButton::menu-indicator {
     width: 8px; height: 8px; subcontrol-position: right center;
     subcontrol-origin: padding; right: 4px;
 }
-QGroupBox#fieldsPanel QLabel[titleChip="true"], QGroupBox#introFieldsPanel QLabel[titleChip="true"],
-QGroupBox#appendix1FieldsPanel QLabel[titleChip="true"] {
+QGroupBox[role="fieldsPanel"] QLabel[titleChip="true"] {
     background: rgba(10, 132, 255, 40); color: #5ab4ff;
     border: 1px solid rgba(10, 132, 255, 110); border-radius: 6px;
     padding: 4px 9px; font-size: 11.5px;
 }
-QGroupBox#fieldsPanel QLabel[titleChipCopied="true"], QGroupBox#introFieldsPanel QLabel[titleChipCopied="true"],
-QGroupBox#appendix1FieldsPanel QLabel[titleChipCopied="true"] {
+QGroupBox[role="fieldsPanel"] QLabel[titleChipCopied="true"] {
     background: rgba(48, 209, 88, 40); color: #30d158;
     border: 1px solid rgba(48, 209, 88, 140);
 }
-QGroupBox#fieldsPanel QLabel[chipDragOver="true"], QGroupBox#introFieldsPanel QLabel[chipDragOver="true"],
-QGroupBox#appendix1FieldsPanel QLabel[chipDragOver="true"] {
+QGroupBox[role="fieldsPanel"] QLabel[chipDragOver="true"] {
     border: 1.5px dashed #0a84ff; background: rgba(10, 132, 255, 70);
 }
-QGroupBox#fieldsPanel QLabel[titleChipFormula="true"], QGroupBox#introFieldsPanel QLabel[titleChipFormula="true"],
-QGroupBox#appendix1FieldsPanel QLabel[titleChipFormula="true"] {
+QGroupBox[role="fieldsPanel"] QLabel[titleChipFormula="true"] {
     background: rgba(191, 90, 242, 40); color: #d29dfa;
     border: 1px solid rgba(191, 90, 242, 140);
 }
-QGroupBox#fieldsPanel QPlainTextEdit[computed="true"], QGroupBox#introFieldsPanel QPlainTextEdit[computed="true"],
-QGroupBox#appendix1FieldsPanel QPlainTextEdit[computed="true"] {
+QGroupBox[role="fieldsPanel"] QPlainTextEdit[computed="true"] {
     background: rgba(191, 90, 242, 24); border-color: rgba(191, 90, 242, 140); color: #d29dfa;
 }
 QWidget#titleTemplateDropHint {
@@ -509,14 +514,32 @@ class MainWindow(QMainWindow):
             # подключена к self.calculate выше (общая кнопка для всех
             # типов) -- она же и «Собрать документ» для конструктора.
             #
-            # Три независимых слота -- «Титульные листы» (title), «Вводная
+            # Три встроенных раздела -- «Титульные листы» (title), «Вводная
             # часть» (intro) и «Приложение 1» (appendix1), см.
-            # _CONSTRUCTOR_SLOTS -- все заполняются (или нет) независимо
-            # друг от друга, у каждого свой набор виджетов сайдбара/области
-            # документа (см. .ui: available*BlocksList/add*VariantBtn/
-            # *GroupToggle/included*BlockList/*fieldsPanel). Инициализация
-            # вынесена в generic _init_constructor_slot(), вызывается один
-            # раз на каждый слот.
+            # _CONSTRUCTOR_SLOTS -- заполняются (или нет) независимо друг от
+            # друга, у каждого свой набор виджетов сайдбара/области документа
+            # (см. .ui: available*BlocksList/add*VariantBtn/*GroupToggle/
+            # included*BlockList/*fieldsPanel). Инициализация вынесена в
+            # generic _init_constructor_slot(), вызывается один раз на
+            # каждый слот -- и на эти три, и (ниже) на любой раздел, который
+            # оператор добавит поверх них (_create_section()).
+            #
+            # self._CONSTRUCTOR_SLOTS -- собственная (per-instance) копия
+            # словаря класса, В ГЛУБИНУ НА ОДИН УРОВЕНЬ: _create_section()/
+            # _delete_section() ниже мутируют сам словарь (добавляют/убирают
+            # ключи-слоты), а _rename_section() мутирует ЗНАЧЕНИЕ отдельного
+            # слота (display_label/empty_hint/section_label) -- голого
+            # dict(self._CONSTRUCTOR_SLOTS) для второго недостаточно: он
+            # копирует только внешний словарь, вложенный dict каждого
+            # встроенного слота остался бы ТЕМ ЖЕ объектом, что и в
+            # классе -- переименование "title" в одном окне тихо
+            # испортило бы значение по умолчанию для всех остальных
+            # (включая уже открытые/будущие окна и тесты в том же процессе).
+            self._CONSTRUCTOR_SLOTS = {slot: dict(config) for slot, config in self._CONSTRUCTOR_SLOTS.items()}
+            # Та же причина -- _rename_section() убирает пункт слота из
+            # этих двух словарей (см. её докстринг), они тоже class-level.
+            self._GENERATE_DIALOG_SLOT_LABELS = dict(self._GENERATE_DIALOG_SLOT_LABELS)
+            self._ADD_VARIANT_DIALOG_TITLE = dict(self._ADD_VARIANT_DIALOG_TITLE)
             self.setStyleSheet(CONSTRUCTOR_QSS)
             self._dynamic_field_names = {slot: [] for slot in self._CONSTRUCTOR_SLOTS}
             # (slot, variant_id) пар, для которых предпросмотр уже
@@ -540,6 +563,31 @@ class MainWindow(QMainWindow):
 
             for slot in self._CONSTRUCTOR_SLOTS:
                 self._init_constructor_slot(slot)
+
+            # «+ Добавить раздел» -- не «Добавить» ВНУТРИ раздела (тот
+            # добавляет вариант в существующий, см. add*VariantBtn выше) --
+            # создание НОВОГО раздела целиком, см. _open_add_section_dialog()/
+            # _create_section(). Вставляется последней в sidebarLayout,
+            # перед хвостовым spacer'ом -- тем же приёмом (insertWidget по
+            # индексу count()-1), что и группы разделов, добавленных позже
+            # (см. _build_custom_section_widgets()), чтобы кнопка всегда
+            # оставалась под уже существующими группами, а не над ними.
+            add_section_btn = QPushButton("  Добавить раздел")
+            add_section_btn.setObjectName("addSectionBtn")
+            add_section_btn.setFlat(True)
+            add_section_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            add_section_btn.setIcon(icons.icon("plus", "#0a84ff", 13))
+            add_section_btn.setIconSize(QSize(13, 13))
+            add_section_btn.clicked.connect(self._open_add_section_dialog)
+            self.addSectionBtn = add_section_btn
+            self.sidebarLayout.insertWidget(self.sidebarLayout.count() - 1, add_section_btn)
+
+            # Разделы, добавленные оператором в прошлых запусках приложения
+            # (см. custom_sections_store.py) -- тем же путём, что и
+            # «+ Добавить раздел» выше, только без повторной записи в файл
+            # (id уже там, persist=False).
+            for section in custom_sections_store.load_sections():
+                self._create_section(section['id'], section['label'], persist=False)
 
             self.pushButt_generateWord.setEnabled(False)
 
@@ -613,6 +661,25 @@ class MainWindow(QMainWindow):
     # title исторически без "Title" в имени (оставлено как есть, слот
     # существовал ДО того, как появилась сама концепция "слот" -- менять
     # имя атрибута задним числом незачем), остальные слоты -- по образцу intro.
+    #
+    # separator_attr -- имя .ui-виджета визуального разделителя ПЕРЕД этим
+    # слотом на канве (нет у title -- перед первым разделителю нечего
+    # отделять); display_label -- сырое название раздела для диалогов
+    # «Собрать документ»/«Новый вариант» и подтверждения удаления
+    # (_GENERATE_DIALOG_SLOT_LABELS/_ADD_VARIANT_DIALOG_TITLE ниже для
+    # встроенных трёх всё ещё хранят вручную выверенные формулировки под
+    # падеж -- display_label только запасной вариант для случаев, где такой
+    # словарь не заведён, и единственный источник для разделов, которые
+    # завёл сам оператор, см. _build_custom_section_widgets()).
+    #
+    # Этот словарь -- ТОЛЬКО стартовый набор (title/intro/appendix1),
+    # прописанный в Qt Designer. self._CONSTRUCTOR_SLOTS в __init__
+    # становится собственной (per-instance) копией этого словаря -- именно
+    # в неё _create_section()/_delete_section() добавляют/убирают
+    # пользовательские разделы; общий для класса словарь ниже остаётся
+    # нетронутым (иначе один раздел, добавленный в одном окне, утёк бы в
+    # любое другое активное окно -- редкий, но реальный сценарий, класс
+    # используется не только для конструктора).
     _CONSTRUCTOR_SLOTS = {
         "title": {
             "available_list": "availableBlocksList",
@@ -626,6 +693,7 @@ class MainWindow(QMainWindow):
             "section_label": "Реквизиты титульного листа",
             "text_label_attr": "includedBlockTextLabel",
             "chevron_attr": "includedBlockChevron",
+            "display_label": "Титульный лист",
         },
         "intro": {
             "available_list": "availableIntroBlocksList",
@@ -639,6 +707,8 @@ class MainWindow(QMainWindow):
             "section_label": "Реквизиты вводной части",
             "text_label_attr": "includedIntroBlockTextLabel",
             "chevron_attr": "includedIntroBlockChevron",
+            "separator_attr": "slotSeparator",
+            "display_label": "Вводная часть",
         },
         "appendix1": {
             "available_list": "availableAppendix1BlocksList",
@@ -652,6 +722,8 @@ class MainWindow(QMainWindow):
             "section_label": "Реквизиты приложения 1",
             "text_label_attr": "includedAppendix1BlockTextLabel",
             "chevron_attr": "includedAppendix1BlockChevron",
+            "separator_attr": "slotSeparator2",
+            "display_label": "Приложение 1",
         },
     }
 
@@ -843,6 +915,34 @@ class MainWindow(QMainWindow):
         add_btn = self._slot_widget(slot, "add_btn")
         group_toggle = self._slot_widget(slot, "group_toggle")
         included_list = self._slot_widget(slot, "included_list")
+        fields_panel = self._slot_widget(slot, "fields_panel")
+
+        # "role" -- динамическое свойство под CONSTRUCTOR_QSS (см. её
+        # комментарий): раньше эти виджеты стилизовались перечислением
+        # #titleFoo, #introFoo, #appendix1Foo -- набор из ровно трёх имён,
+        # захардкоженный в самом QSS. Раздел конструктора больше не
+        # фиксированная тройка (см. _create_section()) -- имя объекта
+        # каждого нового раздела уникально и заранее не известно QSS,
+        # поэтому стилизация переехала на роль (одну из пяти фиксированных
+        # значений), выставляемую здесь одинаково для встроенного и
+        # добавленного раздела. unpolish()/polish() -- тот же приём, что и
+        # у остальных динамических свойств в этом файле (dragOver и т.п.),
+        # заставляет QSS перечитать свойство сразу, а не только при
+        # следующей естественной перерисовке.
+        for widget, role in (
+            (group_toggle, "groupToggle"), (add_btn, "addVariantBtn"),
+            (available_list, "availableBlocksList"), (included_list, "includedBlockList"),
+            (fields_panel, "fieldsPanel"),
+        ):
+            widget.setProperty("role", role)
+            widget.style().unpolish(widget)
+            widget.style().polish(widget)
+        separator_attr = self._CONSTRUCTOR_SLOTS[slot].get("separator_attr")
+        if separator_attr:
+            separator = getattr(self, separator_attr)
+            separator.setProperty("role", "slotSeparator")
+            separator.style().unpolish(separator)
+            separator.style().polish(separator)
 
         available_list.setIconSize(QSize(15, 15))
         self._refresh_available_blocks_list(slot)
@@ -857,6 +957,17 @@ class MainWindow(QMainWindow):
         group_toggle.setIconSize(QSize(30, 13))
         group_toggle.toggled.connect(functools.partial(self._toggle_constructor_group, slot))
         self._toggle_constructor_group(slot, group_toggle.isChecked())
+
+        # ПКМ по заголовку раздела -- «Удалить раздел» целиком (в отличие от
+        # ПКМ по карточке варианта в available_list -- та удаляет один
+        # вариант, см. _show_available_block_context_menu()). Разрешено для
+        # любого раздела, включая встроенные title/intro/appendix1 -- по
+        # решению пользователя (полная симметрия с мокапом,
+        # docs/design/вводная_часть.html), без особой защиты.
+        group_toggle.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        group_toggle.customContextMenuRequested.connect(
+            functools.partial(self._show_section_context_menu, slot)
+        )
 
         # В списке ровно один блок на слот (Phase 1, см. _process_block_drop()) --
         # родная линия-подсказка Qt "вставить выше/ниже" вводит в
@@ -934,6 +1045,294 @@ class MainWindow(QMainWindow):
         included_list.resizeEvent = _block_list_resize
 
         self._show_included_block_placeholder(slot)
+
+    def _show_section_context_menu(self, slot: str, pos):
+        """ПКМ по заголовку раздела -- «Переименовать»/«Удалить раздел» (см.
+        _init_constructor_slot()). Отдельное меню от #blockMenu (карточка
+        варианта, _show_available_block_context_menu()) -- те же два
+        пункта, но другой смысл действия (раздел целиком, не один вариант в
+        нём)."""
+        menu = QMenu(self)
+        rename_action = menu.addAction(icons.icon("edit", "#c7c7cc", 14), "Переименовать раздел")
+        delete_action = menu.addAction(icons.icon("trash", "#ff453a", 14), "Удалить раздел")
+        group_toggle = self._slot_widget(slot, "group_toggle")
+        chosen = menu.exec(group_toggle.mapToGlobal(pos))
+        if chosen == rename_action:
+            self._rename_section(slot)
+        elif chosen == delete_action:
+            self._delete_section(slot)
+
+    def _rename_section(self, slot: str):
+        """«Переименовать раздел» -- меняет отображаемое название везде,
+        где оно показывается (заголовок группы в сайдбаре, строка в
+        «Собрать документ», заголовок «Новый вариант: ...», подсказка
+        пустой drop-зоны, заголовок «Реквизиты ...»). Разрешено для любого
+        раздела, включая встроенные -- та же симметрия, что и у удаления
+        (см. _delete_section()).
+
+        empty_hint/section_label и словари _GENERATE_DIALOG_SLOT_LABELS/
+        _ADD_VARIANT_DIALOG_TITLE у встроенных трёх переходят на
+        нейтральные формулировки через двоеточие (тот же приём, что и у
+        раздела, заведённого оператором, см.
+        _build_custom_section_widgets()) -- их вручную выверенный под
+        падеж текст относился к СТАРОМУ названию и для нового может больше
+        не подходить грамматически; откатить обратно к исходным
+        формулировкам после переименования уже нельзя (то же самое,
+        безвозвратное, что и у остальных переименований в этом файле --
+        _rename_variant() тоже не хранит историю)."""
+        slot_config = self._CONSTRUCTOR_SLOTS[slot]
+        current_label = slot_config["display_label"]
+        new_label, ok = QInputDialog.getText(
+            self, "Переименовать раздел", "Новое название:", text=current_label,
+        )
+        new_label = new_label.strip()
+        if not ok or not new_label or new_label == current_label:
+            return
+
+        slot_config["display_label"] = new_label
+        slot_config["empty_hint"] = f"Перетащите сюда: {new_label}"
+        slot_config["section_label"] = f"Реквизиты: {new_label}"
+        self._GENERATE_DIALOG_SLOT_LABELS.pop(slot, None)
+        self._ADD_VARIANT_DIALOG_TITLE.pop(slot, None)
+
+        self._slot_widget(slot, "group_toggle").setText(f"  {new_label}")
+
+        variant_id = self._filled_slot_variant(slot)
+        if variant_id is not None:
+            self._render_slot_fields(slot, variant_id)
+        else:
+            self._show_included_block_placeholder(slot)
+
+        if slot not in ("title", "intro", "appendix1"):
+            sections = custom_sections_store.load_sections()
+            for section in sections:
+                if section['id'] == slot:
+                    section['label'] = new_label
+            custom_sections_store.save_sections(sections)
+
+    def _build_custom_section_widgets(self, slot: str, label: str):
+        """Строит виджеты раздела slot программно -- та же иерархия, что
+        constructor_window.ui объявляет для intro/appendix1 (QPushButton-
+        переключатель + QWidget-содержимое в сайдбаре; QListWidget+
+        QGroupBox(QFormLayout)+разделитель на канве), но через код, а не Qt
+        Designer -- единственный способ завести раздел, которого не было на
+        момент сборки .ui (см. _create_section()/обсуждение задачи).
+
+        Виджеты регистрируются через setattr() под теми же именами, что уже
+        использует _CONSTRUCTOR_SLOTS для intro/appendix1
+        (available{Cap}BlocksList и т.п.) -- после этого
+        _slot_widget()/getattr(self, name) не отличает такой раздел от
+        встроенного, и весь остальной код (сборка, генерация, ПКМ-меню,
+        drag-and-drop, _init_constructor_slot()) работает без единой правки.
+
+        Формулировки (empty_hint/section_label/...) для падежа непроизвольно
+        введённого названия не подобрать -- те же нейтральные формулировки
+        через двоеточие, что и в мокапе (docs/design/вводная_часть.html,
+        sectionLabels()). Виджеты вставляются последними в
+        sidebarLayout/mainAreaLayout -- перед хвостовым spacer'ом каждого
+        (спейсер не именован, единственный надёжный способ остаться перед
+        ним -- вставка по индексу count()-1, а не по имени)."""
+        cap = slot[0].upper() + slot[1:]
+
+        group_toggle = QPushButton(f"  {label}")
+        group_toggle.setObjectName(f"{slot}GroupToggle")
+        group_toggle.setCheckable(True)
+        group_toggle.setChecked(True)
+        group_toggle.setFlat(True)
+        setattr(self, f"{slot}GroupToggle", group_toggle)
+
+        group_content = QWidget()
+        group_content.setObjectName(f"{slot}GroupContent")
+        group_content_layout = QVBoxLayout(group_content)
+        group_content_layout.setSpacing(2)
+        group_content_layout.setContentsMargins(0, 0, 0, 0)
+        setattr(self, f"{slot}GroupContent", group_content)
+
+        available_list = QListWidget()
+        available_list.setObjectName(f"available{cap}BlocksList")
+        available_list.setDragEnabled(True)
+        available_list.setFrameShape(QFrame.Shape.NoFrame)
+        available_list.setWordWrap(True)
+        available_list.setTextElideMode(Qt.TextElideMode.ElideNone)
+        available_list.setResizeMode(QListView.ResizeMode.Adjust)
+        available_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        available_list.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
+        setattr(self, f"available{cap}BlocksList", available_list)
+        group_content_layout.addWidget(available_list)
+
+        add_btn = QPushButton("  Добавить")
+        add_btn.setObjectName(f"add{cap}VariantBtn")
+        add_btn.setFlat(True)
+        add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        setattr(self, f"add{cap}VariantBtn", add_btn)
+        group_content_layout.addWidget(add_btn)
+
+        # count()-1 (перед хвостовым spacer'ом) здесь НЕ годится -- между
+        # последней группой и spacer'ом уже лежит addSectionBtn («+
+        # Добавить раздел», см. __init__), и count()-1 воткнул бы новую
+        # группу МЕЖДУ этой кнопкой и spacer'ом -- визуально новый раздел
+        # оказывался бы ПОД кнопкой «Добавить раздел», а не над ней (баг,
+        # найденный на реальном запуске: см. обсуждение задачи). indexOf()
+        # находит саму кнопку -- новая группа встаёт непосредственно перед
+        # ней, независимо от того, сколько разделов уже добавлено раньше.
+        insert_at = self.sidebarLayout.indexOf(self.addSectionBtn)
+        self.sidebarLayout.insertWidget(insert_at, group_toggle)
+        self.sidebarLayout.insertWidget(insert_at + 1, group_content)
+
+        # Разделитель -- только если это не первый раздел вообще (см.
+        # _refresh_section_separators(), вызывается сразу после этого метода
+        # из _create_section() и пересчитывает видимость у всех разделов
+        # заново, а не только у нового).
+        separator = QFrame()
+        separator.setObjectName(f"{slot}Separator")
+        separator.setFrameShape(QFrame.Shape.NoFrame)
+        separator.setMinimumSize(QSize(0, 2))
+        separator.setMaximumSize(QSize(16777215, 2))
+        setattr(self, f"{slot}Separator", separator)
+
+        included_list = QListWidget()
+        included_list.setObjectName(f"included{cap}BlockList")
+        included_list.setAcceptDrops(True)
+        included_list.setDragDropMode(QAbstractItemView.DragDropMode.DragDrop)
+        included_list.setDefaultDropAction(Qt.DropAction.MoveAction)
+        included_list.setFrameShape(QFrame.Shape.NoFrame)
+        included_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        included_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        included_list.setMaximumHeight(56)
+        setattr(self, f"included{cap}BlockList", included_list)
+
+        fields_panel = QGroupBox()
+        fields_panel.setObjectName(f"{slot}FieldsPanel")
+        fields_panel.setTitle("")
+        fields_panel.setVisible(False)
+        fields_layout = QFormLayout(fields_panel)
+        setattr(self, f"{slot}FieldsPanel", fields_panel)
+        setattr(self, f"{slot}FieldsLayout", fields_layout)
+
+        insert_at = self.mainAreaLayout.count() - 1
+        self.mainAreaLayout.insertWidget(insert_at, separator)
+        self.mainAreaLayout.insertWidget(insert_at + 1, included_list)
+        self.mainAreaLayout.insertWidget(insert_at + 2, fields_panel)
+
+        self._CONSTRUCTOR_SLOTS[slot] = {
+            "available_list": f"available{cap}BlocksList",
+            "add_btn": f"add{cap}VariantBtn",
+            "group_toggle": f"{slot}GroupToggle",
+            "group_content": f"{slot}GroupContent",
+            "included_list": f"included{cap}BlockList",
+            "fields_panel": f"{slot}FieldsPanel",
+            "fields_layout": f"{slot}FieldsLayout",
+            "empty_hint": f"Перетащите сюда: {label}",
+            "section_label": f"Реквизиты: {label}",
+            "text_label_attr": f"included{cap}BlockTextLabel",
+            "chevron_attr": f"included{cap}BlockChevron",
+            "separator_attr": f"{slot}Separator",
+            "display_label": label,
+        }
+        self._dynamic_field_names[slot] = []
+
+    def _refresh_section_separators(self):
+        """Разделитель раздела виден, только если это НЕ первый по порядку
+        раздел в _CONSTRUCTOR_SLOTS -- добавление/удаление раздела может
+        выдвинуть в первые тот, что раньше первым не был (у title
+        отдельного разделителя нет вовсе -- getattr(..., None) тогда
+        просто пропускает раздел)."""
+        for i, slot in enumerate(self._CONSTRUCTOR_SLOTS):
+            separator_attr = self._CONSTRUCTOR_SLOTS[slot].get("separator_attr")
+            if not separator_attr:
+                continue
+            separator = getattr(self, separator_attr, None)
+            if separator is not None:
+                separator.setVisible(i > 0)
+
+    def _create_section(self, slot: str, label: str, persist: bool = True):
+        """Заводит новый раздел конструктора -- строит виджеты
+        (_build_custom_section_widgets()) и инициализирует его тем же общим
+        путём, что и три встроенных при старте (_init_constructor_slot()).
+
+        persist=False -- при восстановлении уже сохранённого раздела на
+        старте приложения (см. __init__, custom_sections_store.load_sections())
+        -- id уже есть в файле, повторно дописывать не нужно."""
+        self._build_custom_section_widgets(slot, label)
+        self._init_constructor_slot(slot)
+        self._refresh_section_separators()
+        if persist:
+            sections = custom_sections_store.load_sections()
+            sections.append({'id': slot, 'label': label})
+            custom_sections_store.save_sections(sections)
+
+    def _open_add_section_dialog(self):
+        """«+ Добавить раздел» -- заводит раздел целиком (не вариант внутри
+        существующего, см. _open_add_variant_dialog()). Название -- любое,
+        id -- отдельный счётчик (custom_sections_store.next_section_id()),
+        не производная от названия (см. её докстринг)."""
+        label, ok = QInputDialog.getText(self, "Новый раздел", "Название раздела:")
+        label = label.strip()
+        if not ok or not label:
+            return
+        slot = custom_sections_store.next_section_id()
+        self._create_section(slot, label)
+
+    def _delete_section(self, slot: str):
+        """Удаляет раздел целиком -- разрешено для любого, включая
+        встроенные title/intro/appendix1 (см. _show_section_context_menu()
+        и обсуждение задачи). Варианты раздела стираются из JSON безвозвратно
+        (store.save_variants([])) -- их .docx-фрагменты на диске НЕ
+        удаляются, та же осторожность, что и в _delete_variant() (не она их
+        удаляет, только запись в каталоге).
+
+        Удаление встроенного раздела действует до перезапуска приложения --
+        сам раздел объявлен в constructor_window.ui и на следующем старте
+        появится снова (пустым, варианты уже стёрты); custom_sections_store
+        правится только для пользовательских разделов, у встроенных трёх
+        такой записи и не было."""
+        label = self._CONSTRUCTOR_SLOTS[slot].get("display_label", slot)
+        answer = QMessageBox.question(
+            self, "Удалить раздел",
+            f"Удалить раздел «{label}»? Все его варианты и введённые в них данные будут удалены безвозвратно.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+
+        self._slot_store(slot).save_variants([])
+
+        for widget_name in self._dynamic_field_names.get(slot, []):
+            if widget_name in self.PLAIN_TEXT_EDIT_NAMES:
+                self.PLAIN_TEXT_EDIT_NAMES.remove(widget_name)
+        self._dynamic_field_names.pop(slot, None)
+
+        group_toggle = self._slot_widget(slot, "group_toggle")
+        group_content = self._slot_widget(slot, "group_content")
+        self.sidebarLayout.removeWidget(group_toggle)
+        self.sidebarLayout.removeWidget(group_content)
+        group_toggle.deleteLater()
+        group_content.deleteLater()
+
+        included_list = self._slot_widget(slot, "included_list")
+        fields_panel = self._slot_widget(slot, "fields_panel")
+        self.mainAreaLayout.removeWidget(included_list)
+        self.mainAreaLayout.removeWidget(fields_panel)
+        included_list.deleteLater()
+        fields_panel.deleteLater()
+
+        separator_attr = self._CONSTRUCTOR_SLOTS[slot].get("separator_attr")
+        if separator_attr:
+            separator = getattr(self, separator_attr, None)
+            if separator is not None:
+                self.mainAreaLayout.removeWidget(separator)
+                separator.deleteLater()
+
+        del self._CONSTRUCTOR_SLOTS[slot]
+        self._refresh_section_separators()
+        self._update_crumb()
+        self.pushButt_generateWord.setEnabled(
+            any(self._filled_slot_variant(s) is not None for s in self._CONSTRUCTOR_SLOTS)
+        )
+
+        if slot not in ("title", "intro", "appendix1"):
+            sections = [s for s in custom_sections_store.load_sections() if s['id'] != slot]
+            custom_sections_store.save_sections(sections)
 
     def init_file_handler(self):
         """Инициализация FileHandler для импорта/экспорта."""
@@ -1493,7 +1892,8 @@ class MainWindow(QMainWindow):
             variants = get_all_variants()
             current_variant_id = self._filled_slot_variant(slot)
 
-            layout.addWidget(QLabel(self._GENERATE_DIALOG_SLOT_LABELS[slot]))
+            display_label = self._GENERATE_DIALOG_SLOT_LABELS.get(slot) or self._CONSTRUCTOR_SLOTS[slot]["display_label"]
+            layout.addWidget(QLabel(display_label))
             combo = QComboBox()
             combo.addItem("— не включать —", None)
             selected_index = 0
@@ -1549,17 +1949,18 @@ class MainWindow(QMainWindow):
     def _calculate_constructor(self):
         """Сборка документа конструктора (equipment_type == "constructor").
 
-        Три независимых слота -- «Титульные листы» (title), «Вводная часть»
-        (intro) и «Приложение 1» (appendix1), см. _CONSTRUCTOR_SLOTS --
-        заполненные независимо друг от друга, склеиваются в ОДИН .docx:
-        каждый слот рендерится docxtpl отдельно (свой фрагмент, свои
-        плейсхолдеры), затем содержимое всех слотов, кроме первого,
-        дописывается в тело документа первого (_append_docx_body()) в
-        ФИКСИРОВАННОМ порядке _CONSTRUCTOR_SLOTS (title, затем intro, затем
-        appendix1) -- порядок в документе не зависит от того, в каком слот
-        заполнили раньше. Если заполнен только один слот -- результат тот
-        же, что и в Phase 1 (просто сохранённый рендер одного фрагмента,
-        склеивать нечего)."""
+        Независимые разделы -- «Титульные листы» (title), «Вводная часть»
+        (intro), «Приложение 1» (appendix1) и любые добавленные оператором
+        (см. _CONSTRUCTOR_SLOTS/_create_section()), заполненные независимо
+        друг от друга, склеиваются в ОДИН .docx: каждый раздел рендерится
+        docxtpl отдельно (свой фрагмент, свои плейсхолдеры), затем
+        содержимое всех разделов, кроме первого, дописывается в тело
+        документа первого (_append_docx_body()) в ФИКСИРОВАННОМ порядке
+        _CONSTRUCTOR_SLOTS -- порядке добавления раздела, title первым, если
+        он ещё существует -- порядок в документе не зависит от того, какой
+        раздел заполнили раньше. Если заполнен только один раздел --
+        результат тот же, что и в Phase 1 (просто сохранённый рендер одного
+        фрагмента, склеивать нечего)."""
         filled = [
             (slot, variant_id)
             for slot in self._CONSTRUCTOR_SLOTS
@@ -1576,16 +1977,13 @@ class MainWindow(QMainWindow):
             return
 
         try:
-            from ..config import OUTPUT_DIR, find_appendix_template, find_intro_template, find_title_template
+            from ..config import OUTPUT_DIR
 
-            find_template = {
-                "title": find_title_template, "intro": find_intro_template, "appendix1": find_appendix_template,
-            }
             form_data = self.get_form_data()
 
             rendered_docs = []
             for slot, variant_id in filled:
-                tpl = DocxTemplate(find_template[slot](variant_id))
+                tpl = DocxTemplate(self._find_slot_template(slot, variant_id))
                 tpl.render(form_data)
                 # НЕ tpl.get_docx() -- он вызывает init_docx(reload=True),
                 # который при is_rendered=True (выставляется в render())
@@ -1643,31 +2041,57 @@ class MainWindow(QMainWindow):
     # ЛЕНИВО внутри метода (не на уровне класса) -- как и раньше в этом
     # файле, импорт services.* на верхнем уровне модуля дал бы циклический
     # импорт (см. комментарий у find_title_template() в src/config.py).
-    # Модуль-стор каждого слота (title/intro/appendix_variants_store.py)
+    # Модуль-стор каждого слота (title/intro/appendix_variants_store.py, а
+    # для раздела, заведённого оператором, -- custom_section_variants_store.py)
     # экспортирует одинаковые имена load_variants()/save_variants()/
     # get_all_variants() (см. их докстринг в title_variants_store.py) --
     # вызывающему коду не нужно знать, какой это слот, достаточно один раз
     # выбрать правильный модуль здесь.
     @staticmethod
     def _slot_store(slot: str):
+        """Раньше конечная ветка была голым else -- безопасно, пока
+        реальных слотов было ровно три (title/intro/appendix1). Раздел,
+        заведённый оператором (_create_section()), сюда тоже попадал бы --
+        молча читал/писал бы appendix_variants.json вместо своего --
+        поэтому теперь явное elif "appendix1", а всё остальное собирается
+        через custom_section_variants_store (один файл на все
+        пользовательские разделы, см. src/config.py,
+        CUSTOM_SECTION_VARIANTS_FILE) -- functools.partial() фиксирует slot
+        первым позиционным аргументом, чтобы вызывающий код
+        (self._slot_store(slot).load_variants()) не отличал этот случай от
+        обычного модуля с теми же тремя именами функций."""
         if slot == "title":
             from ..services import title_variants_store as store
-        elif slot == "intro":
+            return store
+        if slot == "intro":
             from ..services import intro_variants_store as store
-        else:
+            return store
+        if slot == "appendix1":
             from ..services import appendix_variants_store as store
-        return store
+            return store
+        from ..services import custom_section_variants_store
+        return SimpleNamespace(
+            load_variants=functools.partial(custom_section_variants_store.load_variants, slot),
+            save_variants=functools.partial(custom_section_variants_store.save_variants, slot),
+            get_all_variants=functools.partial(custom_section_variants_store.get_all_variants, slot),
+        )
 
     @staticmethod
     def _slot_generate_fragment(slot: str):
         from ..services.template_generator import (
-            generate_appendix_fragment, generate_intro_fragment, generate_title_fragment,
+            generate_appendix_fragment, generate_intro_fragment, generate_section_fragment, generate_title_fragment,
         )
         if slot == "title":
             return generate_title_fragment
         if slot == "intro":
             return generate_intro_fragment
-        return generate_appendix_fragment
+        if slot == "appendix1":
+            return generate_appendix_fragment
+        # generate_section_fragment(variant, output_path, slot) берёт третий
+        # позиционный аргумент -- вызывающий код (_open_add_variant_dialog(),
+        # _remove_variant_template()) зовёт результат как
+        # generate_fn(variant, output_path), поэтому slot фиксируется здесь.
+        return functools.partial(generate_section_fragment, slot=slot)
 
     @staticmethod
     def _slot_builtin_variants(slot: str):
@@ -1676,14 +2100,18 @@ class MainWindow(QMainWindow):
             return TITLE_VARIANTS
         if slot == "intro":
             return INTRO_VARIANTS
-        return APPENDIX_VARIANTS
+        if slot == "appendix1":
+            return APPENDIX_VARIANTS
+        return {}  # у пользовательского раздела встроенных вариантов не бывает
 
     @staticmethod
     def _slot_default_fields(slot: str):
         """Стартовый набор плейсхолдеров нового варианта этого слота (см.
         _open_add_variant_dialog()) -- своя константа на каждый слот, та же
         дисциплина лениво импортируемых пар, что и у соседних
-        _slot_store()/_slot_generate_fragment() выше."""
+        _slot_store()/_slot_generate_fragment() выше. У раздела, заведённого
+        оператором, стартового набора нет -- пустой список, оператор
+        добавляет поля через «Вставить плейсхолдер» с нуля."""
         from ..services.template_schema import (
             DEFAULT_APPENDIX_SUBTITLE_FIELDS, DEFAULT_INTRO_SUBTITLE_FIELDS, DEFAULT_TITLE_SUBTITLE_FIELDS,
         )
@@ -1691,7 +2119,9 @@ class MainWindow(QMainWindow):
             return DEFAULT_TITLE_SUBTITLE_FIELDS
         if slot == "intro":
             return DEFAULT_INTRO_SUBTITLE_FIELDS
-        return DEFAULT_APPENDIX_SUBTITLE_FIELDS
+        if slot == "appendix1":
+            return DEFAULT_APPENDIX_SUBTITLE_FIELDS
+        return []
 
     def _toggle_constructor_group(self, slot: str, expanded: bool):
         """Сворачивание/разворачивание группы сайдбара («Титульные листы»
@@ -1872,7 +2302,8 @@ class MainWindow(QMainWindow):
         find_title_template()/find_intro_template() у нового варианта не
         падает никогда."""
         dialog = QDialog(self)
-        dialog.setWindowTitle(self._ADD_VARIANT_DIALOG_TITLE[slot])
+        dialog_title = self._ADD_VARIANT_DIALOG_TITLE.get(slot) or f"Новый вариант: {self._CONSTRUCTOR_SLOTS[slot]['display_label']}"
+        dialog.setWindowTitle(dialog_title)
         layout = QVBoxLayout(dialog)
         layout.addWidget(QLabel("Заголовок:"))
         line_edit = QLineEdit()
@@ -1930,8 +2361,9 @@ class MainWindow(QMainWindow):
     def _rename_variant(self, slot: str, variant_id: str, current_label: str):
         """«Переименовать» -- меняет только отображаемое название
         (TitleVariant.document_title в JSON: заголовок карточки в сайдбаре,
-        крошка над документом [только для слота title, см. _set_crumb()],
-        подпись перетащенного блока). НЕ трогает уже сгенерированный
+        крошка над документом, если это сейчас первый заполненный раздел
+        [см. _update_crumb()], подпись перетащенного блока). НЕ трогает уже
+        сгенерированный
         .docx-фрагмент варианта -- его текст/вёрстку пользователь правит
         только вручную в Word (см. vsk-21: регенерация задним числом
         сознательно не делается нигде в этом фиче, иначе затирала бы
@@ -1960,8 +2392,7 @@ class MainWindow(QMainWindow):
             label_attr = self._slot_config(slot, "text_label_attr")
             if hasattr(self, label_attr):
                 getattr(self, label_attr).setText(new_name)
-            if slot == "title":
-                self._set_crumb(new_name)
+            self._update_crumb()
 
     def _delete_variant(self, slot: str, variant_id: str, label: str):
         answer = QMessageBox.question(
@@ -2138,8 +2569,7 @@ class MainWindow(QMainWindow):
         )
 
         self._render_slot_fields(slot, variant_id)
-        if slot == "title":
-            self._set_crumb(label_text)
+        self._update_crumb()
         self._slot_widget(slot, "fields_panel").setVisible(True)
         self.pushButt_generateWord.setEnabled(True)
         self._highlight_available_block_items(slot)
@@ -2197,8 +2627,7 @@ class MainWindow(QMainWindow):
     def _clear_included_block(self, slot: str):
         self._show_included_block_placeholder(slot)
         self._slot_widget(slot, "fields_panel").setVisible(False)
-        if slot == "title":
-            self._set_crumb("без титульного листа")
+        self._update_crumb()
         any_filled = any(self._filled_slot_variant(s) is not None for s in self._CONSTRUCTOR_SLOTS)
         self.pushButt_generateWord.setEnabled(any_filled)
         self._highlight_available_block_items(slot)
@@ -2209,14 +2638,30 @@ class MainWindow(QMainWindow):
         тусклого префикса (#8e8e93 из CONSTRUCTOR_QSS), как crumbBlock в
         docs/design/constructor_mockup.html. html.escape() -- active_section
         приходит из label_text (текст item'а сайдбара), не буквальный
-        константный литерал.
-
-        Отражает только слот «Титульные листы» -- как и в мокапе
-        (docs/design/вводная_часть.html), крошка -- ориентир по титульному
-        листу документа, вводная часть на неё не влияет."""
+        константный литерал."""
         self.crumbLabel.setText(
             f'Конструктор документов / <span style="color:#e5e5e7;">{html.escape(active_section)}</span>'
         )
+
+    def _update_crumb(self):
+        """Пересчитывает крошку -- показывает название варианта ПЕРВОГО ПО
+        ПОРЯДКУ _CONSTRUCTOR_SLOTS заполненного раздела (раньше жёстко
+        отражала только title -- он и был первым; при удалении раздела
+        title может больше не существовать вовсе, см. обсуждение задачи и
+        мокап docs/design/вводная_часть.html, updateCrumb()). Вызывается
+        после любого drop/очистки/переименования варианта в ЛЮБОМ разделе,
+        а не только title -- дешёвая перепроверка, сама подстановка не
+        меняется, если первый заполненный раздел не тот, что сейчас
+        менялся."""
+        for slot in self._CONSTRUCTOR_SLOTS:
+            variant_id = self._filled_slot_variant(slot)
+            if variant_id is None:
+                continue
+            variant = self._slot_store(slot).get_all_variants().get(variant_id)
+            if variant is not None:
+                self._set_crumb(variant.document_title)
+                return
+        self._set_crumb("без разделов")
 
     def _toggle_fields_panel(self, slot: str, event):
         """Левый клик по перетащенному блоку в included_list слота
@@ -3291,12 +3736,14 @@ class MainWindow(QMainWindow):
         self._install_variant_template(slot, variant_id, Path(urls[0].toLocalFile()))
 
     def _find_slot_template(self, slot: str, variant_id: str):
-        from ..config import find_appendix_template, find_intro_template, find_title_template
+        from ..config import find_appendix_template, find_intro_template, find_section_template, find_title_template
         if slot == "title":
             return find_title_template(variant_id)
         if slot == "intro":
             return find_intro_template(variant_id)
-        return find_appendix_template(variant_id)
+        if slot == "appendix1":
+            return find_appendix_template(variant_id)
+        return find_section_template(slot, variant_id)
 
     def _open_variant_preview(self, slot: str, variant_id: str):
         """«Открыть предпросмотр» -- рендерит .docx-файл варианта
@@ -4436,7 +4883,20 @@ class MainWindow(QMainWindow):
         сайдбар (палитра блоков vs. дерево объектов), а не общий, как у
         трубопровода. "search"/"employees" -- заглушка (page_stub), как и
         в самом мокапе (activityViewTitles там же) -- раздел не
-        реализован, страница просто показывает название."""
+        реализован, страница просто показывает название.
+
+        Повторный клик по уже активной иконке «Редактор документов» вместо
+        обычного переключения сворачивает/разворачивает constructorSidebar
+        (см. _toggle_constructor_sidebar()) -- тот же паттерн, что в
+        VSCode (клик по активной иконке активити-бара прячет её панель), и
+        в мокапе (toggleEditorSidebar()). Только для "editor" -- у
+        "database"/заглушек своего сайдбара для сворачивания либо нет
+        (page_stub), либо он уже сворачивается отдельной кнопкой
+        (sidebarBtn_collapse/_toggle_sidebar(), другой, не связанный
+        виджет -- см. обсуждение задачи)."""
+        if view == "editor" and getattr(self, "_current_view", None) == "editor":
+            self._toggle_constructor_sidebar()
+            return
         page_names = {"editor": "tab_document", "database": "page_database"}
         page = getattr(self, page_names.get(view, "page_stub"))
         self.viewStack.setCurrentWidget(page)
@@ -4447,6 +4907,16 @@ class MainWindow(QMainWindow):
         elif view == "database":
             self._refresh_objects_tree()
         self._current_view = view
+
+    def _toggle_constructor_sidebar(self):
+        """Сворачивает/разворачивает constructorSidebar (палитру разделов) --
+        сам виджет просто прячется (setVisible()), соседняя канва
+        (mainArea, тот же QHBoxLayout) сама растягивается на освободившееся
+        место. Отдельный от _toggle_sidebar()/sidebarBtn_collapse -- тот
+        относится к НЕСВЯЗАННОМУ виджету sidebar (дерево «Объекты», общее с
+        трубопроводом, см. обсуждение задачи), constructorSidebar с ним не
+        путать."""
+        self.constructorSidebar.setVisible(not self.constructorSidebar.isVisible())
 
     def _reset_form(self):
         """Очищает форму под новый/другой документ -- обратная операция к
@@ -5111,8 +5581,8 @@ class MainWindow(QMainWindow):
         лентой формы. Конструктор документов делит с трубопроводом общий
         objectsTree/_prompt_document_path()/_rename_object_dialog() и т.п.
         (см. equipment_type.id == "constructor" в __init__), но своего
-        breadcrumbLabel не имеет (у него свой crumbLabel -- название
-        включённого титульного листа, не путь дерева, см. _set_crumb()) --
+        breadcrumbLabel не имеет (у него свой crumbLabel -- название первого
+        заполненного раздела, не путь дерева, см. _update_crumb()) --
         без этого выхода вызов падал бы AttributeError при любом
         сохранении/переименовании через общие методы."""
         if self.equipment_type.id != "pipeline":

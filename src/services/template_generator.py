@@ -372,3 +372,27 @@ def generate_appendix_fragment(variant: TitleVariant, output_path: Union[str, Pa
     output_path.parent.mkdir(parents=True, exist_ok=True)
     doc.save(str(output_path))
     return output_path
+
+
+def generate_section_fragment(variant: TitleVariant, output_path: Union[str, Path], slot: str) -> Path:
+    """.docx-заготовка ОДНОГО варианта ЛЮБОГО раздела конструктора,
+    добавленного оператором в рантайме (см. src/ui/main_window.py,
+    MainWindow._create_section()) -- дословная калька
+    generate_intro_fragment()/generate_appendix_fragment() (они совпадают
+    друг с другом с точностью до префикса плейсхолдера), но с префиксом,
+    взятым из slot параметром, а не зашитым в имя функции: у
+    пользовательского раздела нет отдельной функции на каждый возможный
+    id -- он заранее не известен. generate_intro_fragment()/
+    generate_appendix_fragment() при этом не удаляются и не становятся
+    обёрткой над этой -- сторонний код может импортировать их напрямую под
+    конкретный слот."""
+    doc = Document()
+    add_title(doc, TitleConfig(
+        document_title=variant.document_title,
+        subtitle_fields=[f"{slot}_{field_id}" for field_id in variant.subtitle_fields],
+    ))
+
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    doc.save(str(output_path))
+    return output_path
