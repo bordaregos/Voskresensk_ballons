@@ -261,7 +261,7 @@
                  <property name="bottomMargin"><number>0</number></property>
                  <item>
                   <widget class="QLabel" name="crumbLabel">
-                   <property name="text"><string>Конструктор документов / без титульного листа</string></property>
+                   <property name="text"><string>Конструктор документов / без разделов</string></property>
                    <property name="wordWrap"><bool>true</bool></property>
                   </widget>
                  </item>

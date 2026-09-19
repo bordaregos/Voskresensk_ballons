@@ -40,138 +40,52 @@
 
     <div id="viewEditor" style="display:flex;flex:1;min-width:0;">
     <div id="sidebar" style="width:220px;background:#242426;border-right:0.5px solid #38383a;flex-shrink:0;overflow-y:auto;">
-      <div style="padding:10px 10px 4px;">
-        <div class="group-row" onclick="toggleGroup('titleGroup')">
-          <svg id="titleGroupChev" class="icon chevron chev-open" style="width:13px;height:13px;color:#8e8e93;" aria-hidden="true"><use href="#i-chevron-right"/></svg>
-          <svg class="icon" style="width:14px;height:14px;color:#8e8e93;" aria-hidden="true"><use href="#i-files"/></svg>
-          <span>Титульные листы</span>
-        </div>
-        <div id="titleGroup" style="padding:4px 0 6px 14px;display:flex;flex-direction:column;gap:8px;">
-          <div class="add-block-row" onclick="openAddModal('title')">
-            <svg class="icon" style="width:13px;height:13px;" aria-hidden="true"><use href="#i-plus"/></svg>
-            <span>Добавить</span>
-          </div>
-        </div>
+      <!-- Разделы (title/intro/appendix1 и любые добавленные пользователем)
+           -- теперь данные (см. SECTIONS в <script>), а не разметка,
+           прописанная по одной группе на раздел. renderSidebarSections()
+           строит и группу, и её "Добавить" ровно так же, как раньше это
+           было написано здесь руками -- при добавлении/удалении раздела
+           достаточно перерисовать #sectionsList, отдельные .ui-виджеты не
+           нужны (см. обсуждение задачи -- та же логика для реального кода:
+           программная сборка вместо предзаданных в Designer виджетов). -->
+      <div id="sectionsList" style="padding:10px 10px 4px;"></div>
 
-        <div class="group-row" onclick="toggleGroup('introGroup')">
-          <svg id="introGroupChev" class="icon chevron chev-open" style="width:13px;height:13px;color:#8e8e93;" aria-hidden="true"><use href="#i-chevron-right"/></svg>
-          <svg class="icon" style="width:14px;height:14px;color:#8e8e93;" aria-hidden="true"><use href="#i-files"/></svg>
-          <span>Вводная часть</span>
-        </div>
-        <div id="introGroup" style="padding:4px 0 6px 14px;display:flex;flex-direction:column;gap:8px;">
-          <div class="add-block-row" onclick="openAddModal('intro')">
-            <svg class="icon" style="width:13px;height:13px;" aria-hidden="true"><use href="#i-plus"/></svg>
-            <span>Добавить</span>
-          </div>
-        </div>
-
-        <div class="group-row group-row-soon" title="Появится в Phase 2">
-          <svg class="icon" style="width:13px;height:13px;color:#5a5a5c;" aria-hidden="true"><use href="#i-chevron-right"/></svg>
-          <svg class="icon" style="width:14px;height:14px;color:#5a5a5c;" aria-hidden="true"><use href="#i-files"/></svg>
-          <span>Приложения — скоро</span>
-        </div>
+      <!-- «+ Добавить раздел» -- не «Добавить» ВНУТРИ раздела (тот
+           добавляет вариант в существующий раздел, см. openAddModal()), а
+           создание НОВОГО раздела целиком: своя дропзона, своя панель
+           реквизитов, своя строка в диалоге «Собрать документ» -- заводится
+           вызовом createSection() (тот же код рендера, что рисует и три
+           встроенных раздела при первой загрузке страницы, см. вызов
+           renderSidebarSections()/renderCanvasSections() в конце <script>). -->
+      <div class="add-block-row" onclick="openAddSectionModal()" style="margin:0 10px 10px;border-style:solid;color:#0a84ff;border-color:rgba(10,132,255,.4);">
+        <svg class="icon" style="width:13px;height:13px;" aria-hidden="true"><use href="#i-plus"/></svg>
+        <span>Добавить раздел</span>
       </div>
 
       <div style="padding:10px;margin-top:auto;font-size:10.5px;color:#5a5a5c;line-height:1.5;">
-        Перетащите блок в основную область справа, чтобы включить его в документ. Правый клик по карточке слева — «Удалить» вариант из палитры.
+        Перетащите блок в основную область справа, чтобы включить его в документ. Правый клик по карточке слева — «Удалить» вариант из палитры, по заголовку раздела — удалить сам раздел.
       </div>
     </div>
 
     <div style="flex:1;min-width:0;display:flex;flex-direction:column;">
       <div style="padding:8px 18px;background:#202022;border-bottom:0.5px solid #2c2c2e;font-size:11px;color:#8e8e93;flex-shrink:0;">
-        Конструктор документов / <span id="crumbBlock" style="color:#e5e5e7;">без титульного листа</span>
+        Конструктор документов / <span id="crumbBlock" style="color:#e5e5e7;">без разделов</span>
       </div>
 
       <div style="flex:1;overflow-y:auto;padding:16px 18px;">
 
         <div style="font-size:11px;color:#8e8e93;margin-bottom:8px;text-transform:uppercase;letter-spacing:.03em;">Документ</div>
 
-        <div id="dropZone-title" class="drop-zone" ondragover="onDragOver('title',event)" ondragleave="onDragLeave('title',event)" ondrop="onDrop('title',event)">
-          <div id="dropEmpty-title" style="display:flex;flex-direction:column;align-items:center;gap:6px;color:#5a5a5c;font-size:12px;padding:18px 0;">
-            <svg class="icon" style="width:22px;height:22px;" aria-hidden="true"><use href="#i-drag-drop"/></svg>
-            Перетащите титульный лист сюда
-          </div>
-          <div id="dropFilled-title" onclick="toggleFields('title')" style="display:none;align-items:center;gap:8px;width:100%;align-self:stretch;box-sizing:border-box;padding:10px 12px;background:#2c2c2e;border-radius:8px;cursor:pointer;" title="Клик — показать/скрыть реквизиты">
-            <svg class="icon" style="width:15px;height:15px;color:#0a84ff;" aria-hidden="true"><use href="#i-file-text"/></svg>
-            <span id="droppedLabel-title" style="flex:1;font-size:12px;color:#e5e5e7;"></span>
-            <svg id="fieldsChev-title" class="icon chevron chev-open" style="width:13px;height:13px;color:#8e8e93;" aria-hidden="true"><use href="#i-chevron-right"/></svg>
-            <button class="remove-btn" onclick="event.stopPropagation();clearBlock('title')" title="Убрать" aria-label="Убрать"><svg class="icon" style="width:14px;height:14px;" aria-hidden="true"><use href="#i-x"/></svg></button>
-          </div>
-        </div>
-
-        <!-- fieldsPanel-*: реквизиты + (для пользовательских вариантов) тулбар
-             работы с шаблоном. Плейсхолдеры БОЛЬШЕ НЕ отдельный список чипов
-             над реквизитами -- каждый чип теперь подпись СВОЕЙ строки, рядом
-             со своим полем ввода (см. renderFields()). Отдельного окна
-             «Редактировать шаблон» тоже нет -- вся работа с плейсхолдерами
-             и файлом варианта происходит прямо здесь.
-             Слот «title» и слот «intro» ниже -- зеркальные копии одной и той
-             же разметки/логики (см. renderFields(slot, variant) и остальные
-             функции с параметром slot в <script>): у каждого свой дропзон,
-             своя панель реквизитов, свой тулбар шаблона -- независимо друг
-             от друга, оба могут быть заполнены одновременно. -->
-        <div id="fieldsPanel-title" style="display:none;margin-top:22px;">
-
-          <div id="variantToolbar-title" style="display:none;margin-bottom:14px;padding:6px;border-radius:8px;" ondragover="onTemplateDragOver('title',event)" ondragleave="onTemplateDragLeave('title',event)" ondrop="onTemplateDrop('title',event)">
-            <div class="editor-toolbar">
-              <div style="position:relative;">
-                <button class="tb-btn" style="width:auto;padding:0 8px;gap:5px;" onclick="togglePlaceholderMenu('title',event)"><svg class="icon" style="width:13px;height:13px;" aria-hidden="true"><use href="#i-tag"/></svg>Вставить плейсхолдер</button>
-                <div id="placeholderMenu-title" style="display:none;position:absolute;top:calc(100% + 4px);left:0;background:#2c2c2e;border:0.5px solid #48484a;border-radius:8px;overflow:hidden;min-width:220px;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:5;"></div>
-              </div>
-              <div style="flex:1;"></div>
-              <button class="tb-btn" style="width:auto;padding:0 10px;gap:5px;color:#0a84ff;" onclick="uploadTemplate('title')" title="Выбрать .docx и открыть его в выбранном приложении -- файл можно и просто перетащить на эту панель"><svg class="icon" style="width:13px;height:13px;" aria-hidden="true"><use href="#i-upload"/></svg>Загрузить шаблон Word</button>
-            </div>
-            <div id="templateFilenameLabel-title" style="font-size:11px;color:#8e8e93;margin-top:8px;"></div>
-            <div style="font-size:11px;color:#8e8e93;margin-top:4px;">Клик по плейсхолдеру в реквизитах ниже — скопировать для Word. Правый клик — удалить.</div>
-          </div>
-
-          <div style="font-size:11px;color:#8e8e93;margin-bottom:10px;text-transform:uppercase;letter-spacing:.03em;">Реквизиты титульного листа</div>
-          <div id="previewField-title" style="margin-bottom:14px;"></div>
-
-          <div id="fieldsEmptyState-title" style="display:none;font-size:11px;color:#8e8e93;font-style:italic;margin-bottom:10px;"></div>
-          <div class="field-grid" id="fieldsGrid-title"></div>
-        </div>
-
-        <!-- Визуальный разделитель между блоком титула и блоком вводной части
-             (QFrame#slotSeparator в реальном коде) -- оба слота независимы и
-             могут быть заполнены одновременно, разделитель просто отделяет их
-             друг от друга на канве, чтобы не сливались визуально. -->
-        <div id="slotSeparator" style="height:1px;background:#545456;margin:20px 0 12px;border-radius:1px;"></div>
-
-        <div id="dropZone-intro" class="drop-zone" ondragover="onDragOver('intro',event)" ondragleave="onDragLeave('intro',event)" ondrop="onDrop('intro',event)">
-          <div id="dropEmpty-intro" style="display:flex;flex-direction:column;align-items:center;gap:6px;color:#5a5a5c;font-size:12px;padding:18px 0;">
-            <svg class="icon" style="width:22px;height:22px;" aria-hidden="true"><use href="#i-drag-drop"/></svg>
-            Перетащите вводную часть сюда
-          </div>
-          <div id="dropFilled-intro" onclick="toggleFields('intro')" style="display:none;align-items:center;gap:8px;width:100%;align-self:stretch;box-sizing:border-box;padding:10px 12px;background:#2c2c2e;border-radius:8px;cursor:pointer;" title="Клик — показать/скрыть реквизиты">
-            <svg class="icon" style="width:15px;height:15px;color:#0a84ff;" aria-hidden="true"><use href="#i-file-text"/></svg>
-            <span id="droppedLabel-intro" style="flex:1;font-size:12px;color:#e5e5e7;"></span>
-            <svg id="fieldsChev-intro" class="icon chevron chev-open" style="width:13px;height:13px;color:#8e8e93;" aria-hidden="true"><use href="#i-chevron-right"/></svg>
-            <button class="remove-btn" onclick="event.stopPropagation();clearBlock('intro')" title="Убрать" aria-label="Убрать"><svg class="icon" style="width:14px;height:14px;" aria-hidden="true"><use href="#i-x"/></svg></button>
-          </div>
-        </div>
-
-        <div id="fieldsPanel-intro" style="display:none;margin-top:22px;">
-
-          <div id="variantToolbar-intro" style="display:none;margin-bottom:14px;padding:6px;border-radius:8px;" ondragover="onTemplateDragOver('intro',event)" ondragleave="onTemplateDragLeave('intro',event)" ondrop="onTemplateDrop('intro',event)">
-            <div class="editor-toolbar">
-              <div style="position:relative;">
-                <button class="tb-btn" style="width:auto;padding:0 8px;gap:5px;" onclick="togglePlaceholderMenu('intro',event)"><svg class="icon" style="width:13px;height:13px;" aria-hidden="true"><use href="#i-tag"/></svg>Вставить плейсхолдер</button>
-                <div id="placeholderMenu-intro" style="display:none;position:absolute;top:calc(100% + 4px);left:0;background:#2c2c2e;border:0.5px solid #48484a;border-radius:8px;overflow:hidden;min-width:220px;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:5;"></div>
-              </div>
-              <div style="flex:1;"></div>
-              <button class="tb-btn" style="width:auto;padding:0 10px;gap:5px;color:#0a84ff;" onclick="uploadTemplate('intro')" title="Выбрать .docx и открыть его в выбранном приложении -- файл можно и просто перетащить на эту панель"><svg class="icon" style="width:13px;height:13px;" aria-hidden="true"><use href="#i-upload"/></svg>Загрузить шаблон Word</button>
-            </div>
-            <div id="templateFilenameLabel-intro" style="font-size:11px;color:#8e8e93;margin-top:8px;"></div>
-            <div style="font-size:11px;color:#8e8e93;margin-top:4px;">Клик по плейсхолдеру в реквизитах ниже — скопировать для Word. Правый клик — удалить.</div>
-          </div>
-
-          <div style="font-size:11px;color:#8e8e93;margin-bottom:10px;text-transform:uppercase;letter-spacing:.03em;">Реквизиты вводной части</div>
-          <div id="previewField-intro" style="margin-bottom:14px;"></div>
-
-          <div id="fieldsEmptyState-intro" style="display:none;font-size:11px;color:#8e8e93;font-style:italic;margin-bottom:10px;"></div>
-          <div class="field-grid" id="fieldsGrid-intro"></div>
-        </div>
+        <!-- Раньше здесь была ПО ОДНОМУ dropZone-*/fieldsPanel-* блоку на
+             слот, вручную прописанному в разметке (title/intro/appendix1,
+             см. историю файла) -- теперь это разметка данных: #canvasSections
+             заполняет renderCanvasSections() по текущему SECTIONS, один и
+             тот же buildCanvasSectionEl() на любой раздел, встроенный или
+             добавленный пользователем (см. обсуждение задачи и SECTIONS в
+             <script>). Каждый раздел независим, любые могут быть заполнены
+             одновременно -- то же самое, что было верно и для трёх
+             захардкоженных блоков. -->
+        <div id="canvasSections"></div>
 
       </div>
     </div>
@@ -185,7 +99,7 @@
          списке. Документ -- JSON-вариант проекта (не .docx, тот же формат,
          что Project из src/models/project.py); {name, date, snapshot} без
          реального файла за мокапом -- snapshot (см. дальше по файлу) это
-         срез реквизитов title/intro-слотов на момент «Сохранить проект»,
+         срез реквизитов слотов (title/intro/appendix1) на момент «Сохранить проект»,
          правая панель рендерит его тем же field-grid, что и в «Редакторе
          документов» -- можно посмотреть и поправить значения прямо здесь
          (renderDbStructure()/buildDbStructureBlock() ниже). Основной путь
@@ -241,10 +155,12 @@
     <div style="background:#2c2c2e;border:0.5px solid #48484a;border-radius:10px;padding:18px;width:290px;">
       <div style="font-size:13px;font-weight:500;color:#e5e5e7;margin-bottom:12px;">Собрать документ</div>
       <div style="font-size:11.5px;color:#8e8e93;margin-bottom:12px;">Выберите, из каких шаблонов собрать документ:</div>
-      <div style="font-size:11px;color:#8e8e93;margin-bottom:4px;">Титульный лист</div>
-      <select id="generateTitleSelect" style="width:100%;box-sizing:border-box;background:#1c1c1e;border:0.5px solid #48484a;border-radius:6px;padding:6px 8px;font-size:12px;color:#e5e5e7;margin-bottom:12px;"></select>
-      <div style="font-size:11px;color:#8e8e93;margin-bottom:4px;">Вводная часть</div>
-      <select id="generateIntroSelect" style="width:100%;box-sizing:border-box;background:#1c1c1e;border:0.5px solid #48484a;border-radius:6px;padding:6px 8px;font-size:12px;color:#e5e5e7;margin-bottom:14px;"></select>
+      <!-- Разделы теперь динамический список (см. SECTIONS в <script>), поэтому
+           набор строк "подпись + select" собирается в JS (renderGenerateSelects()),
+           а не прописан здесь по одной паре на слот, как было при трёх
+           захардкоженных -- иначе добавление/удаление раздела пользователем
+           не отражалось бы в этом диалоге. -->
+      <div id="generateSelectsContainer"></div>
       <div style="display:flex;gap:8px;justify-content:flex-end;">
         <button onclick="closeGenerateDialog()" style="background:transparent;border:0.5px solid #48484a;color:#c7c7cc;font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;">Отмена</button>
         <button onclick="confirmGenerateDialog()" style="background:#0a84ff;border:none;color:#fff;font-size:12px;font-weight:500;padding:6px 12px;border-radius:6px;cursor:pointer;">Собрать</button>
@@ -259,6 +175,14 @@
   <div id="blockMenu" style="display:none;position:absolute;z-index:20;background:#2c2c2e;border:0.5px solid #48484a;border-radius:8px;overflow:hidden;min-width:170px;box-shadow:0 8px 24px rgba(0,0,0,.4);">
     <div class="menu-row" onclick="renameBlockFromMenu()"><svg class="icon" style="width:14px;height:14px;color:#c7c7cc;" aria-hidden="true"><use href="#i-edit"/></svg>Переименовать</div>
     <div class="menu-row" style="color:#ff453a;" onclick="deleteBlockFromMenu()"><svg class="icon" style="width:14px;height:14px;color:#ff453a;" aria-hidden="true"><use href="#i-trash"/></svg>Удалить</div>
+  </div>
+
+  <!-- ПКМ по заголовку раздела в сайдбаре (см. openSectionMenu() в <script>)
+       -- «Переименовать»/«Удалить раздел», по образцу #blockMenu у
+       карточки варианта. -->
+  <div id="sectionMenu" style="display:none;position:absolute;z-index:20;background:#2c2c2e;border:0.5px solid #48484a;border-radius:8px;overflow:hidden;min-width:170px;box-shadow:0 8px 24px rgba(0,0,0,.4);">
+    <div class="menu-row" onclick="renameSectionFromMenu()"><svg class="icon" style="width:14px;height:14px;color:#c7c7cc;" aria-hidden="true"><use href="#i-edit"/></svg>Переименовать раздел</div>
+    <div class="menu-row" style="color:#ff453a;" onclick="deleteSectionFromMenu()"><svg class="icon" style="width:14px;height:14px;color:#ff453a;" aria-hidden="true"><use href="#i-trash"/></svg>Удалить раздел</div>
   </div>
 
   <!-- ПКМ по чипу-плейсхолдеру в реквизитах (копирование -- по левому
@@ -290,8 +214,8 @@
   </div>
 
   <!-- ПКМ по строке документа в дереве «База документов» -- «Открыть в
-       редакторе документов» (загружает snapshot в слоты title/intro
-       конструктора и переключает на «Редактор документов», см.
+       редакторе документов» (загружает snapshot во все слоты конструктора
+       (title/intro/appendix1) и переключает на «Редактор документов», см.
        openDocInEditor()/loadDocIntoEditor() ниже), переименовать (меняет
        только name записи, расширение .json подставляется заново, если
        стёрли) и удалить. -->
@@ -354,7 +278,7 @@
 
   <div id="addModal" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.55);align-items:center;justify-content:center;z-index:10;">
     <div style="background:#2c2c2e;border:0.5px solid #48484a;border-radius:10px;padding:18px;width:260px;">
-      <div style="font-size:13px;font-weight:500;color:#e5e5e7;margin-bottom:10px;">Новый вариант титульного листа</div>
+      <div id="addModalTitle" style="font-size:13px;font-weight:500;color:#e5e5e7;margin-bottom:10px;">Новый вариант титульного листа</div>
       <input id="newVariantName" type="text" placeholder="Например, Протокол по результатам контроля" style="width:100%;box-sizing:border-box;background:#1c1c1e;border:0.5px solid #48484a;border-radius:6px;padding:7px 8px;font-size:12px;color:#e5e5e7;margin-bottom:14px;" />
       <div style="display:flex;gap:8px;justify-content:flex-end;">
         <button onclick="closeAddModal()" style="background:transparent;border:0.5px solid #48484a;color:#c7c7cc;font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;">Отмена</button>
@@ -473,8 +397,6 @@ body{background:#eeeeef;}
 .db-tree-row-active{background:rgba(10,132,255,.16);color:#e5e5e7;}
 .group-row{display:flex;align-items:center;gap:6px;padding:6px 6px;border-radius:5px;cursor:pointer;font-size:11.5px;color:#e5e5e7;font-weight:500;}
 .group-row:hover{background:#2c2c2e;}
-.group-row-soon{cursor:not-allowed;color:#5a5a5c;}
-.group-row-soon:hover{background:transparent;}
 .block-card{display:flex;align-items:center;gap:8px;background:#2c2c2e;border:0.5px solid #38383a;border-radius:7px;padding:8px 9px;font-size:11.5px;color:#e5e5e7;cursor:grab;line-height:1.3;}
 .block-card:active{cursor:grabbing;}
 .block-card:hover{border-color:#0a84ff;}
@@ -488,6 +410,19 @@ body{background:#eeeeef;}
 .menu-row-delete-btn:hover{background:#48484a;color:#ff453a;}
 .drop-zone{border:1.5px dashed #38383a;border-radius:8px;transition:border-color .15s,background .15s;min-height:56px;display:flex;align-items:center;justify-content:center;}
 .drop-zone.drag-over{border-color:#0a84ff;background:rgba(10,132,255,.08);}
+/* Разделитель между блоками разделов на канве -- раньше отдельный <div>
+   между каждой парой блоков (тот самый #slotSeparator/#slotSeparator2 из
+   истории файла), теперь -- бордер соседнего элемента через + (примыкающий
+   родственник), а не отдельный узел DOM. Иначе при add/remove раздела
+   пришлось бы вручную пересчитывать, у какого блока теперь должен быть
+   разделитель, а у какого нет -- источник бага "при добавлении раздела
+   пропадают шаблоны у старых" (см. renderCanvasSections()): полная
+   перерисовка #canvasSections стирала DOM всех остальных разделов вместе с
+   их живым состоянием (введённые значения полей, прикреплённый файл
+   шаблона, открытость панели), только чтобы расставить разделители заново.
+   С CSS-разделителем полная перерисовка вообще не нужна -- новый раздел
+   просто дописывается в конец, лишний сам получает бордер сверху. */
+.section-block + .section-block{margin-top:20px;padding-top:12px;border-top:1px solid #545456;}
 .field-grid{display:grid;grid-template-columns:180px 1fr;row-gap:9px;column-gap:10px;align-items:start;font-size:12px;}
 .lbl{color:#c7c7cc;}
 /* Свёрнуто по умолчанию (max-height ~3 строки) -- реальная высота под весь
@@ -586,7 +521,21 @@ textarea.fld.fld-computed{background:rgba(191,90,242,.10);border-color:rgba(191,
 // разделы; «Поиск»/«Сотрудники» -- заглушка (viewStub), показывает только
 // сам паттерн навигации, без содержимого.
 var activityViewTitles = { search: 'Поиск', employees: 'Сотрудники' };
+// currentView -- какой раздел активити-бара сейчас открыт (аналог
+// self._current_view в реальном коде, см. _switch_activity_view()) --
+// нужен, чтобы отличить обычный клик по «Редактор документов» (переключение
+// на этот раздел) от ПОВТОРНОГО клика по уже активной иконке, который вместо
+// переключения сворачивает сайдбар конструктора (см. toggleEditorSidebar()
+// ниже) -- тот же паттерн, что в VSCode: клик по активной иконке
+// активити-бара прячет её панель, а не открывает её же заново.
+var currentView = 'editor';
+var editorSidebarHidden = false;
 function switchView(view){
+  if (view === 'editor' && currentView === 'editor') {
+    toggleEditorSidebar();
+    return;
+  }
+  currentView = view;
   document.querySelectorAll('.activity-icon').forEach(function(el){
     el.classList.toggle('active', el.getAttribute('data-view') === view);
   });
@@ -596,6 +545,18 @@ function switchView(view){
   document.getElementById('viewStub').style.display = isStub ? 'flex' : 'none';
   if (isStub) document.getElementById('placeholderTitle').textContent = activityViewTitles[view] || '';
   if (view === 'database') refreshDbView();
+}
+// -- Сворачивает/разворачивает #sidebar конструктора (палитру разделов) --
+// сам #sidebar просто прячется (display:none), соседняя канва (flex:1 в
+// том же #viewEditor) сама растягивается на освободившееся место --
+// отдельно раздвигать её ширину не нужно. Состояние -- на сессию мокапа, не
+// сбрасывается при переключении на «База документов» и обратно (аналог
+// self._sidebar_collapsed/_toggle_sidebar() в реальном коде, только без
+// QSplitter и revealStrip -- тот механизм относится к другому сайдбару,
+// общему с трубопроводом, см. обсуждение задачи).
+function toggleEditorSidebar(){
+  editorSidebarHidden = !editorSidebarHidden;
+  document.getElementById('sidebar').style.display = editorSidebarHidden ? 'none' : 'block';
 }
 
 // -- «База документов» ------------------------------------------------------
@@ -628,6 +589,9 @@ var dbTree = {
           intro: { variantLabel: 'Вводная часть', fields: [
             {id: 'diag_object', label: 'Объект диагностирования', value: 'Баллоны-воздухохранители высокого давления'},
             {id: 'location', label: 'Местонахождение', value: 'промплощадка АО «КБХиммаш», г. Воскресенск'}
+          ] },
+          appendix1: { variantLabel: 'Приложение 1', fields: [
+            {id: 'act1_specialist', label: 'Программу составил', value: 'Иванов И.И.'}
           ] }
         } }
       ] },
@@ -769,15 +733,48 @@ function renderDbStructure(){
   docLabel.textContent = 'Документ';
   contentEl.appendChild(docLabel);
 
-  contentEl.appendChild(buildDbStructureBlock('title', doc.snapshot && doc.snapshot.title));
-  var sep = document.createElement('div');
-  sep.style.cssText = 'height:1px;background:#545456;margin:20px 0 12px;border-radius:1px;';
-  contentEl.appendChild(sep);
-  contentEl.appendChild(buildDbStructureBlock('intro', doc.snapshot && doc.snapshot.intro));
+  slotIds().forEach(function(kind, i){
+    if (i > 0) {
+      var sep = document.createElement('div');
+      sep.style.cssText = 'height:1px;background:#545456;margin:20px 0 12px;border-radius:1px;';
+      contentEl.appendChild(sep);
+    }
+    contentEl.appendChild(buildDbStructureBlock(kind, doc.snapshot && doc.snapshot[kind]));
+  });
+}
+// reqLabel/emptyLabel/emptyHint -- та же подпись, что и section_label/
+// empty_hint раздела в реальном коде (_CONSTRUCTOR_SLOTS в
+// src/ui/main_window.py). addTitle -- заголовок модалки «Добавить»
+// (#addModalTitle, см. openAddModal() ниже) -- раньше был захардкожен под
+// "Новый вариант титульного листа" даже для intro, здесь исправлено заодно
+// с добавлением третьего слота. Все четыре вручную выверены под падеж
+// каждого встроенного раздела -- для разделов, которые заводит пользователь
+// (см. createSection() ниже), взять их неоткуда (имя произвольное, а
+// автоматическое склонение русских существительных по падежам ненадёжно),
+// поэтому sectionLabels() ниже для них собирает нейтральные формулировки
+// через двоеточие вместо падежа.
+var SLOT_LABELS = {
+  title: { reqLabel: 'Реквизиты титульного листа', emptyLabel: 'Титульный лист не выбран в этом варианте', addTitle: 'Новый вариант титульного листа', emptyHint: 'Перетащите титульный лист сюда' },
+  intro: { reqLabel: 'Реквизиты вводной части', emptyLabel: 'Вводная часть не выбрана в этом варианте', addTitle: 'Новый вариант вводной части', emptyHint: 'Перетащите вводную часть сюда' },
+  appendix1: { reqLabel: 'Реквизиты приложения 1', emptyLabel: 'Приложение 1 не выбрано в этом варианте', addTitle: 'Новый вариант приложения 1', emptyHint: 'Перетащите приложение 1 сюда' }
+};
+// -- Подписи произвольного раздела (встроенного или добавленного
+// пользователем) -- см. комментарий у SLOT_LABELS выше про честный
+// компромисс с падежами для пользовательских разделов.
+function sectionLabels(id){
+  if (SLOT_LABELS[id]) return SLOT_LABELS[id];
+  var sec = sectionById(id);
+  var label = sec ? sec.label : id;
+  return {
+    reqLabel: 'Реквизиты: ' + label,
+    emptyLabel: label + ' — не выбрано в этом варианте',
+    addTitle: 'Новый вариант: ' + label,
+    emptyHint: 'Перетащите сюда: ' + label
+  };
 }
 function buildDbStructureBlock(kind, slotSnapshot){
-  var reqLabel = kind === 'title' ? 'Реквизиты титульного листа' : 'Реквизиты вводной части';
-  var emptyLabel = kind === 'title' ? 'Титульный лист не выбран в этом варианте' : 'Вводная часть не выбрана в этом варианте';
+  var reqLabel = sectionLabels(kind).reqLabel;
+  var emptyLabel = sectionLabels(kind).emptyLabel;
   var wrap = document.createElement('div');
 
   if (!slotSnapshot) {
@@ -855,7 +852,7 @@ function newRootFolder(){
 }
 // -- Общее добавление JSON-записи документа в папку -- используется и
 // вручную (addVariantFromMenu, без snapshot), и из «Сохранить проект»
-// (confirmSaveProject ниже, со snapshot реквизитов title/intro-слотов).
+// (confirmSaveProject ниже, со snapshot реквизитов всех слотов).
 // Расширение всегда .json -- это не .docx, а сериализованный снимок
 // проекта (см. комментарий у #saveProjectModal в разметке).
 function addDbDocEntry(folder, name, snapshot){
@@ -969,7 +966,8 @@ function confirmSaveProject(){
     targetFolder = findFolderNode(dbTree, folderChoice) || dbTree;
   }
 
-  var snapshot = { title: snapshotSlotFields('title'), intro: snapshotSlotFields('intro') };
+  var snapshot = {};
+  slotIds().forEach(function(s){ snapshot[s] = snapshotSlotFields(s); });
   var fileName = addDbDocEntry(targetFolder, name, snapshot);
   targetFolder.expanded = true;
   closeSaveProjectModal();
@@ -1059,7 +1057,7 @@ function closeDocMenu(){ document.getElementById('docMenu').style.display = 'non
 // -- «Открыть в редакторе документов» -- превращает snapshot документа
 // (см. addDbDocEntry()/confirmSaveProject() выше) обратно в живые слоты
 // конструктора: заводит по пользовательскому варианту на каждый непустой
-// слот (title/intro), с теми же полями и значениями, что были сохранены,
+// слот (title/intro/appendix1), с теми же полями и значениями, что были сохранены,
 // вставляет карточку в сайдбар (тот же код, что и confirmAddVariant()) и
 // переключает на «Редактор документов». Спрашивает подтверждение, только
 // если в конструкторе уже что-то стоит в слотах -- иначе заменять нечего.
@@ -1074,18 +1072,34 @@ function openDocInEditor(){
     loadDocIntoEditor(doc);
     switchView('editor');
   };
-  if (slotState.title.currentVariant || slotState.intro.currentVariant) {
-    showConfirm('Открыть «' + doc.name + '» в редакторе? Текущее содержимое титульного листа и вводной части в конструкторе будет заменено.', proceed);
+  if (slotIds().some(function(s){ return slotState[s].currentVariant; })) {
+    showConfirm('Открыть «' + doc.name + '» в редакторе? Текущее содержимое титульного листа, вводной части и приложения 1 в конструкторе будет заменено.', proceed);
   } else {
     proceed();
   }
 }
 function loadDocIntoEditor(doc){
-  ['title', 'intro'].forEach(function(slot){
+  // Раздел мог быть удалён (deleteSection()) уже ПОСЛЕ того, как документ
+  // сохранили -- снимок всё ещё содержит его данные (удаление раздела не
+  // чистит чужие сохранённые снимки). Без этого шага цикл ниже прошёл бы
+  // только по slotIds() ТЕКУЩИХ разделов и молча потерял бы данные раздела,
+  // которого больше нет -- восстанавливаем его под тем же id, с меткой
+  // variantLabel в качестве названия (лучше так, чем терять данные).
+  if (doc.snapshot) {
+    var recreated = false;
+    Object.keys(doc.snapshot).forEach(function(slot){
+      if (doc.snapshot[slot] && !sectionById(slot)) {
+        SECTIONS.push({ id: slot, label: doc.snapshot[slot].variantLabel || slot });
+        slotState[slot] = { currentVariant: null };
+        recreated = true;
+      }
+    });
+    if (recreated) { renderSidebarSections(); renderCanvasSections(); }
+  }
+  slotIds().forEach(function(slot){
     var slotSnapshot = doc.snapshot && doc.snapshot[slot];
     if (!slotSnapshot) { clearBlock(slot); return; }
-    var isIntro = slot === 'intro';
-    var variantId = (isIntro ? 'intro-fromdb-' : 'title-fromdb-') + (nextDbEditorLoadId++);
+    var variantId = (slot === 'title' ? 'title-fromdb-' : slot + '-fromdb-') + (nextDbEditorLoadId++);
     labels[variantId] = slotSnapshot.variantLabel;
     variantFields[variantId] = slotSnapshot.fields.map(function(f){ return {id: f.id, label: f.label, placeholder: ''}; });
 
@@ -1096,7 +1110,7 @@ function loadDocIntoEditor(doc){
     card.setAttribute('ondragstart', 'onDragStart(event)');
     card.setAttribute('oncontextmenu', "return openBlockMenu(event,this,'" + variantId + "')");
     card.innerHTML = '<svg class="icon" style="width:15px;height:15px;color:#0a84ff;" aria-hidden="true"><use href="#i-file-text"></use></svg><span>' + slotSnapshot.variantLabel + '</span>';
-    var addRow = document.querySelector((isIntro ? '#introGroup' : '#titleGroup') + ' .add-block-row');
+    var addRow = document.querySelector('#' + slot + 'Group .add-block-row');
     addRow.parentNode.insertBefore(card, addRow);
 
     setBlock(slot, variantId);
@@ -1165,41 +1179,323 @@ function confirmTextInputModal(){
 // что теперь и в реальном коде (TITLE_VARIANTS = {} в
 // src/services/template_schema.py).
 var labels = {};
-// Слот «title» -- дропзона под титульные листы, слот «intro» -- под вводную
-// часть, каждый со своим independent currentVariant (оба могут быть
-// заполнены одновременно, см. разметку #dropZone-title/#dropZone-intro).
-var slotState = { title: { currentVariant: null }, intro: { currentVariant: null } };
+// SECTIONS -- список разделов конструктора (id + отображаемое имя в
+// сайдбаре), в порядке инициализации И порядке в собранном документе (см.
+// _CONSTRUCTOR_SLOTS в реальном коде, src/ui/main_window.py). Три встроенных
+// ниже -- ровно такие же данные, как раздел, который пользователь добавит
+// сам кнопкой «Добавить раздел» (см. createSection()/deleteSection() и
+// обсуждение задачи -- предложенный вариант архитектуры: разделы это
+// данные, а не по одному предзаданному набору виджетов на раздел).
+// slotIds() -- их id отдельным списком, тем же способом, каким раньше был
+// захардкожен массив SLOTS -- весь остальной код ниже вызывает именно его,
+// а не читает SECTIONS напрямую, и не заботится, встроенный раздел или
+// добавленный.
+var SECTIONS = [
+  { id: 'title', label: 'Титульные листы' },
+  { id: 'intro', label: 'Вводная часть' },
+  { id: 'appendix1', label: 'Приложение 1' }
+];
+function slotIds(){
+  return SECTIONS.map(function(s){ return s.id; });
+}
+function sectionById(id){
+  var found = SECTIONS.filter(function(s){ return s.id === id; });
+  return found.length ? found[0] : null;
+}
+var slotState = {};
+slotIds().forEach(function(s){ slotState[s] = { currentVariant: null }; });
+// title -- голый вариант id без префикса (исторически, до появления
+// концепции "слот", см. _slot_placeholder_name() в реальном коде), остальные
+// разделы -- variantId с префиксом "{id}-".
 function variantGroup(variantId){
-  return variantId && variantId.indexOf('intro-') === 0 ? 'intro' : 'title';
+  var ids = slotIds();
+  for (var i = 0; i < ids.length; i++){
+    var s = ids[i];
+    if (s !== 'title' && variantId && variantId.indexOf(s + '-') === 0) return s;
+  }
+  return 'title';
 }
-function otherSlot(slot){
-  return slot === 'title' ? 'intro' : 'title';
+
+// -- Сайдбар: группа одного раздела -- строится программно по SECTIONS
+// (шеврон + иконка + подпись, разворачиваемая область с «Добавить») вместо
+// того, чтобы быть прописанной в разметке по одной на раздел, как было,
+// пока их было ровно три и они не менялись. ПКМ по заголовку -- меню
+// «Удалить раздел» (openSectionMenu()/#sectionMenu, по образцу ПКМ на
+// карточке варианта, см. openBlockMenu()/#blockMenu).
+// -- И здесь, и в renderCanvasSections() ниже -- НЕ container.innerHTML = ''
+// + перестроить всё заново: так уже было и вызывало баг, который заметил
+// пользователь -- "при добавлении нового раздела из старых пропадают
+// шаблоны" (полная перерисовка стирала DOM ВСЕХ разделов, включая уже
+// вставленные в сайдбар карточки вариантов и прикреплённые к ним файлы
+// шаблона, чтобы показать один новый/убрать один удалённый). Вместо этого
+// -- убираем из DOM только те wrap-узлы (помечены data-section-id), которых
+// больше нет в SECTIONS (после deleteSection()), и достраиваем только те,
+// которых в DOM ещё нет (после createSection()) -- DOM остальных разделов
+// вообще не трогается.
+function renderSidebarSections(){
+  var container = document.getElementById('sectionsList');
+  var currentIds = slotIds();
+  Array.prototype.slice.call(container.children).forEach(function(el){
+    if (currentIds.indexOf(el.dataset.sectionId) === -1) container.removeChild(el);
+  });
+  SECTIONS.forEach(function(sec){
+    if (!container.querySelector('[data-section-id="' + sec.id + '"]')) {
+      container.appendChild(buildSidebarGroupEl(sec));
+    }
+  });
 }
+function buildSidebarGroupEl(sec){
+  var wrap = document.createElement('div');
+  wrap.dataset.sectionId = sec.id;
+
+  var row = document.createElement('div');
+  row.className = 'group-row';
+  row.title = 'Правый клик — удалить раздел';
+  row.onclick = function(){ toggleGroup(sec.id + 'Group'); };
+  row.oncontextmenu = function(ev){ return openSectionMenu(ev, sec.id); };
+  row.innerHTML =
+    '<svg id="' + sec.id + 'GroupChev" class="icon chevron chev-open" style="width:13px;height:13px;color:#8e8e93;" aria-hidden="true"><use href="#i-chevron-right"></use></svg>' +
+    '<svg class="icon" style="width:14px;height:14px;color:#8e8e93;" aria-hidden="true"><use href="#i-files"></use></svg>' +
+    '<span>' + sec.label + '</span>';
+
+  var body = document.createElement('div');
+  body.id = sec.id + 'Group';
+  body.style.cssText = 'padding:4px 0 6px 14px;display:flex;flex-direction:column;gap:8px;';
+  var addRow = document.createElement('div');
+  addRow.className = 'add-block-row';
+  addRow.onclick = function(){ openAddModal(sec.id); };
+  addRow.innerHTML = '<svg class="icon" style="width:13px;height:13px;" aria-hidden="true"><use href="#i-plus"></use></svg><span>Добавить</span>';
+  body.appendChild(addRow);
+
+  wrap.appendChild(row);
+  wrap.appendChild(body);
+  return wrap;
+}
+
+// -- Канва: drop-зона + панель реквизитов одного раздела -- та же разметка,
+// что раньше была вручную прописана по одной на слот (title/intro/
+// appendix1, см. историю файла), теперь строится программно по любому
+// разделу из SECTIONS -- встроенному или добавленному пользователем.
+// Обработчики -- через JS (element.onclick = ...), а не инлайновыми
+// onclick/ondrag*-атрибутами в строке HTML: id раздела подставляется в
+// разметку и как CSS-селектор (querySelector ниже), а generateSectionId()
+// намеренно возвращает id, безопасный для этого (см. её комментарий) --
+// но обработчики всё равно через JS, чтобы не завязываться на это лишний раз.
+function renderCanvasSections(){
+  var container = document.getElementById('canvasSections');
+  var currentIds = slotIds();
+  Array.prototype.slice.call(container.children).forEach(function(el){
+    if (currentIds.indexOf(el.dataset.sectionId) === -1) container.removeChild(el);
+  });
+  // Порядок раздела в SECTIONS сохраняется автоматически: новые всегда
+  // добавляются в конец (createSection() делает SECTIONS.push()), а среди
+  // уже существующих relative-порядок в DOM никогда не меняется -- поэтому
+  // просто дописать недостающие в конец контейнера достаточно, менять
+  // местами ничего не нужно. Разделитель между блоками -- бордер
+  // .section-block + .section-block в <style> (примыкающий родственник), не
+  // отдельный узел DOM -- он сам появляется/исчезает у нужного блока при
+  // добавлении/удалении соседа, вручную пересчитывать не нужно.
+  SECTIONS.forEach(function(sec){
+    if (!container.querySelector('[data-section-id="' + sec.id + '"]')) {
+      container.appendChild(buildCanvasSectionEl(sec));
+    }
+  });
+}
+function buildCanvasSectionEl(sec){
+  var id = sec.id;
+  var lb = sectionLabels(id);
+  var wrap = document.createElement('div');
+  wrap.className = 'section-block';
+  wrap.dataset.sectionId = id;
+  wrap.innerHTML =
+    '<div id="dropZone-' + id + '" class="drop-zone">' +
+      '<div id="dropEmpty-' + id + '" style="display:flex;flex-direction:column;align-items:center;gap:6px;color:#5a5a5c;font-size:12px;padding:18px 0;">' +
+        '<svg class="icon" style="width:22px;height:22px;" aria-hidden="true"><use href="#i-drag-drop"></use></svg>' +
+        '<span id="emptyHint-' + id + '">' + lb.emptyHint + '</span>' +
+      '</div>' +
+      '<div id="dropFilled-' + id + '" style="display:none;align-items:center;gap:8px;width:100%;align-self:stretch;box-sizing:border-box;padding:10px 12px;background:#2c2c2e;border-radius:8px;cursor:pointer;" title="Клик — показать/скрыть реквизиты">' +
+        '<svg class="icon" style="width:15px;height:15px;color:#0a84ff;" aria-hidden="true"><use href="#i-file-text"></use></svg>' +
+        '<span id="droppedLabel-' + id + '" style="flex:1;font-size:12px;color:#e5e5e7;"></span>' +
+        '<svg id="fieldsChev-' + id + '" class="icon chevron chev-open" style="width:13px;height:13px;color:#8e8e93;" aria-hidden="true"><use href="#i-chevron-right"></use></svg>' +
+        '<button class="remove-btn" title="Убрать" aria-label="Убрать"><svg class="icon" style="width:14px;height:14px;" aria-hidden="true"><use href="#i-x"></use></svg></button>' +
+      '</div>' +
+    '</div>' +
+    '<div id="fieldsPanel-' + id + '" style="display:none;margin-top:22px;">' +
+      '<div id="variantToolbar-' + id + '" style="display:none;margin-bottom:14px;padding:6px;border-radius:8px;">' +
+        '<div class="editor-toolbar">' +
+          '<div style="position:relative;">' +
+            '<button class="tb-btn" style="width:auto;padding:0 8px;gap:5px;"><svg class="icon" style="width:13px;height:13px;" aria-hidden="true"><use href="#i-tag"></use></svg>Вставить плейсхолдер</button>' +
+            '<div id="placeholderMenu-' + id + '" style="display:none;position:absolute;top:calc(100% + 4px);left:0;background:#2c2c2e;border:0.5px solid #48484a;border-radius:8px;overflow:hidden;min-width:220px;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:5;"></div>' +
+          '</div>' +
+          '<div style="flex:1;"></div>' +
+          '<button class="tb-btn" style="width:auto;padding:0 10px;gap:5px;color:#0a84ff;" title="Выбрать .docx и открыть его в выбранном приложении -- файл можно и просто перетащить на эту панель"><svg class="icon" style="width:13px;height:13px;" aria-hidden="true"><use href="#i-upload"></use></svg>Загрузить шаблон Word</button>' +
+        '</div>' +
+        '<div id="templateFilenameLabel-' + id + '" style="font-size:11px;color:#8e8e93;margin-top:8px;"></div>' +
+        '<div style="font-size:11px;color:#8e8e93;margin-top:4px;">Клик по плейсхолдеру в реквизитах ниже — скопировать для Word. Правый клик — удалить.</div>' +
+      '</div>' +
+      '<div id="reqLabel-' + id + '" style="font-size:11px;color:#8e8e93;margin-bottom:10px;text-transform:uppercase;letter-spacing:.03em;">' + lb.reqLabel + '</div>' +
+      '<div id="previewField-' + id + '" style="margin-bottom:14px;"></div>' +
+      '<div id="fieldsEmptyState-' + id + '" style="display:none;font-size:11px;color:#8e8e93;font-style:italic;margin-bottom:10px;"></div>' +
+      '<div class="field-grid" id="fieldsGrid-' + id + '"></div>' +
+    '</div>';
+
+  var dropZone = wrap.querySelector('#dropZone-' + id);
+  dropZone.ondragover = function(ev){ onDragOver(id, ev); };
+  dropZone.ondragleave = function(ev){ onDragLeave(id, ev); };
+  dropZone.ondrop = function(ev){ onDrop(id, ev); };
+  wrap.querySelector('#dropFilled-' + id).onclick = function(){ toggleFields(id); };
+  wrap.querySelector('#dropFilled-' + id + ' .remove-btn').onclick = function(ev){ ev.stopPropagation(); clearBlock(id); };
+
+  var toolbar = wrap.querySelector('#variantToolbar-' + id);
+  toolbar.ondragover = function(ev){ onTemplateDragOver(id, ev); };
+  toolbar.ondragleave = function(ev){ onTemplateDragLeave(id, ev); };
+  toolbar.ondrop = function(ev){ onTemplateDrop(id, ev); };
+  var tbButtons = toolbar.querySelectorAll('.tb-btn');
+  tbButtons[0].onclick = function(ev){ togglePlaceholderMenu(id, ev); };
+  tbButtons[1].onclick = function(){ uploadTemplate(id); };
+
+  return wrap;
+}
+
+// -- Добавление нового раздела целиком (не варианта внутри существующего --
+// это openAddModal(), см. кнопку «Добавить» внутри каждой группы). Id --
+// не производный от введённого названия (которое произвольно и может
+// содержать что угодно), а простой счётчик -- ровно тот же принцип, что и
+// у id варианта (см. nextVariantIdBySlot ниже): подстановка в HTML-атрибуты
+// и CSS-селекторы (buildCanvasSectionEl() выше) должна быть безопасной
+// независимо от того, что ввёл пользователь.
+var nextCustomSectionId = 1;
+function generateSectionId(){
+  return 'section' + (nextCustomSectionId++);
+}
+function openAddSectionModal(){
+  openTextInputModal('Новый раздел', 'Например, Программа испытаний', 'Добавить', '', function(text){
+    createSection(text);
+  });
+}
+function createSection(label){
+  var id = generateSectionId();
+  SECTIONS.push({ id: id, label: label });
+  slotState[id] = { currentVariant: null };
+  renderSidebarSections();
+  renderCanvasSections();
+}
+// -- Удаление раздела целиком -- не просто очищает канву (см. clearBlock()),
+// а убирает сам раздел из SECTIONS: пропадает его группа в сайдбаре, его
+// строка в диалоге «Собрать документ» и все варианты, когда-либо заведённые
+// в нём (variantGroup() больше никуда их не отнесёт -- id раздела
+// освобождён). Подтверждение -- тот же showConfirm(), что и везде в этом
+// мокапе для необратимых действий. Ограничений на то, какой раздел можно
+// удалить, нет -- встроенные (title/intro/appendix1) ничем не отличаются от
+// добавленного пользователем, см. обсуждение задачи.
+function deleteSection(id){
+  var sec = sectionById(id);
+  if (!sec) return;
+  showConfirm('Удалить раздел «' + sec.label + '»? Все его варианты и введённые в них данные будут удалены безвозвратно.', function(){
+    Object.keys(labels).filter(function(vid){ return variantGroup(vid) === id; }).forEach(function(vid){
+      delete labels[vid];
+      delete variantFields[vid];
+      delete variantTemplateFilename[vid];
+      delete previewGenerated[vid];
+    });
+    delete slotState[id];
+    SECTIONS = SECTIONS.filter(function(s){ return s.id !== id; });
+    renderSidebarSections();
+    renderCanvasSections();
+    updateCrumb();
+  });
+}
+// -- ПКМ по заголовку раздела в сайдбаре -- «Переименовать»/«Удалить
+// раздел», по образцу #blockMenu у карточки варианта.
+var sectionMenuTargetId = null;
+function openSectionMenu(ev, id){
+  ev.preventDefault();
+  ev.stopPropagation();
+  sectionMenuTargetId = id;
+  var menu = document.getElementById('sectionMenu');
+  var frame = menu.parentElement.getBoundingClientRect();
+  menu.style.left = (ev.clientX - frame.left) + 'px';
+  menu.style.top = (ev.clientY - frame.top) + 'px';
+  menu.style.display = 'block';
+  return false;
+}
+function closeSectionMenu(){
+  document.getElementById('sectionMenu').style.display = 'none';
+}
+function renameSectionFromMenu(){
+  var id = sectionMenuTargetId;
+  closeSectionMenu();
+  renameSection(id);
+}
+// -- Переименование раздела -- меняет sec.label ПРЯМО в объекте внутри
+// SECTIONS (не пересоздаёт запись), затем точечно правит только те
+// DOM-узлы, что показывают название (заголовок группы в сайдбаре,
+// подсказка пустой drop-зоны, "Реквизиты: ..."). Специально НЕ через
+// renderSidebarSections()/renderCanvasSections() -- те идемпотентны и
+// пропускают уже существующий в DOM раздел (см. их комментарий), поэтому
+// полная пересборка здесь не нужна и вдобавок стёрла бы то же самое
+// состояние (введённые значения полей, карточку шаблона), которое они
+// сейчас специально оберегают при add/remove.
+function renameSection(id){
+  var sec = sectionById(id);
+  if (!sec) return;
+  var newLabel = prompt('Новое название раздела:', sec.label);
+  if (newLabel === null) return;
+  newLabel = newLabel.trim();
+  if (!newLabel || newLabel === sec.label) return;
+  sec.label = newLabel;
+
+  var groupSpan = document.querySelector('#sectionsList [data-section-id="' + id + '"] .group-row span');
+  if (groupSpan) groupSpan.textContent = newLabel;
+
+  var lb = sectionLabels(id);
+  var emptyHintEl = document.getElementById('emptyHint-' + id);
+  if (emptyHintEl) emptyHintEl.textContent = lb.emptyHint;
+  var reqLabelEl = document.getElementById('reqLabel-' + id);
+  if (reqLabelEl) reqLabelEl.textContent = lb.reqLabel;
+
+  updateCrumb();
+}
+function deleteSectionFromMenu(){
+  var id = sectionMenuTargetId;
+  closeSectionMenu();
+  deleteSection(id);
+}
+
 // -- Одинаковые плейсхолдеры (общий каталог, см. fieldCatalog) в разных
-// слотах предзаполняются значением из другого слота, если оно там уже
-// введено (_cross_slot_placeholder_value() в реальном коде) -- разовое
+// слотах предзаполняются значением, уже введённым в любом ДРУГОМ слоте
+// (_cross_slot_placeholder_value() в реальном коде -- тот же цикл по всем
+// слотам, а не только по одному конкретному "другому") -- разовое
 // предзаполнение В МОМЕНТ вставки поля, не живая связь: дальнейшая правка
-// в одном слоте на другой не влияет, поля остаются независимыми. Читаем
-// значение из грида ДРУГОГО слота -- getElementById() не годится, т.к.
-// id полей общие между слотами (тот же field_id может стоять и в title, и
-// в intro одновременно), и вернул бы не тот элемент.
-function crossSlotValue(slot, fieldId){
-  var other = otherSlot(slot);
-  var otherVariant = slotState[other].currentVariant;
-  if (!otherVariant) return '';
-  var grid = document.getElementById('fieldsGrid-' + other);
-  var input = grid.querySelector('#' + CSS.escape(fieldId));
-  return input ? input.value : '';
+// в одном слоте на другие не влияет, поля остаются независимыми. Читаем
+// значение из грида каждого слота по очереди -- getElementById() не
+// годится, т.к. id полей общие между слотами (тот же field_id может стоять
+// сразу в нескольких).
+function crossSlotValue(fieldId){
+  var ids = slotIds();
+  for (var i = 0; i < ids.length; i++){
+    var s = ids[i];
+    if (!slotState[s].currentVariant) continue;
+    var grid = document.getElementById('fieldsGrid-' + s);
+    var input = grid && grid.querySelector('#' + CSS.escape(fieldId));
+    if (input && input.value) return input.value;
+  }
+  return '';
 }
 // -- Пометка "уже в другом шаблоне" в меню «Вставить плейсхолдер»
 // (_used_in_other_slot() в реальном коде) -- НЕ блокирует вставку (тот же
-// плейсхолдер может стоять сразу в обоих слотах), в отличие от "✓ уже
+// плейсхолдер может стоять сразу в нескольких слотах), в отличие от "✓ уже
 // вставлен", который относится только к текущему варианту текущего слота.
 function usedInOtherSlot(slot, fieldId){
-  var other = otherSlot(slot);
-  var otherVariant = slotState[other].currentVariant;
-  if (!otherVariant) return false;
-  return (variantFields[otherVariant] || []).some(function(f){ return f.id === fieldId; });
+  var ids = slotIds();
+  for (var i = 0; i < ids.length; i++){
+    var other = ids[i];
+    if (other === slot) continue;
+    var otherVariant = slotState[other].currentVariant;
+    if (!otherVariant) continue;
+    if ((variantFields[otherVariant] || []).some(function(f){ return f.id === fieldId; })) return true;
+  }
+  return false;
 }
 
 // Реквизиты титульного листа -- свой набор полей под каждый вариант, все
@@ -1272,13 +1568,14 @@ function formatRuNumber(n, decimals){
   return n.toFixed(d).replace('.', ',');
 }
 
-// -- Значение плейсхолдера, введённое ВРУЧНУЮ в реквизитах (title или
-// intro, см. crossSlotValue() выше -- тот же принцип поиска по обоим
-// слотам). Не учитывает формулы других полей -- их обходит tokensToExpr()
-// отдельно, рекурсивно.
+// -- Значение плейсхолдера, введённое ВРУЧНУЮ в реквизитах любого раздела
+// (см. crossSlotValue() выше -- тот же принцип поиска по всем slotIds()).
+// Не учитывает формулы других полей -- их обходит tokensToExpr() отдельно,
+// рекурсивно.
 function placeholderNumericValue(fieldId){
-  for (var i = 0; i < 2; i++){
-    var s = i === 0 ? 'title' : 'intro';
+  var ids = slotIds();
+  for (var i = 0; i < ids.length; i++){
+    var s = ids[i];
     if (!slotState[s].currentVariant) continue;
     var grid = document.getElementById('fieldsGrid-' + s);
     var input = grid && grid.querySelector('#' + CSS.escape(fieldId));
@@ -1344,7 +1641,7 @@ function cloneTokens(tokens){
 // известно, от чего именно она зависит. Трогает только textarea с
 // data-computed="1" -- обычные поля не переписываются.
 function refreshComputedFieldValues(){
-  ['title', 'intro'].forEach(function(s){
+  slotIds().forEach(function(s){
     var grid = document.getElementById('fieldsGrid-' + s);
     if (!grid) return;
     grid.querySelectorAll('textarea.fld[data-computed="1"]').forEach(function(ta){
@@ -1355,12 +1652,12 @@ function refreshComputedFieldValues(){
     });
   });
 }
-// -- Полная перерисовка формы реквизитов обоих открытых слотов -- нужна
+// -- Полная перерисовка формы реквизитов всех открытых слотов -- нужна
 // после сохранения/удаления формулы (у поля меняется САМА СТРУКТУРА --
 // readonly/обычное, ƒ-бейдж на чипе), одного refreshComputedFieldValues()
 // (который только правит .value уже существующих textarea) недостаточно.
 function refreshSlotsAfterFormulaChange(){
-  ['title', 'intro'].forEach(function(s){
+  slotIds().forEach(function(s){
     var cv = slotState[s].currentVariant;
     if (cv) renderFields(s, cv);
   });
@@ -1591,7 +1888,7 @@ function setBlock(slot, variant){
   renderFields(slot, variant);
   document.getElementById('fieldsPanel-' + slot).style.display = 'block';
   document.getElementById('fieldsChev-' + slot).classList.add('chev-open');
-  if (slot === 'title') document.getElementById('crumbBlock').textContent = labels[variant];
+  updateCrumb();
 }
 function toggleFields(slot){
   if (!slotState[slot].currentVariant) return;
@@ -1606,7 +1903,24 @@ function clearBlock(slot){
   document.getElementById('dropEmpty-' + slot).style.display = 'flex';
   document.getElementById('dropFilled-' + slot).style.display = 'none';
   document.getElementById('fieldsPanel-' + slot).style.display = 'none';
-  if (slot === 'title') document.getElementById('crumbBlock').textContent = 'без титульного листа';
+  updateCrumb();
+}
+// -- Хлебная крошка вверху канвы -- раньше жёстко показывала подпись только
+// слота title (он и предполагался первым/главным блоком документа). Теперь,
+// когда разделы -- динамический список, а не фиксированная тройка, крошка
+// вместо этого берёт первый ПО ПОРЯДКУ заполненный раздел (title, если он
+// есть и заполнен, останется первым и здесь, как и раньше) -- не самый
+// раздел жёстко, а его текущее место в SECTIONS.
+function updateCrumb(){
+  var ids = slotIds();
+  for (var i = 0; i < ids.length; i++){
+    var variant = slotState[ids[i]].currentVariant;
+    if (variant) {
+      document.getElementById('crumbBlock').textContent = labels[variant];
+      return;
+    }
+  }
+  document.getElementById('crumbBlock').textContent = 'без разделов';
 }
 
 // -- Диалог «Собрать документ» (_open_generate_dialog() в реальном коде) --
@@ -1615,9 +1929,31 @@ function clearBlock(slot){
 // нужную комбинацию (можно и без предварительного drag-and-drop по канве
 // вообще). Выбор применяется к самим слотам через setBlock()/clearBlock()
 // -- те же функции, что и обычное перетаскивание.
+// generateSelectId(slot) -- id одного <select> внутри
+// #generateSelectsContainer. Сама пара "подпись + select" на каждый раздел
+// строится программно в openGenerateDialog() -- раньше здесь была одна
+// захардкоженная пара на слот прямо в разметке (#generateTitleSelect и
+// т.п.), что не сработало бы для раздела, который пользователь добавляет
+// сам (см. createSection()) -- заранее неизвестно, сколько их будет.
+function generateSelectId(slot){
+  return 'generateSelect-' + slot;
+}
 function openGenerateDialog(){
-  populateGenerateSelect('title', document.getElementById('generateTitleSelect'));
-  populateGenerateSelect('intro', document.getElementById('generateIntroSelect'));
+  var container = document.getElementById('generateSelectsContainer');
+  container.innerHTML = '';
+  var ids = slotIds();
+  ids.forEach(function(slot, i){
+    var sec = sectionById(slot);
+    var label = document.createElement('div');
+    label.style.cssText = 'font-size:11px;color:#8e8e93;margin-bottom:4px;';
+    label.textContent = sec ? sec.label : slot;
+    var select = document.createElement('select');
+    select.id = generateSelectId(slot);
+    select.style.cssText = 'width:100%;box-sizing:border-box;background:#1c1c1e;border:0.5px solid #48484a;border-radius:6px;padding:6px 8px;font-size:12px;color:#e5e5e7;margin-bottom:' + (i === ids.length - 1 ? '14' : '12') + 'px;';
+    container.appendChild(label);
+    container.appendChild(select);
+    populateGenerateSelect(slot, select);
+  });
   document.getElementById('generateModal').style.display = 'flex';
 }
 function populateGenerateSelect(slot, select){
@@ -1638,29 +1974,33 @@ function closeGenerateDialog(){
   document.getElementById('generateModal').style.display = 'none';
 }
 function confirmGenerateDialog(){
-  var titleSel = document.getElementById('generateTitleSelect').value || null;
-  var introSel = document.getElementById('generateIntroSelect').value || null;
+  var selection = {};
+  slotIds().forEach(function(slot){
+    selection[slot] = document.getElementById(generateSelectId(slot)).value || null;
+  });
   closeGenerateDialog();
-  if (titleSel !== slotState.title.currentVariant) {
-    if (titleSel) setBlock('title', titleSel); else clearBlock('title');
-  }
-  if (introSel !== slotState.intro.currentVariant) {
-    if (introSel) setBlock('intro', introSel); else clearBlock('intro');
-  }
+  slotIds().forEach(function(slot){
+    if (selection[slot] !== slotState[slot].currentVariant) {
+      if (selection[slot]) setBlock(slot, selection[slot]); else clearBlock(slot);
+    }
+  });
   var parts = [];
-  if (slotState.title.currentVariant) parts.push(labels[slotState.title.currentVariant]);
-  if (slotState.intro.currentVariant) parts.push(labels[slotState.intro.currentVariant]);
+  slotIds().forEach(function(slot){
+    if (slotState[slot].currentVariant) parts.push(labels[slotState[slot].currentVariant]);
+  });
   if (!parts.length) return;
   alert('Здесь MainWindow._calculate_constructor() отрендерит ' + parts.join(' + ') + ' с введёнными реквизитами и сохранит .docx.');
 }
 
-// -- Добавление нового варианта титульного листа / вводной части ------------
-// Обе группы («Титульные листы», «Вводная часть») используют одну и ту же
-// модалку -- addModalGroup запоминает, в какую именно группу вставлять
-// карточку и с каким префиксом id (см. confirmAddVariant()).
+// -- Добавление нового варианта титульного листа / вводной части / приложения 1
+// Все три группы («Титульные листы», «Вводная часть», «Приложение 1»)
+// используют одну и ту же модалку -- addModalGroup запоминает, в какую
+// именно группу вставлять карточку и с каким префиксом id (см.
+// confirmAddVariant()).
 var addModalGroup = 'title';
 function openAddModal(group){
   addModalGroup = group || 'title';
+  document.getElementById('addModalTitle').textContent = sectionLabels(addModalGroup).addTitle;
   document.getElementById('addModal').style.display = 'flex';
   document.getElementById('newVariantName').focus();
 }
@@ -1668,15 +2008,19 @@ function closeAddModal(){
   document.getElementById('addModal').style.display = 'none';
   document.getElementById('newVariantName').value = '';
 }
-var nextVariantId = 1;
-var nextIntroVariantId = 1;
+// nextVariantIdBySlot -- свой счётчик id на каждый слот (title исторически
+// с префиксом "custom-", остальные -- "{slot}-", см. variantGroup() выше).
+var nextVariantIdBySlot = {};
 function confirmAddVariant(){
   var input = document.getElementById('newVariantName');
   var text = input.value.trim();
   if (!text) { input.focus(); return; }
 
-  var isIntro = addModalGroup === 'intro';
-  var variantId = (isIntro ? 'intro-' : 'custom-') + (isIntro ? (nextIntroVariantId++) : (nextVariantId++));
+  var slot = addModalGroup;
+  var prefix = slot === 'title' ? 'custom-' : slot + '-';
+  var n = nextVariantIdBySlot[slot] || 1;
+  nextVariantIdBySlot[slot] = n + 1;
+  var variantId = prefix + n;
   labels[variantId] = text;
   variantFields[variantId] = defaultFields.slice(); // как в реальном приложении -- сразу рабочая заготовка, не пустой список
 
@@ -1688,7 +2032,7 @@ function confirmAddVariant(){
   card.setAttribute('oncontextmenu', "return openBlockMenu(event,this,'" + variantId + "')");
   card.innerHTML = '<svg class="icon" style="width:15px;height:15px;color:#0a84ff;" aria-hidden="true"><use href="#i-file-text"></use></svg><span>' + text + '</span>';
 
-  var addRow = document.querySelector((isIntro ? '#introGroup' : '#titleGroup') + ' .add-block-row');
+  var addRow = document.querySelector('#' + slot + 'Group .add-block-row');
   addRow.parentNode.insertBefore(card, addRow);
 
   closeAddModal();
@@ -1746,7 +2090,7 @@ function renderPlaceholderMenuList(slot){
       del.innerHTML = '<svg class="icon" style="width:12px;height:12px;" aria-hidden="true"><use href="#i-trash"></use></svg>';
       del.onclick = function(e){
         e.stopPropagation();
-        showConfirm('Удалить поле «' + f.label + '» из каталога плейсхолдеров? Оно пропадёт из списка «Вставить плейсхолдер», а его чип — из реквизитов ВСЕХ вариантов, где уже вставлен (и титульных листов, и вводной части) — каталог общий.', function(){
+        showConfirm('Удалить поле «' + f.label + '» из каталога плейсхолдеров? Оно пропадёт из списка «Вставить плейсхолдер», а его чип — из реквизитов ВСЕХ вариантов, где уже вставлен (титульных листов, вводной части и приложения 1) — каталог общий.', function(){
           delete fieldCatalog[f.id];
           // Формула этого поля (если была) больше не имеет смысла без
           // самого поля в каталоге -- убираем вместе с ним. Формулы
@@ -1755,14 +2099,14 @@ function renderPlaceholderMenuList(slot){
           // тот же принцип деградации, что и у голого id вместо подписи.
           delete fieldFormulas[f.id];
           // Убираем чип не только из каталога, но и из subtitle_fields
-          // каждого варианта обоих слотов -- иначе повисший чип с
+          // каждого варианта всех слотов -- иначе повисший чип с
           // подписью-фоллбэком на голый id остался бы в интерфейсе после
           // того, как поле пропало из каталога (см. _delete_catalog_field()
           // в реальном коде).
           Object.keys(variantFields).forEach(function(vid){
             variantFields[vid] = (variantFields[vid] || []).filter(function(cf){ return cf.id !== f.id; });
           });
-          ['title', 'intro'].forEach(function(s){
+          slotIds().forEach(function(s){
             var cv = slotState[s].currentVariant;
             if (cv) renderFields(s, cv);
           });
@@ -1816,7 +2160,7 @@ function addPlaceholder(slot, f){
   var grid = document.getElementById('fieldsGrid-' + slot);
   var input = grid.querySelector('#' + CSS.escape(f.id));
   if (input && !input.value) {
-    var prefill = crossSlotValue(slot, f.id);
+    var prefill = crossSlotValue(f.id);
     if (prefill) { input.value = prefill; autoGrowField(input); }
   }
 }
@@ -2370,21 +2714,21 @@ function renameBlockFromMenu(){
   labels[variant] = newName;
   var span = blockMenuTargetEl.querySelector('span');
   if (span) span.textContent = newName;
-  // Карточка могла быть перетащена в свой слот (title или intro) --
-  // проверяем оба, вариант живёт максимум в одном из них одновременно.
-  ['title', 'intro'].forEach(function(slot){
+  // Карточка могла быть перетащена в свой раздел -- проверяем все,
+  // вариант живёт максимум в одном из них одновременно.
+  slotIds().forEach(function(slot){
     if (slotState[slot].currentVariant === variant) {
       document.getElementById('droppedLabel-' + slot).textContent = newName;
-      if (slot === 'title') document.getElementById('crumbBlock').textContent = newName;
     }
   });
+  updateCrumb();
 }
 function deleteBlockFromMenu(){
   if (!blockMenuTargetEl) { closeBlockMenu(); return; }
   var el = blockMenuTargetEl, variant = blockMenuTargetVariant;
   closeBlockMenu();
   showConfirm('Удалить вариант «' + labels[variant] + '»?', function(){
-    ['title', 'intro'].forEach(function(slot){
+    slotIds().forEach(function(slot){
       if (slotState[slot].currentVariant === variant) clearBlock(slot);
     });
     delete labels[variant];
@@ -2394,7 +2738,9 @@ function deleteBlockFromMenu(){
 document.addEventListener('click', function(ev){
   var bm = document.getElementById('blockMenu');
   if (bm.style.display === 'block' && !bm.contains(ev.target)) { closeBlockMenu(); }
-  ['title', 'intro'].forEach(function(slot){
+  var sm = document.getElementById('sectionMenu');
+  if (sm.style.display === 'block' && !sm.contains(ev.target)) { closeSectionMenu(); }
+  slotIds().forEach(function(slot){
     var pm = document.getElementById('placeholderMenu-' + slot);
     if (pm.style.display === 'block' && !pm.contains(ev.target)) { pm.style.display = 'none'; }
   });
@@ -2417,4 +2763,11 @@ document.addEventListener('input', function(ev){
     refreshComputedFieldValues();
   }
 });
+
+// -- Первая отрисовка -- #sectionsList/#canvasSections пустые в разметке
+// (см. обсуждение задачи), три встроенных раздела из SECTIONS попадают на
+// экран тем же путём, что и раздел, добавленный позже кнопкой «Добавить
+// раздел» (createSection()), а не отдельной вручную написанной вёрсткой.
+renderSidebarSections();
+renderCanvasSections();
 </script>

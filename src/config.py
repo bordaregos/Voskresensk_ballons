@@ -43,6 +43,16 @@ INTRO_VARIANTS_FILE = DATA_DIR / "intro_variants.json"
 # приём и та же модель TitleVariant, что и у INTRO_VARIANTS_FILE выше.
 APPENDIX_VARIANTS_FILE = DATA_DIR / "appendix_variants.json"
 
+# Разделы конструктора документов, добавленные оператором поверх встроенных
+# title/intro/appendix1 (см. src/services/custom_sections_store.py) -- id +
+# название, в порядке добавления, плюс счётчик id. В отличие от трёх файлов
+# выше, для пользовательского раздела нет заранее выделенного файла на слот
+# (сам слот заводится в рантайме, а не существует до этого в коде), поэтому
+# у их вариантов один общий файл на ВСЕ такие разделы, а не один на раздел
+# (см. CUSTOM_SECTION_VARIANTS_FILE и src/services/custom_section_variants_store.py).
+CUSTOM_SECTIONS_FILE = DATA_DIR / "custom_sections.json"
+CUSTOM_SECTION_VARIANTS_FILE = DATA_DIR / "custom_section_variants.json"
+
 # Приложение, выбранное пользователем через «Открыть с помощью» для
 # редактирования/просмотра .docx-файлов конструктора документов (см.
 # src/ui/open_with.py) -- запоминается один раз, дальше open_with_prompt()
@@ -237,6 +247,32 @@ def find_appendix_template(variant_id: str):
         )
     raise FileNotFoundError(
         f"Не найдена заготовка приложения 1 «{variant_id}» -- похоже, файл "
+        f"{path} удалили вручную. Откройте вариант на редактирование и сохраните "
+        f"ещё раз, чтобы перегенерировать заготовку."
+    )
+
+
+def find_section_template(slot: str, variant_id: str):
+    """Та же логика, что у find_title_template()/find_intro_template()/
+    find_appendix_template(), но для ЛЮБОГО раздела конструктора,
+    добавленного оператором в рантайме (см. MainWindow._create_section()) --
+    у него нет отдельного модуля/константы на слот (тот заранее неизвестен),
+    поэтому вместо трёх выделенных сторов -- один общий
+    custom_section_variants_store, слот -- его первый параметр. Встроенных
+    вариантов у пользовательского раздела не бывает (is_builtin всегда
+    False) -- сравнимо с тем, что TITLE_VARIANTS/INTRO_VARIANTS/
+    APPENDIX_VARIANTS сейчас тоже пустые (см. их комментарии)."""
+    from .services import custom_section_variants_store
+
+    is_custom = any(v.id == variant_id for v in custom_section_variants_store.load_variants(slot))
+    if not is_custom:
+        raise ValueError(f"Неизвестный вариант раздела «{slot}»: {variant_id}")
+
+    path = FRAGMENTS_DIR / f"{slot}_{variant_id}.docx"
+    if path.exists():
+        return path
+    raise FileNotFoundError(
+        f"Не найдена заготовка варианта «{variant_id}» -- похоже, файл "
         f"{path} удалили вручную. Откройте вариант на редактирование и сохраните "
         f"ещё раз, чтобы перегенерировать заготовку."
     )

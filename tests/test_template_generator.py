@@ -9,7 +9,8 @@ from docx.text.paragraph import Paragraph
 from src.models.title_variant import TitleVariant
 from src.organization_config import DEFAULT_ORGANIZATION
 from src.services.template_generator import (
-    generate_appendix_fragment, generate_intro_fragment, generate_template, generate_title_fragment,
+    generate_appendix_fragment, generate_intro_fragment, generate_section_fragment, generate_template,
+    generate_title_fragment,
 )
 from src.services.template_schema import (
     FieldsTableSection,
@@ -347,5 +348,42 @@ def test_generate_appendix_fragment_has_no_organization_letterhead(tmp_path):
 def test_generate_appendix_fragment_creates_parent_directory(tmp_path):
     variant = TitleVariant(id="custom-1", document_title="Приложение 1")
     path = generate_appendix_fragment(variant, tmp_path / "nested" / "appendix1_custom-1.docx")
+
+    assert path.exists()
+
+
+def test_generate_section_fragment_writes_subtitle_fields_as_placeholders(tmp_path):
+    # generate_section_fragment() -- дословная калька generate_intro_fragment()/
+    # generate_appendix_fragment() для раздела, добавленного оператором в
+    # рантайме (см. src/ui/main_window.py, MainWindow._create_section()):
+    # префикс плейсхолдера берётся из slot параметром, а не зашит в имя
+    # функции.
+    variant = TitleVariant(id="custom-1", document_title="Программа испытаний", subtitle_fields=["field_1"])
+    path = generate_section_fragment(variant, tmp_path / "section1_custom-1.docx", slot="section1")
+    doc = Document(str(path))
+
+    idx = _heading_index(doc, "Программа испытаний")
+    assert doc.paragraphs[idx + 1].text == "{{ section1_field_1 }}"
+
+
+def test_generate_section_fragment_has_no_organization_letterhead(tmp_path):
+    # Как и вводная часть/приложение -- не первая страница документа, шапку
+    # организации и рамку страницы печатает только титульный фрагмент.
+    variant = TitleVariant(id="custom-1", document_title="Программа испытаний")
+    path = generate_section_fragment(variant, tmp_path / "section1_custom-1.docx", slot="section1")
+    doc = Document(str(path))
+    full_text = "\n".join(p.text for p in doc.paragraphs)
+
+    assert DEFAULT_ORGANIZATION.full_name not in full_text
+
+    sectPr = doc.sections[0]._sectPr
+    assert sectPr.find(qn('w:pgBorders')) is None
+
+
+def test_generate_section_fragment_creates_parent_directory(tmp_path):
+    variant = TitleVariant(id="custom-1", document_title="Программа испытаний")
+    path = generate_section_fragment(
+        variant, tmp_path / "nested" / "section1_custom-1.docx", slot="section1",
+    )
 
     assert path.exists()
