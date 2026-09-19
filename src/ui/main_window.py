@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QPlainTextEdit, QComboBo
                              QMessageBox, QFileDialog, QGroupBox,
                              QTreeWidgetItem, QInputDialog, QMenu, QListWidgetItem,
                              QDialog, QLineEdit, QVBoxLayout, QHBoxLayout, QDialogButtonBox,
-                             QLabel, QWidget, QToolButton, QWidgetAction)
+                             QLabel, QWidget, QToolButton, QWidgetAction, QFormLayout)
 from PyQt6.QtCore import QLocale, Qt, QDate, QPointF, QTimer, QSize, QMimeData, QSignalBlocker
 from PyQt6.QtGui import QPixmap, QIcon, QPainter, QColor, QPen, QGuiApplication, QDrag
 from PyQt6.uic import loadUi
@@ -93,6 +93,14 @@ QListWidget#availableBlocksList::item, QListWidget#availableIntroBlocksList::ite
 }
 QListWidget#availableBlocksList::item:hover, QListWidget#availableIntroBlocksList::item:hover { border-color: #0a84ff; }
 QListWidget#availableBlocksList::item:selected, QListWidget#availableIntroBlocksList::item:selected { background: #2c2c2e; }
+/* Карточка варианта, включённого в документ сейчас (см.
+   _highlight_available_block_items()) -- тот же стиль, что и у чипа
+   плейсхолдера в реквизитах (QLabel[titleChip="true"] ниже), просто
+   применённый к itemWidget всей карточки, а не к одной подписи поля. */
+QWidget#availableBlockChip {
+    background: rgba(10, 132, 255, 40); border: 1px solid rgba(10, 132, 255, 110); border-radius: 6px;
+}
+QWidget#availableBlockChip QLabel { background: transparent; color: #5ab4ff; font-size: 11.5px; }
 QLabel#crumbLabel {
     background: #202022; color: #8e8e93; font-size: 11px; padding: 8px 18px;
     border-bottom: 0.5px solid #2c2c2e;
@@ -175,6 +183,57 @@ QWidget#titlePreviewField QLabel[titlePreviewFieldActive="true"] { color: #e5e5e
 }
 #constructorBottomBar QPushButton#pushButt_generateWord { border-left: none; }
 #constructorBottomBar QPushButton:disabled { color: #5a5a5c; }
+
+/* «Объекты» -- дерево папок/документов (objectsTree, тот же виджет, что и
+   у трубопровода, см. _refresh_objects_tree() в main_window.py), здесь
+   просто одетый в тёмную тему, а не нативный стиль Qt. */
+#revealStrip { background: #242426; }
+#revealStrip QPushButton { background: transparent; border: none; color: #8e8e93; }
+#revealStrip QPushButton:hover { color: #e5e5e7; }
+QWidget#sidebar { background: #242426; border-right: 0.5px solid #38383a; }
+QWidget#sidebar QLabel#sidebarHeader_objects { color: #8e8e93; font-size: 11px; font-weight: 500; }
+QWidget#sidebar QPushButton#sidebarBtn_collapse {
+    background: transparent; border: none; color: #8e8e93; font-size: 11px;
+}
+QWidget#sidebar QPushButton#sidebarBtn_collapse:hover { color: #e5e5e7; }
+QLineEdit#sidebarSearchBox {
+    background: #1c1c1e; border: 0.5px solid #38383a; border-radius: 6px;
+    color: #e5e5e7; font-size: 12px; padding: 6px 8px;
+}
+QLineEdit#sidebarSearchBox:focus { border-color: #0a84ff; }
+QWidget#sidebar QPushButton#sidebarBtn_createObject, QWidget#sidebar QPushButton#sidebarBtn_createDocument {
+    background: transparent; border: 0.5px dashed #48484a; border-radius: 7px;
+    color: #8e8e93; font-size: 11.5px; text-align: left; padding: 7px 9px; margin: 2px 0;
+}
+QWidget#sidebar QPushButton#sidebarBtn_createObject:hover, QWidget#sidebar QPushButton#sidebarBtn_createDocument:hover {
+    border-color: #0a84ff; color: #e5e5e7;
+}
+QTreeWidget#objectsTree {
+    background: transparent; border: none; outline: none; color: #e5e5e7; font-size: 11.5px;
+}
+QTreeWidget#objectsTree::item { padding: 4px 2px; border-radius: 5px; }
+QTreeWidget#objectsTree::item:hover { background: #2c2c2e; }
+QTreeWidget#objectsTree::item:selected { background: rgba(10, 132, 255, 40); color: #e5e5e7; }
+QTreeWidget#objectsTree QHeaderView::section {
+    background: #242426; color: #5a5a5c; font-size: 10px; border: none; padding: 4px 2px;
+}
+QSplitter#mainSplitter::handle { background: #38383a; }
+
+/* Активити-бар (docs/design/вводная_часть.html, #activityBar) -- узкая
+   колонка иконок слева от viewStack, см. _switch_activity_view(). */
+QWidget#activityBar { background: #1c1c1e; border-right: 0.5px solid #38383a; }
+QWidget#activityBar QToolButton { border: none; border-radius: 0; color: #8e8e93; }
+QWidget#activityBar QToolButton:hover { color: #e5e5e7; }
+QWidget#activityBar QToolButton:checked { color: #e5e5e7; border-left: 2px solid #0a84ff; }
+QWidget#page_database QLabel#databaseBreadcrumbLabel {
+    color: #8e8e93; font-size: 11px; text-transform: uppercase; margin-bottom: 4px;
+}
+QWidget#page_database QLabel#databaseHintLabel { color: #5a5a5c; font-size: 11.5px; font-style: italic; }
+QWidget#page_database QLabel#databasePreviewTitle { color: #e5e5e7; font-size: 12.5px; font-weight: 600; }
+QWidget#page_database QLabel#databasePreviewFieldLabel { color: #8e8e93; font-size: 11.5px; }
+QWidget#page_database QLabel#databasePreviewFieldValue { color: #c7c7cc; font-size: 12px; }
+QWidget#page_stub QLabel#activityStubTitle { color: #8e8e93; font-size: 13px; }
+QWidget#page_stub QLabel#activityStubHint { color: #5a5a5c; font-size: 12px; }
 """
 
 
@@ -447,6 +506,15 @@ class MainWindow(QMainWindow):
             # _build_preview_field().
             self._preview_generated = set()
 
+            # Путь документа, чьё содержимое сейчас показано в правой
+            # части «Базы документов» (см. _show_document_preview()) --
+            # None, пока ничего не выбрано (тогда видна только
+            # databaseHintLabel). Нужен, чтобы _delete_document() мог
+            # сбросить превью, если удалили именно просматриваемый сейчас
+            # документ (иначе справа осталось бы превью уже
+            # несуществующего файла).
+            self._database_preview_path = None
+
             # "Приложения — скоро" -- статичная строка-заглушка (см. .ui,
             # appendicesSoonRow), иконки выставляются один раз и не меняются.
             self.appendicesSoonChevron.setPixmap(icons.render("chevron-right", "#5a5a5c", 13))
@@ -456,6 +524,61 @@ class MainWindow(QMainWindow):
                 self._init_constructor_slot(slot)
 
             self.pushButt_generateWord.setEnabled(False)
+
+            # Активити-бар (docs/design/вводная_часть.html, #activityBar) --
+            # узкая колонка иконок слева от viewStack, переключает ЦЕЛИКОМ
+            # страницу viewStack (см. _switch_activity_view()): «Редактор
+            # документов» (палитра блоков + канва, страница tab_document,
+            # уже существовала до этой правки) и «База документов» (дерево
+            # объектов/документов, страница page_database, см. ниже) --
+            # взаимоисключающие разделы, а не два одновременно видимых
+            # сайдбара, как было в предыдущей (ошибочной) версии этой
+            # правки. «Поиск»/«Сотрудники» -- заглушка (page_stub), как и в
+            # самом мокапе (activityViewTitles там же).
+            _activity_icons = {"search": "search", "database": "database", "editor": "edit", "employees": "users"}
+            for name, icon_name in _activity_icons.items():
+                btn = getattr(self, f"activityBtn_{name}")
+                btn.setIcon(icons.icon(icon_name, "#8e8e93", 19))
+                btn.setIconSize(QSize(19, 19))
+            self.activityBtn_search.clicked.connect(lambda: self._switch_activity_view("search"))
+            self.activityBtn_database.clicked.connect(lambda: self._switch_activity_view("database"))
+            self.activityBtn_editor.clicked.connect(lambda: self._switch_activity_view("editor"))
+            self.activityBtn_employees.clicked.connect(lambda: self._switch_activity_view("employees"))
+
+            # Дерево "объект (папка) -> документ (.json внутри неё)" --
+            # тот же workspace.py и тот же objectsTree/mainSplitter/
+            # sidebar, что и у трубопровода (equipment_type.id ==
+            # "pipeline" выше), просто без TOC/специалистов/индикатора
+            # несохранённых правок -- их у конструктора нет, см.
+            # _open_constructor_document()/_reset_constructor_form(). В
+            # отличие от трубопровода, здесь этот блок живёт на отдельной
+            # странице viewStack (page_database), а не постоянно рядом с
+            # формой -- см. constructor_window.ui. constructor_window.ui
+            # объявляет те же имена виджетов (sidebar/objectsTree/
+            # sidebarBtn_*/mainSplitter/revealStrip), поэтому общие методы
+            # (_refresh_objects_tree(), _filter_objects_tree(),
+            # _toggle_sidebar(), _show_objects_tree_context_menu() и т.п.)
+            # переиспользуются без изменений.
+            self.sidebarBtn_createObject.clicked.connect(self._create_object_dialog)
+            self.sidebarBtn_createDocument.clicked.connect(self._create_document_dialog)
+            self.objectsTree.itemClicked.connect(self._on_objects_tree_item_clicked)
+            self.objectsTree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+            self.objectsTree.customContextMenuRequested.connect(self._show_objects_tree_context_menu)
+            self._refresh_objects_tree()
+            self.sidebarSearchBox.textChanged.connect(self._filter_objects_tree)
+            self._sidebar_collapsed = False
+            # mainSplitter -- три ребёнка (revealStrip, sidebar,
+            # databaseContent), тот же приём, что и у трубопровода (см. его
+            # инициализацию выше) -- sizes должен покрывать все три сразу.
+            self._sidebar_expanded_sizes = [0, 220, 680]
+            self.sidebarBtn_collapse.clicked.connect(self._toggle_sidebar)
+            self.sidebarBtn_expand.clicked.connect(self._toggle_sidebar)
+            self.mainSplitter.setSizes(self._sidebar_expanded_sizes)
+            self.mainSplitter.setStretchFactor(0, 0)
+            self.mainSplitter.setStretchFactor(1, 0)
+            self.mainSplitter.setStretchFactor(2, 1)
+            self.mainSplitter.setHandleWidth(6)
+            self._switch_activity_view("editor")
 
     # Имена виджетов на каждый слот конструктора -- title (титульные листы,
     # оригинальный Phase 1) и intro (вводная часть, второй независимый
@@ -1516,9 +1639,21 @@ class MainWindow(QMainWindow):
 
         QSize с отрицательной шириной Qt считает невалидным и тихо
         игнорирует весь setSizeHint() целиком (проверено) -- ширину нельзя
-        оставить «как есть» через -1, нужно явное значение."""
+        оставить «как есть» через -1, нужно явное значение.
+
+        Длина считается НЕ от item.text() -- у подсвеченной карточки
+        (см. _highlight_available_block_items()) текст самого item'а
+        нарочно пуст (виден только через itemWidget), длина от него
+        всегда давала бы минимальную 1-строчную оценку независимо от
+        реальной длины названия варианта. Название берётся из каталога
+        по variant_id (UserRole) -- источник, который не зависит от
+        того, подсвечен сейчас item или нет."""
+        get_all_variants = self._slot_store(slot).get_all_title_variants if slot == "title" \
+            else self._slot_store(slot).get_all_intro_variants
+        variant = get_all_variants().get(item.data(Qt.ItemDataRole.UserRole))
+        label = variant.document_title if variant is not None else item.text()
         width = self._slot_widget(slot, "available_list").viewport().width() or 200
-        lines = max(1, math.ceil(len(item.text()) / self.ITEM_CHARS_PER_LINE))
+        lines = max(1, math.ceil(len(label) / self.ITEM_CHARS_PER_LINE))
         # +14 -- запас под вертикальный padding item'а (QSS: 5px сверху и
         # снизу + пара px буфера), уменьшен вместе с самим padding'ом (был
         # 8px -> +20) -- иначе после уменьшения padding карточки остались
@@ -1550,6 +1685,80 @@ class MainWindow(QMainWindow):
         # не имеет окончательной геометрии, ширина под перенос текста и
         # суммарная высота item'ов посчитались бы неверно.
         QTimer.singleShot(0, functools.partial(self._resize_available_blocks_list_to_content, slot))
+        # Полная пересборка списка (clear() выше) стирает и цвет
+        # иконки/жирность, выставленные _highlight_available_block_items()
+        # -- пересобираем подсветку сразу же, иначе после любой правки
+        # каталога (добавили/переименовали/удалили вариант) уже
+        # включённая в документ карточка перестала бы выделяться.
+        self._highlight_available_block_items(slot)
+
+    def _highlight_available_block_items(self, slot: str):
+        """Подсвечивает в палитре (available_list слота) карточку
+        варианта, который сейчас реально включён в документ (см.
+        _filled_slot_variant()) -- тем же стилем, что и чип-плейсхолдер в
+        реквизитах (QLabel[titleChip="true"], синий полупрозрачный фон +
+        синяя рамка), а не жирным шрифтом/цветом иконки: так подсветка
+        выглядит согласованно с уже принятым в приложении визуальным
+        языком "это что-то особое" вместо изобретения нового.
+
+        item.setBackground()/setForeground() на подсвечиваемый item НЕ
+        работают -- ::item уже задаёт background/color в CONSTRUCTOR_QSS
+        (QListWidget#availableBlocksList::item {...}), и активный
+        стиль списка побеждает данные конкретного item'а (проверено
+        эмпирически: цвет из данных item'а не проявляется, пока список
+        стилизован через QSS). Поэтому подсвеченный item получает
+        itemWidget (см. _build_available_block_chip()) -- тот же приём,
+        что уже используется для includedBlockList, itemWidget рисует
+        свой блок целиком поверх содержимого item'а. Остальные item'ы --
+        removeItemWidget(), обычный вид (иконка+текст через ::item), как
+        было до подсветки.
+
+        item.setText("")/setIcon(QIcon()) на подсвечиваемом item -- иначе
+        собственные иконка и текст item'а всё равно проступают рядом с
+        itemWidget (тот же приём уже применялся в этом файле для
+        перетаскиваемого item'а includedBlockList, см. историю
+        "Fixed duplicated icon"). Название варианта в этом случае
+        берётся не из item.text() (он его лишится), а заново из
+        get_all_variants() по variant_id -- при снятии подсветки текст и
+        иконка item'а восстанавливаются оттуда же, а не из чего-то
+        закэшированного на самом item'е."""
+        included_variant_id = self._filled_slot_variant(slot)
+        available_list = self._slot_widget(slot, "available_list")
+        get_all_variants = self._slot_store(slot).get_all_title_variants if slot == "title" \
+            else self._slot_store(slot).get_all_intro_variants
+        variants = get_all_variants()
+        for i in range(available_list.count()):
+            item = available_list.item(i)
+            variant_id = item.data(Qt.ItemDataRole.UserRole)
+            variant = variants.get(variant_id)
+            label = variant.document_title if variant is not None else ""
+            if variant_id == included_variant_id:
+                item.setText("")
+                item.setIcon(QIcon())
+                available_list.setItemWidget(item, self._build_available_block_chip(label))
+                item.setToolTip("Этот вариант сейчас включён в документ")
+            else:
+                available_list.removeItemWidget(item)
+                item.setText(label)
+                item.setIcon(icons.icon("file-text", "#0a84ff", 15))
+                item.setToolTip("")
+
+    def _build_available_block_chip(self, text: str) -> QWidget:
+        """itemWidget подсвеченной карточки в палитре -- визуально та же
+        пара иконка+текст, что и у обычной карточки, только в чипе
+        (см. _highlight_available_block_items())."""
+        row = QWidget()
+        row.setObjectName("availableBlockChip")
+        layout = QHBoxLayout(row)
+        layout.setContentsMargins(9, 4, 9, 4)
+        layout.setSpacing(6)
+        icon_label = QLabel()
+        icon_label.setPixmap(icons.render("file-text", "#5ab4ff", 15))
+        layout.addWidget(icon_label)
+        text_label = QLabel(text)
+        text_label.setWordWrap(True)
+        layout.addWidget(text_label, 1)
+        return row
 
     def _resize_available_blocks_list_to_content(self, slot: str):
         """QListWidget с vsizetype=Maximum (.ui) сам по себе не растягивает
@@ -1865,6 +2074,7 @@ class MainWindow(QMainWindow):
             self._set_crumb(label_text)
         self._slot_widget(slot, "fields_panel").setVisible(True)
         self.pushButt_generateWord.setEnabled(True)
+        self._highlight_available_block_items(slot)
 
     def _set_included_block_filled(self, slot: str, filled: bool):
         """Переключает QSS-состояние included_list слота через динамическое
@@ -1923,6 +2133,7 @@ class MainWindow(QMainWindow):
             self._set_crumb("без титульного листа")
         any_filled = any(self._filled_slot_variant(s) is not None for s in self._CONSTRUCTOR_SLOTS)
         self.pushButt_generateWord.setEnabled(any_filled)
+        self._highlight_available_block_items(slot)
 
     def _set_crumb(self, active_section: str):
         """Обновляет crumbLabel -- «Конструктор документов / <активный
@@ -4143,16 +4354,46 @@ class MainWindow(QMainWindow):
 
     def _switch_view(self, view):
         """Переключает viewStack между документом и общими справочниками
-        (Сотрудники/Приборы/Документы)."""
-        page = {
-            "document": self.tab_document,
-            "employees": self.tab_employees,
-            "instruments": self.tab_instruments,
-            "orgdocs": self.tab_orgdocs,
-        }[view]
-        self.viewStack.setCurrentWidget(page)
+        (Сотрудники/Приборы/Документы).
+
+        Имя страницы резолвится через getattr() лениво -- ТОЛЬКО для
+        запрошенного view, а не собирает сразу все четыре в dict-литерал:
+        у конструктора документов (equipment_type.id == "constructor")
+        свой mainSplitter/viewStack (см. constructor_window.ui), но нет
+        вкладок tab_employees/tab_instruments/tab_orgdocs -- сборка
+        словаря со всеми четырьмя сразу упала бы AttributeError, даже
+        если реально нужна только "document"."""
+        page_names = {
+            "document": "tab_document",
+            "employees": "tab_employees",
+            "instruments": "tab_instruments",
+            "orgdocs": "tab_orgdocs",
+        }
+        self.viewStack.setCurrentWidget(getattr(self, page_names[view]))
         self._current_view = view
         self._update_report_buttons_visibility()
+
+    _ACTIVITY_VIEW_TITLES = {"search": "Поиск", "employees": "Сотрудники"}
+
+    def _switch_activity_view(self, view):
+        """Переключатель активити-бара конструктора документов (docs/design/
+        вводная_часть.html, switchView()) -- аналог _switch_view() выше, но
+        для конструктора: переключает ЦЕЛИКОМ страницу viewStack, а не
+        только основную область, поскольку у "editor" и "database" разный
+        сайдбар (палитра блоков vs. дерево объектов), а не общий, как у
+        трубопровода. "search"/"employees" -- заглушка (page_stub), как и
+        в самом мокапе (activityViewTitles там же) -- раздел не
+        реализован, страница просто показывает название."""
+        page_names = {"editor": "tab_document", "database": "page_database"}
+        page = getattr(self, page_names.get(view, "page_stub"))
+        self.viewStack.setCurrentWidget(page)
+        for name in ("search", "database", "editor", "employees"):
+            getattr(self, f"activityBtn_{name}").setChecked(name == view)
+        if page is self.page_stub:
+            self.activityStubTitle.setText(self._ACTIVITY_VIEW_TITLES.get(view, ""))
+        elif view == "database":
+            self._refresh_objects_tree()
+        self._current_view = view
 
     def _reset_form(self):
         """Очищает форму под новый/другой документ -- обратная операция к
@@ -4199,22 +4440,29 @@ class MainWindow(QMainWindow):
 
     def _refresh_objects_tree(self):
         """Перестраивает objectsTree с нуля из файловой системы (см.
-        src/services/workspace.py) -- объекты как раскрывающиеся строки
-        верхнего уровня, документы внутри как дочерние, путь к файлу
-        документа лежит в Qt.ItemDataRole.UserRole. Вызывается при
-        старте и сразу после создания объекта/документа -- построение
-        дешёвое (десятки папок/файлов, не тысячи), отдельный кэш не
-        заводится."""
+        src/services/workspace.py) -- папки произвольной вложенности
+        (docs/design/вводная_часть.html: "Папки -- произвольная
+        вложенность"), документы -- листья внутри них, см.
+        _build_objects_tree_level(). Вызывается при старте и сразу после
+        создания/переименования/удаления папки или документа --
+        построение дешёвое (десятки папок/файлов, не тысячи), отдельный
+        кэш не заводится.
+
+        Каждая строка несёт словарь в Qt.ItemDataRole.UserRole --
+        {"kind": "folder", "path": ...} или {"kind": "document", "path":
+        ...} (TOC-строки ниже используют тот же приём с "groupbox"
+        вместо "path", см. _populate_document_toc()). Тип строки
+        определяется ЭТИМ полем, а не глубиной вложенности в дереве --
+        раньше (до произвольной вложенности папок) глубина однозначно
+        отличала объект/документ/раздел TOC, сейчас документ и TOC-раздел
+        могут оказаться на любом уровне.
+
+        Иконки -- folder (золотистая) на папке, file-text (синяя) на
+        документе: визуально сразу отличимо, что папка, а что файл
+        (тот же принцип для обоих окон, использующих это дерево --
+        трубопровод и конструктор документов)."""
         self.objectsTree.clear()
-        for object_name in workspace.list_objects():
-            object_item = QTreeWidgetItem([object_name])
-            self.objectsTree.addTopLevelItem(object_item)
-            object_dir = workspace.OUTPUT_DIR / object_name
-            for path, label in workspace.list_documents(object_dir, self.equipment_type.id):
-                doc_item = QTreeWidgetItem([label])
-                doc_item.setData(0, Qt.ItemDataRole.UserRole, path)
-                object_item.addChild(doc_item)
-            object_item.setExpanded(True)
+        self._build_objects_tree_level(None, workspace.OUTPUT_DIR)
 
         # objectsTree.clear() выше уничтожает и дочерние строки
         # оглавления под строкой текущего документа (см.
@@ -4224,28 +4472,70 @@ class MainWindow(QMainWindow):
         # объекты (падение "wrapped C/C++ object of type QTreeWidgetItem
         # has been deleted" при следующем _update_breadcrumb()/
         # _on_document_scrolled()). Отстраиваем TOC текущего документа
-        # заново, если он есть в новом дереве.
-        if self._current_document_path is not None:
+        # заново, если он есть в новом дереве -- только у трубопровода
+        # (см. equipment_type.id == "pipeline"): у конструктора
+        # документов TOC-виджетов (_toc_groupboxes/tab_document_scrollContent)
+        # нет вовсе, вызов _populate_document_toc() упал бы AttributeError.
+        if self.equipment_type.id == "pipeline" and self._current_document_path is not None:
             doc_item = self._find_document_tree_item(self._current_document_path)
             if doc_item is not None:
                 self._populate_document_toc(doc_item)
 
+    def _build_objects_tree_level(self, parent_item, folder_dir):
+        """Рекурсивно наполняет objectsTree содержимым folder_dir --
+        сперва подпапки (алфавит), затем документы (алфавит), на любую
+        глубину. parent_item=None -- верхний уровень дерева
+        (workspace.OUTPUT_DIR). workspace.list_objects()/list_documents()
+        уже были path-based и не завязаны на глубину сами по себе --
+        ограничение было только в построении дерева, не в файловой
+        модели (см. src/services/workspace.py)."""
+        for name in workspace.list_objects(folder_dir):
+            child_dir = folder_dir / name
+            folder_item = QTreeWidgetItem([name])
+            folder_item.setIcon(0, icons.icon("folder", "#c9a227", 14))
+            folder_item.setData(0, Qt.ItemDataRole.UserRole, {"kind": "folder", "path": child_dir})
+            if parent_item is None:
+                self.objectsTree.addTopLevelItem(folder_item)
+            else:
+                parent_item.addChild(folder_item)
+            self._build_objects_tree_level(folder_item, child_dir)
+            folder_item.setExpanded(True)
+        for path, label in workspace.list_documents(folder_dir, self.equipment_type.id):
+            doc_item = QTreeWidgetItem([label])
+            doc_item.setIcon(0, icons.icon("file-text", "#0a84ff", 14))
+            doc_item.setData(0, Qt.ItemDataRole.UserRole, {"kind": "document", "path": path})
+            if parent_item is None:
+                self.objectsTree.addTopLevelItem(doc_item)
+            else:
+                parent_item.addChild(doc_item)
+
     def _filter_objects_tree(self, text):
-        """Фильтр по вводу в sidebarSearchBox. Документ виден, если текст
-        совпал с ним самим ИЛИ с именем его объекта-папки (иначе поиск по
-        имени объекта прятал бы все документы внутри). Пустая строка --
-        показывает всё."""
+        """Фильтр по вводу в sidebarSearchBox -- рекурсивный (произвольная
+        вложенность папок): строка видна, если её текст совпал с
+        введённым, ИЛИ у неё есть видимый (по тому же правилу) потомок --
+        иначе поиск по имени папки прятал бы всё содержимое внутри, а
+        совпавший документ в глубокой подпапке остался бы скрыт вместе со
+        свёрнутыми предками. TOC-строки (см. _populate_document_toc()) в
+        поиске не участвуют -- как и раньше, когда фильтр вообще не
+        спускался до их уровня."""
         text = text.strip().lower()
-        for i in range(self.objectsTree.topLevelItemCount()):
-            object_item = self.objectsTree.topLevelItem(i)
-            object_match = text in object_item.text(0).lower()
+
+        def apply_filter(item):
+            self_match = text in item.text(0).lower()
             any_child_match = False
-            for j in range(object_item.childCount()):
-                doc_item = object_item.child(j)
-                doc_match = text in doc_item.text(0).lower()
-                doc_item.setHidden(bool(text) and not object_match and not doc_match)
-                any_child_match = any_child_match or doc_match
-            object_item.setHidden(bool(text) and not object_match and not any_child_match)
+            for i in range(item.childCount()):
+                child = item.child(i)
+                data = child.data(0, Qt.ItemDataRole.UserRole)
+                if isinstance(data, dict) and data.get("kind") == "toc":
+                    continue
+                if apply_filter(child):
+                    any_child_match = True
+            visible = not text or self_match or any_child_match
+            item.setHidden(not visible)
+            return self_match or any_child_match
+
+        for i in range(self.objectsTree.topLevelItemCount()):
+            apply_filter(self.objectsTree.topLevelItem(i))
 
     def _toggle_sidebar(self):
         """Сворачивает/разворачивает сайдбар (Фаза 7, как в референсе) --
@@ -4264,39 +4554,61 @@ class MainWindow(QMainWindow):
             self._sidebar_expanded_sizes = self.mainSplitter.sizes()
         else:
             self.mainSplitter.setSizes(self._sidebar_expanded_sizes)
-            self._switch_view(self._current_view)
+            # У конструктора documents-дерево живёт на отдельной странице
+            # viewStack (page_database, см. _switch_activity_view()) --
+            # разворачивание/сворачивание sidebar внутри неё не должно
+            # менять текущую страницу вообще, поэтому здесь только
+            # трубопровод (у него единственная страница "document" делит
+            # mainSplitter с этим же sidebar) пересобирает TOC-биндинги.
+            if self.equipment_type.id == "pipeline":
+                self._switch_view(self._current_view)
 
     def _on_objects_tree_item_clicked(self, item, column):
         """Клик по строке objectsTree -- три вида строк, различаются
-        глубиной вложенности. Объект (папка, верхний уровень,
-        item.parent() is None) -- ничего не делаем, QTreeWidget сам
-        разворачивает/сворачивает. Документ (2-й уровень, UserRole --
-        путь к файлу) -- открываем его, см. _open_document(). Раздел
-        оглавления (3-й уровень, дочерний у документа, UserRole -- сам
-        groupbox, см. Фаза 6) -- скроллим к разделу, см.
-        _scroll_to_toc_item()."""
-        parent = item.parent()
-        if parent is None:
+        полем "kind" в Qt.ItemDataRole.UserRole (см.
+        _build_objects_tree_level()/_populate_document_toc()), а НЕ
+        глубиной вложенности -- с произвольной вложенностью папок
+        документ и раздел TOC могут оказаться на любом уровне. Папка
+        (kind="folder") -- ничего не делаем, QTreeWidget сам
+        разворачивает/сворачивает. Раздел оглавления (kind="toc", только
+        дочерние строки документа, только у трубопровода) -- скроллим к
+        разделу, см. _scroll_to_toc_item().
+
+        Документ (kind="document") -- у трубопровода клик сразу открывает
+        его (см. _open_document()), как и раньше. У конструктора
+        документов -- «База документов» теперь отдельная страница со
+        своим превью (см. _show_document_preview()), клик по документу
+        только показывает его содержимое справа, не переключая на
+        «Редактор документов» -- явный переход туда теперь через ПКМ ->
+        «Открыть в редакторе документов» (см. _show_document_context_menu()),
+        чтобы не терять/не подменять несохранённые правки открытого
+        сейчас документа одним неосторожным кликом по дереву."""
+        data = item.data(0, Qt.ItemDataRole.UserRole)
+        if not isinstance(data, dict):
             return
-        if parent.parent() is None:
-            path = item.data(0, Qt.ItemDataRole.UserRole)
-            self._open_document(path)
-        else:
+        if data.get("kind") == "document":
+            if self.equipment_type.id == "constructor":
+                self._show_document_preview(data["path"])
+            else:
+                self._open_document(data["path"])
+        elif data.get("kind") == "toc":
             self._scroll_to_toc_item(item)
 
     def _show_objects_tree_context_menu(self, pos):
-        """ПКМ по objectsTree (Фаза 8) -- вид меню зависит от глубины
-        строки под курсором, как и в _on_objects_tree_item_clicked():
-        объект -> _show_folder_context_menu(), документ ->
+        """ПКМ по objectsTree -- вид меню зависит от "kind" строки под
+        курсором (см. _on_objects_tree_item_clicked()): папка ->
+        _show_folder_context_menu(), документ ->
         _show_document_context_menu(), раздел TOC -- меню нет, там
         нечем управлять."""
         item = self.objectsTree.itemAt(pos)
         if item is None:
             return
-        parent = item.parent()
-        if parent is None:
+        data = item.data(0, Qt.ItemDataRole.UserRole)
+        if not isinstance(data, dict):
+            return
+        if data.get("kind") == "folder":
             self._show_folder_context_menu(item, pos)
-        elif parent.parent() is None:
+        elif data.get("kind") == "document":
             self._show_document_context_menu(item, pos)
 
     def _show_document_context_menu(self, item, pos):
@@ -4307,9 +4619,20 @@ class MainWindow(QMainWindow):
         уже доступно через «Сохранить проект»: диалог всегда просит имя
         файла (FileHandler._prompt_document_path()), и при вводе
         другого имени старый файл удаляется, а не остаётся сиротой
-        (см. FileHandler.save_project_json())."""
-        path = item.data(0, Qt.ItemDataRole.UserRole)
+        (см. FileHandler.save_project_json()).
+
+        «Открыть в редакторе документов» -- только для конструктора
+        (первым пунктом): у него клик по строке в «Базе документов»
+        теперь только показывает превью справа (см.
+        _on_objects_tree_item_clicked()/_show_document_preview()),
+        поэтому явный переход к редактированию нужен отдельным
+        действием. У трубопровода клик уже открывает документ сразу --
+        дублировать это тем же пунктом меню не нужно."""
+        path = item.data(0, Qt.ItemDataRole.UserRole)["path"]
         menu = QMenu(self)
+        if self.equipment_type.id == "constructor":
+            menu.addAction("Открыть в редакторе документов", lambda: self._open_document(path))
+            menu.addSeparator()
         menu.addAction("Дублировать", lambda: self._duplicate_document(path))
         menu.addAction("Показать в Finder", lambda: self._reveal_in_finder(path))
         menu.addSeparator()
@@ -4317,15 +4640,19 @@ class MainWindow(QMainWindow):
         menu.exec(self.objectsTree.mapToGlobal(pos))
 
     def _show_folder_context_menu(self, item, pos):
-        """ПКМ по строке объекта (папки)."""
-        object_dir = workspace.OUTPUT_DIR / item.text(0)
+        """ПКМ по строке папки -- object_dir берётся из данных строки
+        (UserRole), а не восстанавливается из имени относительно
+        OUTPUT_DIR: при произвольной вложенности папка может лежать на
+        любой глубине, а не только прямо в OUTPUT_DIR."""
+        object_dir = item.data(0, Qt.ItemDataRole.UserRole)["path"]
         menu = QMenu(self)
-        menu.addAction("Создать документ здесь", lambda: self._create_document_in_object(object_dir.name))
+        menu.addAction("Новая подпапка", lambda: self._create_subfolder_dialog(object_dir))
+        menu.addAction("Создать документ здесь", lambda: self._create_document_in_object(object_dir))
         menu.addSeparator()
-        menu.addAction("Переименовать объект", lambda: self._rename_object_dialog(object_dir))
+        menu.addAction("Переименовать папку", lambda: self._rename_object_dialog(object_dir))
         menu.addAction("Показать в Finder", lambda: self._reveal_in_finder(object_dir))
         menu.addSeparator()
-        menu.addAction("Удалить объект", lambda: self._delete_object_dialog(object_dir))
+        menu.addAction("Удалить папку", lambda: self._delete_object_dialog(object_dir))
         menu.exec(self.objectsTree.mapToGlobal(pos))
 
     def _reveal_in_finder(self, path):
@@ -4354,52 +4681,94 @@ class MainWindow(QMainWindow):
         if reply != QMessageBox.StandardButton.Yes:
             return
         if path == self._current_document_path:
-            self._reset_form()
-            self._switch_view("document")
+            if self.equipment_type.id == "constructor":
+                self._reset_constructor_form()
+            else:
+                self._reset_form()
+                self._switch_view("document")
+        if getattr(self, "_database_preview_path", None) == path:
+            # Удалили именно тот документ, что сейчас показан справа в
+            # «Базе документов» -- иначе там осталось бы превью уже
+            # несуществующего файла (см. _show_document_preview()).
+            self._database_preview_path = None
+            self._clear_database_preview()
+            self.databaseHintLabel.setText("Выберите документ слева, чтобы посмотреть его содержимое.")
+            self.databaseHintLabel.setVisible(True)
+            self.databaseBreadcrumbLabel.setText("База документов")
         path.unlink(missing_ok=True)
         self._refresh_objects_tree()
         self._update_breadcrumb()
 
-    def _create_document_in_object(self, object_name):
-        """«Создать документ здесь» из меню папки -- то же самое, что
-        обычное «Создать документ», но без диалога выбора объекта: он
-        уже известен из того, по какой строке кликнули ПКМ."""
-        object_dir = workspace.create_object(object_name)
-        doc_path = workspace.create_document(object_dir, self.equipment_type.id)
+    def _create_document_in_object(self, folder_dir):
+        """«Создать документ здесь» из меню папки / из выпадающего меню
+        кнопки «Создать документ» -- folder_dir уже существует (папка
+        выбрана по ПКМ либо из списка существующих объектов), в отличие
+        от _create_document_in_new_object() ниже, где папку сначала
+        нужно создать."""
+        doc_path = workspace.create_document(folder_dir, self.equipment_type.id)
         self._refresh_objects_tree()
         self._open_document(doc_path)
 
+    def _create_subfolder_dialog(self, parent_dir):
+        """«Новая подпапка» из ПКМ-меню папки -- дерево «Объекты»
+        поддерживает произвольную вложенность (docs/design/
+        вводная_часть.html: "Папки -- произвольная вложенность"),
+        workspace.create_object() уже принимает любой base_dir --
+        ограничение было только в построении дерева (см.
+        _build_objects_tree_level()), не в файловой модели."""
+        name, ok = QInputDialog.getText(self, "Новая подпапка", "Название папки:")
+        if not ok or not name.strip():
+            return
+        workspace.create_object(name, base_dir=parent_dir)
+        self._refresh_objects_tree()
+
     def _rename_object_dialog(self, object_dir):
-        """«Переименовать объект» -- в отличие от документа, у объекта
+        """«Переименовать папку» -- в отличие от документа, у папки
         реальное имя ровно совпадает с именем папки на диске, так что
-        переименование осмысленно и видно в дереве сразу."""
+        переименование осмысленно и видно в дереве сразу. Открытый
+        документ может лежать не только прямо внутри object_dir, но и в
+        любой её вложенной подпапке (произвольная глубина) -- проверяем
+        через parents, а не точное равенство .parent, и пересчитываем
+        путь заменой только переименованного префикса."""
         new_name, ok = QInputDialog.getText(
-            self, "Переименовать объект", "Новое название:", text=object_dir.name,
+            self, "Переименовать папку", "Новое название:", text=object_dir.name,
         )
         if not ok or not new_name.strip():
             return
         new_dir = workspace.rename_object(object_dir, new_name)
-        if self._current_document_path is not None and self._current_document_path.parent == object_dir:
-            self._current_document_path = new_dir / self._current_document_path.name
+        if self._current_document_path is not None and (
+            self._current_document_path == object_dir
+            or object_dir in self._current_document_path.parents
+        ):
+            rel = self._current_document_path.relative_to(object_dir)
+            self._current_document_path = new_dir / rel
         self._refresh_objects_tree()
         self._update_breadcrumb()
 
     def _delete_object_dialog(self, object_dir):
-        """«Удалить объект» -- необратимо, удаляет папку целиком со
-        всеми документами внутри, число которых показывается в
-        подтверждении, чтобы не удалить что-то по ошибке."""
-        doc_count = len(list(object_dir.glob("*.json")))
+        """«Удалить папку» -- необратимо, удаляет папку целиком со всеми
+        документами и вложенными подпапками, число документов (на любой
+        глубине, rglob -- не только прямо внутри object_dir)
+        показывается в подтверждении, чтобы не удалить что-то по
+        ошибке."""
+        doc_count = len(list(object_dir.rglob("*.json")))
         reply = QMessageBox.question(
-            self, "Удалить объект",
-            f"Удалить объект «{object_dir.name}» и все документы внутри ({doc_count})? Это необратимо.",
+            self, "Удалить папку",
+            f"Удалить папку «{object_dir.name}» и все документы внутри ({doc_count})? Это необратимо.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )
         if reply != QMessageBox.StandardButton.Yes:
             return
-        if self._current_document_path is not None and self._current_document_path.parent == object_dir:
-            self._reset_form()
-            self._switch_view("document")
+        if self._current_document_path is not None and (
+            self._current_document_path == object_dir
+            or object_dir in self._current_document_path.parents
+        ):
+            if self.equipment_type.id == "constructor":
+                self._reset_constructor_form()
+            else:
+                self._reset_form()
+                self._switch_view("document")
         workspace.delete_object(object_dir)
         self._refresh_objects_tree()
         self._update_breadcrumb()
@@ -4410,7 +4779,15 @@ class MainWindow(QMainWindow):
         правки терялись бы). Иначе: тихо сохраняет текущий документ (если
         он был), сбрасывает форму и наполняет данными выбранного —
         порядок как в _reset_form()/_fill_ui_from_project(), см. план
-        Фазы 2."""
+        Фазы 2.
+
+        Конструктор документов делит с трубопроводом objectsTree/дерево
+        объектов (см. equipment_type.id == "constructor" в __init__), но
+        не TOC/специалистов/индикатор несохранённых правок ниже -- их у
+        него просто нет, см. _open_constructor_document()."""
+        if self.equipment_type.id == "constructor":
+            self._open_constructor_document(path)
+            return
         if path == self._current_document_path:
             self._switch_view("document")
             return
@@ -4444,18 +4821,225 @@ class MainWindow(QMainWindow):
             self._populate_document_toc(doc_item)
         self._update_breadcrumb()
 
-    def _find_document_tree_item(self, path):
-        """Ищет строку objectsTree, чей UserRole -- искомый путь к
-        файлу. Дерево небольшое (десятки строк), полный обход на каждый
-        вызов дешевле, чем держать отдельный кэш path->item в
-        синхронизации с _refresh_objects_tree()."""
+    def _reset_constructor_form(self):
+        """Сбрасывает конструктор документов под другой/новый документ
+        дерева -- аналог _reset_form() для остальных типов, но по слотам
+        title/intro (см. _CONSTRUCTOR_SLOTS): у конструктора нет
+        фиксированного списка виджетов реквизитов, они создаются заново
+        под набор полей конкретного варианта (_render_slot_fields()).
+
+        _clear_included_block(slot) сам по себе не убирает уже
+        отрисованные динамические поля прошлого варианта (только прячет
+        fields_panel и возвращает included_list к пустому плейсхолдеру,
+        см. его докстринг) -- без явной очистки dynamic_field_names/
+        PLAIN_TEXT_EDIT_NAMES/строк fields_layout здесь виджеты прошлого
+        документа остались бы висеть (пустой текст, но всё ещё
+        зарегистрированные) и просочились бы в get_form_data() следующего
+        «Сохранить проект». Та же очистка, что в начале
+        _render_slot_fields(), просто без немедленной перерисовки под
+        новый вариант -- открывающий вызывающий код (_open_constructor_document())
+        сам наполнит слоты заново через _fill_ui_from_project()."""
+        for slot in self._CONSTRUCTOR_SLOTS:
+            dynamic_names = self._dynamic_field_names[slot]
+            for name in dynamic_names:
+                if name in self.PLAIN_TEXT_EDIT_NAMES:
+                    self.PLAIN_TEXT_EDIT_NAMES.remove(name)
+            self._dynamic_field_names[slot] = []
+            layout = self._slot_widget(slot, "fields_layout")
+            while layout.rowCount():
+                layout.removeRow(0)
+            self._clear_included_block(slot)
+        self.data = {}
+        self._completed_steps = set()
+        self._current_document_path = None
+
+    def _open_constructor_document(self, path):
+        """Открывает документ дерева для конструктора -- упрощённый
+        аналог _open_document() для трубопровода: без TOC, специалистов и
+        индикатора несохранённых правок (их у конструктора нет), но с тем
+        же порядком действий -- тихое автосохранение текущего документа,
+        сброс формы, наполнение из выбранного. В конце переключает
+        активити-бар на «Редактор документов» (см.
+        _switch_activity_view()) -- открытие документа из «Базы
+        документов» должно сразу показать его для редактирования, а не
+        оставлять на странице дерева."""
+        if path == self._current_document_path:
+            self._switch_activity_view("editor")
+            return
+        if self._current_document_path is not None:
+            try:
+                self.file_handler._save_current_project()
+            except Exception as e:
+                print(f"Не удалось автосохранить текущий документ: {e}")
+        self._reset_constructor_form()
+        project = Project.load_from_file(path)
+        self.file_handler._fill_ui_from_project(project)
+        self._current_document_path = path
+        self._switch_activity_view("editor")
+
+    def _show_document_preview(self, path):
+        """Клик по документу в «Базе документов» (только конструктор) --
+        показывает его содержимое справа (databasePreviewContainer), как
+        в правой части «Редактора документов», но ИЗ ОТДЕЛЬНЫХ статичных
+        QLabel, читая Project прямо с диска -- не трогает self.data/
+        PLAIN_TEXT_EDIT_NAMES/_current_document_path текущего
+        редактируемого документа. Открытие для правки -- отдельное
+        явное действие (ПКМ -> «Открыть в редакторе документов», см.
+        _show_document_context_menu()), просмотр не должен незаметно
+        подменять то, что сейчас редактируется."""
+        from ..models.project import Project
+        from ..services.title_variants_store import get_all_field_labels
+
+        self._database_preview_path = path
+        try:
+            project = Project.load_from_file(path)
+        except (OSError, ValueError) as e:
+            self._clear_database_preview()
+            self.databaseHintLabel.setText(f"Не удалось прочитать документ: {e}")
+            self.databaseHintLabel.setVisible(True)
+            return
+
+        self.databaseBreadcrumbLabel.setText(f"База документов / {path.stem}")
+        self._clear_database_preview()
+
+        labels = get_all_field_labels()
+        rendered_any = False
+        for slot in self._CONSTRUCTOR_SLOTS:
+            variant_id = project.report_data.get(f"_included_{slot}_variant_id")
+            if not variant_id:
+                continue
+            get_all_variants = self._slot_store(slot).get_all_title_variants if slot == "title" \
+                else self._slot_store(slot).get_all_intro_variants
+            variant = get_all_variants().get(variant_id)
+            if variant is None:
+                continue
+            rendered_any = True
+            self.databasePreviewLayout.addWidget(
+                self._build_database_preview_block(slot, variant, project.report_data, labels)
+            )
+
+        self.databaseHintLabel.setVisible(not rendered_any)
+        if not rendered_any:
+            self.databaseHintLabel.setText("В этом документе нет заполненных блоков.")
+
+    def _clear_database_preview(self):
+        """Убирает предыдущее превью из databasePreviewLayout (полная
+        пересборка на каждый клик, список полей короткий -- десятки
+        строк, не тысячи, отдельный diff/переиспользование виджетов не
+        нужны)."""
+        layout = self.databasePreviewLayout
+        while layout.count():
+            item = layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+
+    def _build_database_preview_block(self, slot, variant, report_data, labels):
+        """Один блок превью (заголовок варианта + его реквизиты) -- та же
+        пара «включённый блок / реквизиты», что рисует _process_block_drop()/
+        _render_slot_fields() в самом редакторе, только read-only и без
+        привязки к self.data (значения читаются напрямую из report_data
+        уже сохранённого документа, а не с живых виджетов формы).
+
+        Клик по заголовку сворачивает/разворачивает реквизиты -- то же
+        поведение и тот же шеврон, что у _toggle_fields_panel() в самом
+        редакторе (см. docs/design/вводная_часть.html, buildDbStructureBlock())."""
+        container = QWidget()
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(0, 0, 0, 18)
+        layout.setSpacing(8)
+
+        header = QWidget()
+        header_layout = QHBoxLayout(header)
+        header_layout.setContentsMargins(0, 0, 0, 0)
+        header_layout.setSpacing(6)
+        header.setCursor(Qt.CursorShape.PointingHandCursor)
+        icon_label = QLabel()
+        icon_label.setPixmap(icons.render("file-text", "#0a84ff", 15))
+        icon_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        header_layout.addWidget(icon_label)
+        title_label = QLabel(variant.document_title)
+        title_label.setObjectName("databasePreviewTitle")
+        title_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        header_layout.addWidget(title_label)
+        header_layout.addStretch()
+        chevron_label = QLabel()
+        chevron_label.setPixmap(icons.render("chevron-down", "#8e8e93", 13))
+        chevron_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        header_layout.addWidget(chevron_label)
+        layout.addWidget(header)
+
+        form = QFormLayout()
+        form.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        for field_id in variant.subtitle_fields:
+            widget_name = self._slot_placeholder_name(slot, field_id)
+            value = report_data.get(widget_name) or "—"
+            label = QLabel(labels.get(field_id, field_id))
+            label.setObjectName("databasePreviewFieldLabel")
+            value_label = QLabel(str(value))
+            value_label.setObjectName("databasePreviewFieldValue")
+            value_label.setWordWrap(True)
+            form.addRow(label, value_label)
+        # Обёртка QFormLayout в собственный QWidget (а не layout.addLayout(form))
+        # -- когда несколько таких блоков подряд лежат в одном QVBoxLayout
+        # (databasePreviewLayout, один блок на слот title/intro), при прямой
+        # вложенности layout-в-layout Qt считает heightForWidth многострочных
+        # QLabel неверно: блоку достаётся высота меньше его собственного
+        # sizeHint(), и последняя многострочная строка визуально наезжает на
+        # следующий блок снизу (воспроизведено отдельным скриптом на паре
+        # смежных блоков с многострочным ФИО). Отдельный QWidget с setLayout()
+        # даёт слою один авторитетный heightForWidth вместо рассогласованной
+        # совместной развёртки вложенных анонимных layout'ов.
+        form_widget = QWidget()
+        form_widget.setLayout(form)
+        layout.addWidget(form_widget)
+
+        header.mousePressEvent = functools.partial(
+            self._toggle_database_preview_block, form_widget, chevron_label
+        )
+        return container
+
+    def _toggle_database_preview_block(self, form_widget, chevron_label, event):
+        """Левый клик по заголовку блока превью в «Базе документов» --
+        сворачивает/разворачивает его реквизиты. См. _toggle_fields_panel()
+        -- тот же приём (чевron меняется на chevron-right/chevron-down)."""
+        if event.button() != Qt.MouseButton.LeftButton:
+            return
+        visible = not form_widget.isVisible()
+        form_widget.setVisible(visible)
+        chevron_label.setPixmap(
+            icons.render("chevron-down" if visible else "chevron-right", "#8e8e93", 13)
+        )
+
+    def _find_tree_item_by_path(self, kind, path):
+        """Ищет строку objectsTree заданного "kind" ("folder" или
+        "document"), чей путь в Qt.ItemDataRole.UserRole совпадает с
+        path -- рекурсивно, папки теперь произвольной вложенности (см.
+        _build_objects_tree_level()), плоский обход двух уровней уже не
+        покрывает всё дерево. Дерево небольшое (десятки строк), полный
+        обход на каждый вызов дешевле, чем держать отдельный кэш
+        path->item в синхронизации с _refresh_objects_tree()."""
+        def search(item):
+            data = item.data(0, Qt.ItemDataRole.UserRole)
+            if isinstance(data, dict) and data.get("kind") == kind and data.get("path") == path:
+                return item
+            for i in range(item.childCount()):
+                found = search(item.child(i))
+                if found is not None:
+                    return found
+            return None
+
         for i in range(self.objectsTree.topLevelItemCount()):
-            object_item = self.objectsTree.topLevelItem(i)
-            for j in range(object_item.childCount()):
-                doc_item = object_item.child(j)
-                if doc_item.data(0, Qt.ItemDataRole.UserRole) == path:
-                    return doc_item
+            found = search(self.objectsTree.topLevelItem(i))
+            if found is not None:
+                return found
         return None
+
+    def _find_document_tree_item(self, path):
+        """Документ -- самый частый случай поиска (_open_document(),
+        _update_breadcrumb() и т.п.), отдельная обёртка ради краткости
+        вызовов."""
+        return self._find_tree_item_by_path("document", path)
 
     def _update_breadcrumb(self):
         """Обновляет breadcrumbLabel над лентой документа: объект /
@@ -4469,7 +5053,18 @@ class MainWindow(QMainWindow):
         (setOpenExternalLinks(False) + сигнал linkActivated, см.
         _on_breadcrumb_link_activated()) -- три отдельных виджета под
         три сегмента заводить не пришлось. Раздел -- не ссылка, как и в
-        референсе (там у него нет своего reveal-обработчика)."""
+        референсе (там у него нет своего reveal-обработчика).
+
+        Только для трубопровода -- у него есть свой breadcrumbLabel над
+        лентой формы. Конструктор документов делит с трубопроводом общий
+        objectsTree/_prompt_document_path()/_rename_object_dialog() и т.п.
+        (см. equipment_type.id == "constructor" в __init__), но своего
+        breadcrumbLabel не имеет (у него свой crumbLabel -- название
+        включённого титульного листа, не путь дерева, см. _set_crumb()) --
+        без этого выхода вызов падал бы AttributeError при любом
+        сохранении/переименовании через общие методы."""
+        if self.equipment_type.id != "pipeline":
+            return
         if self._current_document_path is None:
             self.breadcrumbLabel.setText("")
             self.breadcrumbLabel.setVisible(False)
@@ -4497,17 +5092,20 @@ class MainWindow(QMainWindow):
         if href == "document":
             item = self._find_document_tree_item(self._current_document_path)
         else:
-            object_name = Path(self._current_document_path).parent.name
-            item = None
-            for i in range(self.objectsTree.topLevelItemCount()):
-                top_item = self.objectsTree.topLevelItem(i)
-                if top_item.text(0) == object_name:
-                    item = top_item
-                    break
+            # Прямой родитель документа -- не обязательно верхний
+            # уровень дерева при произвольной вложенности папок, ищем по
+            # пути, а не по имени среди top-level строк.
+            item = self._find_tree_item_by_path("folder", self._current_document_path.parent)
         if item is None:
             return
-        if item.parent() is not None:
-            item.parent().setExpanded(True)
+        # Разворачивает ВСЕХ предков, а не только непосредственного
+        # родителя -- при произвольной вложенности папок строка может
+        # быть скрыта на любой глубине, если пользователь свернул
+        # промежуточную папку вручную.
+        ancestor = item.parent()
+        while ancestor is not None:
+            ancestor.setExpanded(True)
+            ancestor = ancestor.parent()
         item.setExpanded(True)
         self.objectsTree.scrollToItem(item)
         self._flash_tree_item(item)
@@ -4607,7 +5205,8 @@ class MainWindow(QMainWindow):
         хуже, чем его отсутствие."""
         menu = QMenu(self)
         for object_name in workspace.list_objects():
-            menu.addAction(object_name, lambda name=object_name: self._create_document_in_object(name))
+            object_dir = workspace.OUTPUT_DIR / object_name
+            menu.addAction(object_name, lambda d=object_dir: self._create_document_in_object(d))
         if menu.actions():
             menu.addSeparator()
         menu.addAction("Новый объект…", self._create_document_in_new_object)
@@ -4616,13 +5215,15 @@ class MainWindow(QMainWindow):
 
     def _create_document_in_new_object(self):
         """«Новый объект…» в меню «Создать документ» -- спрашивает имя,
-        создаёт объект и сразу документ внутри него за один шаг (в
-        отличие от отдельной кнопки «Создать объект», после которой
-        пришлось бы ещё раз открывать это же меню)."""
+        создаёт объект (папку верхнего уровня) и сразу документ внутри
+        него за один шаг (в отличие от отдельной кнопки «Создать
+        объект», после которой пришлось бы ещё раз открывать это же
+        меню)."""
         name, ok = QInputDialog.getText(self, "Новый объект", "Название объекта:")
         if not ok or not name.strip():
             return
-        self._create_document_in_object(name)
+        object_dir = workspace.create_object(name)
+        self._create_document_in_object(object_dir)
 
     def _show_templates_menu(self):
         """«Мои шаблоны» -- показывает реально существующий шаблон
@@ -4670,7 +5271,7 @@ class MainWindow(QMainWindow):
         self._current_toc_items = []
         for groupbox in self._toc_groupboxes:
             item = QTreeWidgetItem([groupbox.title()])
-            item.setData(0, Qt.ItemDataRole.UserRole, groupbox)
+            item.setData(0, Qt.ItemDataRole.UserRole, {"kind": "toc", "groupbox": groupbox})
             doc_item.addChild(item)
             self._current_toc_items.append(item)
         doc_item.setExpanded(True)
@@ -4686,7 +5287,7 @@ class MainWindow(QMainWindow):
         _toc_lock_reason()) не скроллят -- у них уже снят
         Qt.ItemFlag.ItemIsEnabled в _update_toc_item_style(), но клик
         может дойти и до отключённого item'а, проверка дублируется."""
-        groupbox = item.data(0, Qt.ItemDataRole.UserRole)
+        groupbox = item.data(0, Qt.ItemDataRole.UserRole)["groupbox"]
         if self._toc_lock_reason(groupbox) is not None:
             return
         self._suppress_toc_spy = True

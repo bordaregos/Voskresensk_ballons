@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import List, Dict, Any
 
-from PyQt6.QtWidgets import QFileDialog, QMessageBox, QTableWidgetItem, QInputDialog
+from PyQt6.QtWidgets import QFileDialog, QMessageBox, QTableWidgetItem, QDialog
 
 from src.services.importer import (
     import_balloon_list_from_csv,
@@ -132,28 +132,32 @@ class FileHandler:
             self.main_window._update_dirty_indicator()
 
     def _prompt_document_path(self) -> bool:
-        """Для трубопровода спрашивает имя файла (и, если документ ещё
-        не привязан ни к одному объекту -- сам объект: выбрать
-        существующий или создать новый) -- КАЖДЫЙ раз при явном нажатии
-        «Сохранить проект», а не только при первой привязке. Имя
-        JSON-проекта должно всегда быть ручным вводом пользователя в
-        диалоге сохранения, а не тихой перезаписью в уже известный путь.
+        """Для трубопровода и конструктора документов (у обоих есть
+        дерево "папка -> документ", см. workspace.py) одним диалогом
+        (см. src/ui/save_project_dialog.py:SaveProjectDialog) спрашивает
+        имя файла и папку -- КАЖДЫЙ раз при явном нажатии «Сохранить
+        проект», а не только при первой привязке. Папка выбирается из
+        плоского списка ВСЕХ папок дерева произвольной вложенности (не
+        только верхнего уровня, как было раньше) либо создаётся новая
+        (всегда на верхнем уровне, см. SaveProjectDialog). Имя JSON-
+        проекта должно всегда быть ручным вводом пользователя в диалоге
+        сохранения, а не тихой перезаписью в уже известный путь.
 
-        Если объект уже определён (main_window._current_document_path
-        лежит внутри папки-объекта, см. src/services/workspace.py) --
-        шаг выбора объекта пропускается, но диалог имени файла
-        показывается всё равно, с текущим именем как значением по
-        умолчанию.
+        Если документ уже привязан к какой-то папке
+        (main_window._current_document_path), эта папка предвыбрана в
+        диалоге по умолчанию, на любой глубине вложенности -- но её всё
+        равно можно сменить прямо тут же, без отдельного шага.
 
         Тихое автосохранение при переключении документа в дереве
-        объектов (MainWindow._open_document() -> _save_current_project())
-        этот метод не вызывает и не затрагивает -- иначе каждый клик по
-        дереву превращался бы в диалог.
+        объектов (MainWindow._open_document()/_open_constructor_document()
+        -> _save_current_project()) этот метод не вызывает и не
+        затрагивает -- иначе каждый клик по дереву превращался бы в
+        диалог.
 
-        Пипелайн-специфично: у баллонов концепции объектов/дерева нет,
-        _document_dirty как маркер типа окна -- тот же приём, что и
-        везде в этом файле (Фаза 5.4/6); save_project_json() вызывает
-        этот метод только когда hasattr(mw, "_document_dirty").
+        У баллонов концепции объектов/дерева нет; hasattr(mw, "objectsTree")
+        как маркер "это окно с деревом" -- тот же приём, что и везде в
+        этом файле (Фаза 5.4/6); save_project_json() вызывает этот метод
+        только когда он истинен.
 
         Возвращает False, если пользователь отменил диалог -- вызывающая
         сторона обязана прервать сохранение целиком, не писать файл ни
@@ -162,50 +166,16 @@ class FileHandler:
         path = mw._current_document_path
 
         from src.services import workspace
+        from src.ui.save_project_dialog import SaveProjectDialog
 
-        if path is not None and path.parent.parent == workspace.OUTPUT_DIR:
-            object_dir = path.parent
-            default_name = path.stem
-        else:
-            objects = workspace.list_objects()
-            if objects:
-                object_name, ok = QInputDialog.getItem(
-                    mw, "Сохранение — папка объекта",
-                    "Выберите объект (или введите новый):",
-                    objects, 0, True,
-                )
-            else:
-                object_name, ok = QInputDialog.getText(
-                    mw, "Сохранение — папка объекта",
-                    "Название объекта:",
-                )
-            if not ok or not object_name.strip():
-                return False
-            object_dir = workspace.create_object(object_name)
-            default_name = path.stem if path is not None else "документ"
+        default_folder = path.parent if path is not None else workspace.OUTPUT_DIR
+        default_filename = path.stem if path is not None else "документ"
 
-        while True:
-            filename, ok = QInputDialog.getText(
-                mw, "Сохранение — имя файла", "Имя файла:", text=default_name,
-            )
-            if not ok or not filename.strip():
-                return False
-            # sanitize_object_name() назван под объекты, но сама очистка
-            # (замена FS-небезопасных символов) ровно так же годится и
-            # для имени файла -- заводить дублирующую функцию под
-            # единственное отличие (запасной текст на случай пустой
-            # строки, сюда практически недостижимый: filename.strip()
-            # уже проверен выше) избыточно.
-            new_path = object_dir / f"{workspace.sanitize_object_name(filename)}.json"
-            # Тот же путь, что уже открыт -- это повторное сохранение
-            # под тем же именем, а не конфликт с чужим файлом.
-            if new_path == path or not new_path.exists():
-                break
-            QMessageBox.warning(
-                mw, "Имя занято",
-                f"В объекте «{object_dir.name}» уже есть файл «{new_path.name}» — выберите другое имя.",
-            )
-            default_name = filename
+        dialog = SaveProjectDialog(mw, default_folder, default_filename, path)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return False
+        folder_dir, filename = dialog.result_values()
+        new_path = folder_dir / f"{workspace.sanitize_object_name(filename)}.json"
 
         mw._current_document_path = new_path
         mw._refresh_objects_tree()
@@ -216,11 +186,16 @@ class FileHandler:
         """
         Сохранение проекта в JSON файл.
 
-        Трубопровод (hasattr(mw, "_document_dirty")): имя файла --
-        всегда ручной ввод пользователя в диалоге сохранения, см.
-        _prompt_document_path(); не важно, сохранялся документ раньше
-        в этом сеансе или нет -- тихой перезаписи в уже известный путь
-        нет ни разу.
+        Трубопровод и конструктор документов (hasattr(mw, "objectsTree") --
+        оба используют одно и то же дерево "объект (папка) -> документ",
+        см. src/services/workspace.py и MainWindow._refresh_objects_tree()):
+        имя файла и папка-объект -- всегда ручной ввод пользователя в
+        диалоге сохранения, см. _prompt_document_path(); не важно,
+        сохранялся документ раньше в этом сеансе или нет -- тихой
+        перезаписи в уже известный путь нет ни разу. Для конструктора это
+        и есть «Сохранить проект спрашивает, в какую папку сохранить» --
+        отдельного диалога выбора папки заводить не пришлось, тот же
+        _prompt_document_path(), что и у трубопровода.
 
         Баллоны: поведение не менялось -- если main_window.
         _current_document_path уже указывает куда сохранять (документ
@@ -229,11 +204,11 @@ class FileHandler:
         как текущий документ.
         """
         mw = self.main_window
-        is_pipeline = hasattr(mw, "_document_dirty")
+        uses_object_tree = hasattr(mw, "objectsTree")
         existing_path = getattr(mw, "_current_document_path", None)
 
         try:
-            if is_pipeline:
+            if uses_object_tree:
                 old_path = existing_path
                 if not self._prompt_document_path():
                     return
@@ -302,9 +277,13 @@ class FileHandler:
             # Форма сбрасывается перед наполнением -- иначе поля/строки
             # таблиц, которых нет в загружаемом JSON (старый формат, ручное
             # редактирование файла и т.п.), остались бы от предыдущего
-            # документа, а не были бы честно пустыми. См. _reset_form().
+            # документа, а не были бы честно пустыми. См. _reset_form()/
+            # _reset_constructor_form() (у конструктора свой сброс -- по
+            # слотам title/intro, а не по спискам виджетов).
             if self.main_window.equipment_type.id == "pipeline":
                 self.main_window._reset_form()
+            elif self.main_window.equipment_type.id == "constructor":
+                self.main_window._reset_constructor_form()
 
             # Заполнение UI данными
             self._fill_ui_from_project(project)
