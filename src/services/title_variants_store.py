@@ -8,23 +8,26 @@ instruments_store.py -- не зависит от Qt.
 (uuid4().hex[:8], тот же приём, что src/ui/employees_tab.py) и поэтому не
 пересекается с "otchet"/"zaklyuchenie".
 
-Файл хранит ЧЕТЫРЕ независимые секции -- "title_variants" (сами варианты),
+Файл хранит ПЯТЬ независимых секций -- "title_variants" (сами варианты),
 "field_catalog" (id -> человекочитаемая подпись поля-плейсхолдера,
 переиспользуется между вариантами при вставке через каталог плейсхолдеров,
 см. src/ui/main_window.py, _build_placeholder_menu()), "hidden_builtin_fields"
 (id встроенных полей TITLE_FIELD_LABELS, скрытых оператором через корзину в
 том же меню -- сама константа в коде не трогается, "удаление" встроенного
-поля -- это его id в списке-исключении, см. get_all_field_labels()) и
+поля -- это его id в списке-исключении, см. get_all_field_labels()),
 "field_formulas" (id -> {"tokens":.., "decimals":..} -- формула
 вычисляемого поля, см. src/services/formula_engine.py и редактор формул,
 src/ui/formula_editor_dialog.py; открывается через ПКМ на чипе плейсхолдера
-в реквизитах, «Создать формулу»). Формула, как и подпись поля,
-привязана к field_id в общем каталоге -- одна формула действует везде, где
-встречается этот плейсхолдер (любой слот, любой вариант), а не только там,
-где её создали. save_title_variants()/save_field_catalog()/
-save_hidden_builtin_fields()/save_field_formulas() поэтому читают-правят-
-пишут файл целиком (read-modify-write), а не перезаписывают его слепо
-целиком своей секцией -- иначе сохранение одной секции стирало бы другие."""
+в реквизитах, «Создать формулу») и "field_tables" (id -> {"has_header":..,
+"rows": [[токены ячейки, ...], ...]} -- таблица вместо значения поля, см.
+редактор таблиц src/ui/table_editor_dialog.py; открывается тем же ПКМ,
+«Создать таблицу»). Формула и таблица, как и подпись поля, привязаны к
+field_id в общем каталоге -- действуют везде, где встречается этот
+плейсхолдер (любой слот, любой вариант), а не только там, где их создали.
+save_title_variants()/save_field_catalog()/save_hidden_builtin_fields()/
+save_field_formulas()/save_field_tables() поэтому читают-правят-пишут файл
+целиком (read-modify-write), а не перезаписывают его слепо целиком своей
+секцией -- иначе сохранение одной секции стирало бы другие."""
 
 import json
 from pathlib import Path
@@ -113,6 +116,22 @@ def save_field_formulas(formulas: Dict[str, Dict], path: Path = TITLE_VARIANTS_F
     """Сохраняет формулы вычисляемых полей, не трогая остальные секции файла."""
     data = _load_raw(path)
     data['field_formulas'] = dict(formulas)
+    _save_raw(data, path)
+
+
+def load_field_tables(path: Path = TITLE_VARIANTS_FILE) -> Dict[str, Dict]:
+    """field_id -> {"has_header": bool, "rows": [[...токены ячейки...], ...]}
+    -- таблицы вместо значения поля (см. src/ui/table_editor_dialog.py).
+    Тот же общий охват, что и у field_formulas: один каталог таблиц на оба
+    слота и все варианты, не привязан к конкретному варианту/слоту."""
+    data = _load_raw(path)
+    return dict(data.get('field_tables', {}))
+
+
+def save_field_tables(tables: Dict[str, Dict], path: Path = TITLE_VARIANTS_FILE) -> None:
+    """Сохраняет таблицы-плейсхолдеры, не трогая остальные секции файла."""
+    data = _load_raw(path)
+    data['field_tables'] = dict(tables)
     _save_raw(data, path)
 
 

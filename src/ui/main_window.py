@@ -17,6 +17,7 @@ from docx.shared import Mm
 from docx.oxml.ns import qn
 from docxtpl import DocxTemplate, InlineImage, RichText
 
+import copy
 import os
 import re
 import shutil
@@ -59,9 +60,28 @@ from . import icons
 from .open_with import open_with_prompt
 from .growable_placeholder_field import GrowablePlaceholderField
 from .formula_editor_dialog import FormulaEditorDialog
+from .table_editor_dialog import TableEditorDialog
 from ..models.project import Project
 from ..config import NK_SCHEME_DIR, PNEVMO_GRAPH_DIR
 from .widget_names_pipeline import SEGMENT_TYPES, PROGRAM_DEFAULT_ITEMS, AE_CLASS_TYPES
+
+
+# Маркер табличного поля (field_tables, см. table_editor_dialog.py) --
+# get_form_data() подставляет ЭТОТ текст вместо значения поля (см.
+# MainWindow._render_slot_fields(): сам виджет остаётся readOnly и
+# ПУСТЫМ, показывая подсказку через setPlaceholderText(), а не этот
+# маркер -- маркер существует только для Jinja-рендера). После
+# tpl.render() маркер -- уже обычный текст где-то в готовом .docx;
+# _splice_table_placeholders() ищет его по паттерну и меняет на
+# настоящую .docx-таблицу (см. её докстринг). Символы U+E000 -- Private
+# Use Area Юникода, гарантированно не встретятся в тексте, который
+# реально печатает оператор -- обычный текст не может содержать их
+# "случайно", в отличие, например, от "---" или "{{".
+_TABLE_MARKER_RE = re.compile("table:([^]+)")
+
+
+def _table_field_marker(field_id: str) -> str:
+    return f"table:{field_id}"
 
 
 # Тёмная тема окна конструктора документов -- палитра 1:1 из
@@ -184,6 +204,16 @@ QGroupBox[role="fieldsPanel"] QLabel[titleChipFormula="true"] {
 }
 QGroupBox[role="fieldsPanel"] QPlainTextEdit[computed="true"] {
     background: rgba(191, 90, 242, 24); border-color: rgba(191, 90, 242, 140); color: #d29dfa;
+}
+/* Чип поля, представленного таблицей (см. table_editor_dialog.py) --
+   отдельный акцент (голубой), чтобы отличать и от обычных плейсхолдеров
+   (синие), и от вычисляемых по формуле (фиолетовые). */
+QGroupBox[role="fieldsPanel"] QLabel[titleChipTable="true"] {
+    background: rgba(100, 210, 255, 40); color: #64d2ff;
+    border: 1px solid rgba(100, 210, 255, 140);
+}
+QGroupBox[role="fieldsPanel"] QPlainTextEdit[computedTable="true"] {
+    background: rgba(100, 210, 255, 24); border-color: rgba(100, 210, 255, 140);
 }
 QWidget#titleTemplateDropHint {
     border: 1.5px dashed #38383a; border-radius: 8px;
@@ -1459,6 +1489,27 @@ class MainWindow(QMainWindow):
                 table_data.append(row_data)
             self.data[name] = table_data
 
+        # Табличные поля конструктора (field_tables, см.
+        # table_editor_dialog.py) -- значение виджета всегда "" (см.
+        # _render_slot_fields(), ветка `table is not None`), сюда вместо
+        # него подставляется маркер (_table_field_marker()), который
+        # _splice_table_placeholders() ПОСЛЕ tpl.render() меняет на
+        # настоящую .docx-таблицу. Поиск по всем слотам -- тот же приём,
+        # что и в _cross_slot_placeholder_value()/_placeholder_numeric_value()
+        # (widget_name разный в разных слотах, кроме title). Только для
+        # equipment_type == "constructor" -- у баллонов/трубопровода
+        # field_tables не существует вовсе, отдельный импорт стора тут не
+        # нужен без реальной надобности.
+        if self.equipment_type.id == "constructor":
+            from ..services.title_variants_store import load_field_tables
+
+            tables = load_field_tables()
+            for field_id in tables:
+                for slot in self._CONSTRUCTOR_SLOTS:
+                    widget_name = self._slot_placeholder_name(slot, field_id)
+                    if widget_name in self.PLAIN_TEXT_EDIT_NAMES:
+                        self.data[widget_name] = _table_field_marker(field_id)
+
         return self.data
 
     def calculate(self):
@@ -1946,6 +1997,101 @@ class MainWindow(QMainWindow):
             else:
                 target_body.append(child)
 
+    def _build_table_element(self, table: Dict):
+        """Строит НАСТОЯЩУЮ .docx-таблицу из содержимого редактора таблиц
+        (field_tables[field_id] -- {"has_header":.., "rows": [[токены
+        ячейки, ...], ...]}, см. table_editor_dialog.py) и возвращает её
+        как независимый OXML-элемент <w:tbl>, готовый быть вставленным в
+        ЛЮБОЙ документ (_splice_table_placeholders() ниже).
+
+        Таблица строится в отдельном, ни с чем не связанном python-docx
+        Document() -- ЕГО собственный table.style = "Table Grid" работает
+        так же надёжно, как и в template_generator.py (тот же built-in
+        стиль Word, доступный в любом .docx без явного объявления в
+        styles.xml). copy.deepcopy() -- обязателен: без него element
+        остаётся частью дерева scratch-документа, а вставка ЧУЖОГО lxml-
+        элемента в другое дерево (addprevious() в _splice_table_placeholders())
+        молча вырезает его из исходного дерева, не копируя, что тут не
+        имеет значения (scratch выбрасывается), но именно эта копия и
+        нужна, чтобы вставка была безопасна.
+
+        Плейсхолдер-токен ячейки резолвится в ТЕКУЩИЙ текст того же поля
+        через _cross_slot_placeholder_value() -- ту же подстановку, что
+        уже применяется для предзаполнения полей между слотами; для
+        вычисляемого поля это уже готовый посчитанный текст (см.
+        _render_slot_fields()). Ссылка на ДРУГОЕ табличное поле внутри
+        ячейки не разворачивается рекурсивно (вернёт "") -- вложенные
+        таблицы вне охвата, тот же принцип, что и запрет ссылки таблицы на
+        саму себя в TableEditorDialog."""
+        from docx import Document as _ScratchDocument
+
+        rows = table.get("rows", [])
+        n_rows = len(rows)
+        n_cols = len(rows[0]) if rows else 0
+        scratch = _ScratchDocument()
+        if not n_rows or not n_cols:
+            # Пустая таблица (сохранена без единой заполненной ячейки, но
+            # хотя бы с одной строкой/столбцом -- TableEditorDialog не
+            # позволяет меньше) -- всё равно рисуем видимую сетку размера
+            # rows×cols, а не молча ничего не вставляем.
+            n_rows, n_cols = max(n_rows, 1), max(n_cols, 1)
+        doc_table = scratch.add_table(rows=n_rows, cols=n_cols)
+        doc_table.style = "Table Grid"
+        has_header = bool(table.get("has_header"))
+        for r, row in enumerate(rows):
+            for c, cell_tokens in enumerate(row):
+                text = "".join(
+                    token.get("value", "") if token.get("type") == "text"
+                    else self._cross_slot_placeholder_value(token.get("id", ""))
+                    for token in cell_tokens
+                )
+                cell = doc_table.cell(r, c)
+                cell.text = text
+                if has_header and r == 0:
+                    for paragraph in cell.paragraphs:
+                        for run in paragraph.runs:
+                            run.bold = True
+        return copy.deepcopy(doc_table._tbl)
+
+    def _splice_table_placeholders(self, doc):
+        """Меняет маркеры табличных полей (_table_field_marker(), см.
+        get_form_data()) в уже отрендеренном doc на настоящие .docx-
+        таблицы (_build_table_element()) -- вызывается ПОСЛЕ tpl.render(),
+        маркер к этому моменту -- обычный текст где-то в теле документа,
+        раньше искать/менять нечего.
+
+        Ищет только среди doc.paragraphs (прямые абзацы тела документа,
+        как и у _append_docx_body()) -- если поле с таблицей вставлено НЕ
+        отдельным абзацем (например, руками помещено внутрь ячейки другой
+        таблицы шаблона), маркер не будет найден и останется видимым
+        текстом в документе. В этом приложении так исторически не делают
+        -- каждый плейсхолдер реквизитов рендерится в свой отдельный
+        абзац (см. _render_slot_fields()), другое расположение вне
+        охвата.
+
+        Абзац с маркером убирается ЦЕЛИКОМ, а таблица вставляется на его
+        место -- предполагается, что маркер был единственным содержимым
+        абзаца (обычный случай для реквизитов конструктора); если в
+        абзаце реально был ещё текст вперемешку с маркером, он тоже
+        пропадёт вместе с абзацем -- известное упрощение."""
+        from ..services.title_variants_store import load_field_tables
+
+        tables = load_field_tables()
+        if not tables:
+            return
+
+        for paragraph in list(doc.paragraphs):
+            match = _TABLE_MARKER_RE.search(paragraph.text)
+            if not match:
+                continue
+            field_id = match.group(1)
+            table = tables.get(field_id)
+            p_element = paragraph._p
+            parent = p_element.getparent()
+            if table is not None:
+                p_element.addprevious(self._build_table_element(table))
+            parent.remove(p_element)
+
     def _calculate_constructor(self):
         """Сборка документа конструктора (equipment_type == "constructor").
 
@@ -1994,6 +2140,16 @@ class MainWindow(QMainWindow):
                 # python-docx Document, но БЕЗ этого отката: render()
                 # подменяет его корневой body напрямую (map_tree()) ещё до
                 # возврата из render().
+                #
+                # _splice_table_placeholders() -- ОБЯЗАТЕЛЬНО на КАЖДЫЙ
+                # tpl.docx отдельно, до _append_docx_body() ниже: маркер
+                # табличного поля (см. get_form_data()) попадает буквально
+                # в текст ОДНОГО конкретного фрагмента (title/intro/
+                # appendix1/...), искать его стоит, пока фрагменты ещё не
+                # склеены -- после склейки результат тот же (абзацы никуда
+                # не деваются), но по одному фрагменту дешевле и проще для
+                # чтения, чем один проход по уже смешанному телу.
+                self._splice_table_placeholders(tpl.docx)
                 rendered_docs.append(tpl.docx)
 
             combined = rendered_docs[0]
@@ -2723,7 +2879,7 @@ class MainWindow(QMainWindow):
         (_build_placeholder_catalog()), которые только для
         пользовательских: предпросмотр с подставленными значениями
         одинаково полезен и для готовых встроенных вариантов."""
-        from ..services.title_variants_store import get_all_field_labels, load_field_formulas
+        from ..services.title_variants_store import get_all_field_labels, load_field_formulas, load_field_tables
         from ..services.formula_engine import evaluate_formula, format_formula_result
 
         get_all_variants = self._slot_store(slot).get_all_variants
@@ -2767,9 +2923,11 @@ class MainWindow(QMainWindow):
 
         labels = get_all_field_labels()
         formulas = load_field_formulas()
+        tables = load_field_tables()
         for field_id in field_ids:
             widget_name = self._slot_placeholder_name(slot, field_id)
             formula = formulas.get(field_id)
+            table = tables.get(field_id)
             # GrowablePlaceholderField, а не голый QPlainTextEdit -- значения
             # бывают длиной в целый абзац (см. содержательные пункты вводной
             # части вроде «1.1. На основании требований п.198 ФНП ТТ ...»).
@@ -2789,6 +2947,21 @@ class MainWindow(QMainWindow):
                 widget.setProperty("computed", True)
                 value = evaluate_formula(formula.get("tokens", []), self._placeholder_numeric_value, formulas)
                 widget.setPlainText(format_formula_result(value, formula.get("decimals", 2)))
+            elif table is not None:
+                # Таблица -- тоже readOnly, но, в отличие от формулы, НЕ
+                # сводится к одному подставляемому значению: get_form_data()
+                # уходит не с текстом этого превью, а с отдельным маркером
+                # (_table_field_marker()), который потом меняется на
+                # настоящую .docx-таблицу (см. _splice_table_placeholders()).
+                # Поэтому тут setPlaceholderText() (короткая подсказка про
+                # размер и про ПКМ), а НЕ setPlainText() -- у пустого
+                # readOnly-поля toPlainText() остаётся "", виджет никак не
+                # должен отвечать за то, что реально уйдёт в документ.
+                widget.setReadOnly(True)
+                widget.setProperty("computedTable", True)
+                rows = table.get("rows", [])
+                cols = len(rows[0]) if rows else 0
+                widget.setPlaceholderText(f"▦ Таблица {len(rows)}×{cols} — редактирование через ПКМ")
             else:
                 if widget_name in previous_values:
                     widget.setPlainText(previous_values[widget_name])
@@ -2819,16 +2992,24 @@ class MainWindow(QMainWindow):
             # варианты каталога не имеют -- для них подпись остаётся
             # обычным некликабельным текстом, как раньше.
             if is_custom:
-                chip_text = labels.get(field_id, field_id) + (" ƒ" if formula is not None else "")
+                chip_text = (
+                    labels.get(field_id, field_id)
+                    + (" ƒ" if formula is not None else "")
+                    + (" ▦" if table is not None else "")
+                )
                 row_label = QLabel(chip_text)
                 tooltip = f"{{{{ {widget_name} }}}}"
                 if formula is not None:
                     tooltip += "\nВычисляется по формуле — правка недоступна, см. ПКМ."
+                if table is not None:
+                    tooltip += "\nПредставлено таблицей — правка через ПКМ → «Редактировать таблицу»."
                 tooltip += "\nКлик — скопировать для Word. ПКМ — меню. Перетащите на другое поле — переставить порядок."
                 row_label.setToolTip(tooltip)
                 row_label.setProperty("titleChip", True)
                 if formula is not None:
                     row_label.setProperty("titleChipFormula", True)
+                if table is not None:
+                    row_label.setProperty("titleChipTable", True)
                 row_label.setCursor(Qt.CursorShape.PointingHandCursor)
                 row_label.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
                 row_label.customContextMenuRequested.connect(
@@ -3409,7 +3590,11 @@ class MainWindow(QMainWindow):
         в каталоге она бессмысленна. Формулы ДРУГИХ полей, ссылавшихся на
         field_id, не правятся -- просто перестанут считаться
         (evaluate_formula() вернёт None, "—"), тот же принцип деградации,
-        что и у голого id вместо подписи.
+        что и у голого id вместо подписи. Таблица этого поля (field_tables/
+        _open_table_editor()) удаляется тем же принципом; чипы этого поля
+        ВНУТРИ чужих таблиц (вставленные через «Вставить плейсхолдер» в
+        редакторе таблиц) не правятся -- останутся ссылкой на пропавший id,
+        тот же принцип деградации.
 
         _render_slot_fields() (перестраивает fields_layout, включая
         свежий _build_placeholder_menu() без удалённого поля) отложена на
@@ -3432,6 +3617,7 @@ class MainWindow(QMainWindow):
             load_field_catalog, save_field_catalog,
             load_hidden_builtin_fields, save_hidden_builtin_fields,
             load_field_formulas, save_field_formulas,
+            load_field_tables, save_field_tables,
         )
 
         catalog = load_field_catalog()
@@ -3448,6 +3634,11 @@ class MainWindow(QMainWindow):
         if field_id in formulas:
             formulas.pop(field_id, None)
             save_field_formulas(formulas)
+
+        tables = load_field_tables()
+        if field_id in tables:
+            tables.pop(field_id, None)
+            save_field_tables(tables)
 
         for slot_key in self._CONSTRUCTOR_SLOTS:
             slot_store = self._slot_store(slot_key)
@@ -3530,14 +3721,25 @@ class MainWindow(QMainWindow):
         «Вставить плейсхолдер» (_build_placeholder_menu()): встроенные
         TITLE_FIELD_LABELS через UI не редактируются.
 
+        «Создать таблицу» -- тем же принципом, что и «Создать формулу»
+        выше: всегда доступно, подпись переключается на «Редактировать
+        таблицу» для уже заполненных полей (см. _open_table_editor()),
+        хранится по field_id в общем каталоге (field_tables). В отличие от
+        формулы, таблица не сводится к одному вычисленному значению --
+        get_form_data() подставляет вместо неё маркер, который на
+        настоящую .docx-таблицу меняет уже ПОСЛЕ рендера
+        _splice_table_placeholders() (см. её докстринг).
+
         «Удалить» -- убирает плейсхолдер из РЕКВИЗИТОВ этого варианта
         (variant.subtitle_fields), а не из каталога -- другая операция,
         см. _remove_variant_placeholder()."""
-        from ..services.title_variants_store import load_field_catalog, load_field_formulas
+        from ..services.title_variants_store import load_field_catalog, load_field_formulas, load_field_tables
 
         menu = QMenu(self)
         formula_label = "Редактировать формулу" if field_id in load_field_formulas() else "Создать формулу"
         formula_action = menu.addAction(icons.icon("formula", "#bf5af2", 13), formula_label)
+        table_label = "Редактировать таблицу" if field_id in load_field_tables() else "Создать таблицу"
+        table_action = menu.addAction(icons.icon("table", "#64d2ff", 13), table_label)
         rename_action = None
         if field_id in load_field_catalog():
             rename_action = menu.addAction(icons.icon("edit", "#c7c7cc", 13), "Переименовать")
@@ -3545,6 +3747,8 @@ class MainWindow(QMainWindow):
         chosen = menu.exec(global_pos)
         if chosen == formula_action:
             self._open_formula_editor(slot, variant_id, field_id)
+        elif chosen == table_action:
+            self._open_table_editor(slot, variant_id, field_id)
         elif chosen == delete_action:
             self._remove_variant_placeholder(slot, variant_id, field_id)
         elif rename_action is not None and chosen == rename_action:
@@ -3583,6 +3787,58 @@ class MainWindow(QMainWindow):
             refresh_variant_id = self._filled_slot_variant(refresh_slot)
             if refresh_variant_id is not None:
                 self._render_slot_fields(refresh_slot, refresh_variant_id)
+
+    def _open_table_editor(self, slot: str, variant_id: str, field_id: str):
+        """Открывает TableEditorDialog для field_id -- на успешном
+        сохранении/удалении правит ОБЩИЙ каталог таблиц (field_tables,
+        title_variants_store.py), тем же охватом, что и формула (см.
+        _open_formula_editor()): действует везде, где встречается этот
+        плейсхолдер, а не только в этом варианте."""
+        from ..services.title_variants_store import (
+            get_all_field_labels, load_field_formulas, load_field_tables, save_field_tables,
+        )
+
+        tables = load_field_tables()
+        dialog = TableEditorDialog(
+            field_id=field_id,
+            field_label=get_all_field_labels().get(field_id, field_id),
+            all_fields=get_all_field_labels(),
+            all_formulas=load_field_formulas(),
+            all_tables=tables,
+            existing_table=tables.get(field_id),
+            create_field=self._create_catalog_field_only,
+            parent=self,
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        if dialog.removed:
+            tables.pop(field_id, None)
+        else:
+            tables[field_id] = {"has_header": dialog.has_header, "rows": dialog.rows}
+        save_field_tables(tables)
+
+        for refresh_slot in self._CONSTRUCTOR_SLOTS:
+            refresh_variant_id = self._filled_slot_variant(refresh_slot)
+            if refresh_variant_id is not None:
+                self._render_slot_fields(refresh_slot, refresh_variant_id)
+
+    def _create_catalog_field_only(self, label: str) -> str:
+        """Заводит новое поле ТОЛЬКО в общем каталоге (field_catalog), не
+        вставляя его в реквизиты никакого варианта -- в отличие от
+        _create_and_add_variant_field() (кнопка «+ Новое поле…» в
+        «Вставить плейсхолдер» реквизитов, которая сразу добавляет поле и в
+        текущий вариант). Нужен редактору таблиц: поле, заведённое «на
+        лету» прямо в ячейке, должно быть доступно для вставки в ЛЮБУЮ
+        другую таблицу/формулу через общий каталог, но не обязано само по
+        себе становиться отдельным плейсхолдером в чьих-то реквизитах."""
+        from ..services.title_variants_store import load_field_catalog, save_field_catalog
+
+        field_id = "field_" + uuid4().hex[:8]
+        catalog = load_field_catalog()
+        catalog[field_id] = label
+        save_field_catalog(catalog)
+        return field_id
 
     def _rename_catalog_field(self, slot: str, variant_id: str, field_id: str):
         """«Переименовать» из контекстного меню чипа -- правит подпись
@@ -3757,7 +4013,13 @@ class MainWindow(QMainWindow):
         документ, не собирая его окончательно. Рендерится в новый временный
         каталог при каждом вызове (не поверх предыдущего файла) -- если
         предыдущий предпросмотр всё ещё открыт в Word/Pages, тот держит
-        файл заблокированным, перезапись бы упала с ошибкой доступа."""
+        файл заблокированным, перезапись бы упала с ошибкой доступа.
+
+        _splice_table_placeholders() -- ОБЯЗАТЕЛЬНО после render(), до
+        save(): табличные поля (field_tables) рендерятся в маркер (см.
+        get_form_data()), а не сразу в готовую таблицу -- превратить его в
+        настоящую .docx-таблицу можно только когда маркер уже есть в
+        дереве документа."""
         try:
             template_path = self._find_slot_template(slot, variant_id)
         except FileNotFoundError:
@@ -3770,6 +4032,7 @@ class MainWindow(QMainWindow):
 
         tpl = DocxTemplate(template_path)
         tpl.render(self.get_form_data())
+        self._splice_table_placeholders(tpl.docx)
 
         preview_dir = Path(tempfile.mkdtemp(prefix=f"{slot}_preview_"))
         preview_path = preview_dir / f"предпросмотр_{variant_id}.docx"
