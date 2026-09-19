@@ -44,9 +44,9 @@ Thumbs.db
 templates/**/*.docx
 templates/**/*.png
 templates/_backup/
-output/*.docx
-output/*.csv
-output/*.json
+output/**/*.docx
+output/**/*.csv
+output/**/*.json
 data/
 
 ## Logs
