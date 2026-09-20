@@ -16,10 +16,18 @@ _build_title_placeholder_catalog()) -- добавить/удалить плей�
 template_filename -- имя файла, загруженного через «Загрузить шаблон
 Word» (src/ui/main_window.py, _upload_title_variant_template()) -- чисто
 для отображения над каталогом плейсхолдеров ("с каким документом идёт
-работа"), на резолюцию файла не влияет: она всегда идёт через фиксированный
-путь FRAGMENTS_DIR/title_{id}.docx (см. find_title_template()), независимо
-от исходного имени. Пустая строка -- шаблон ещё не загружался, работает
-только автосгенерированная заготовка (generate_title_fragment()).
+работа"), само по себе на резолюцию файла не влияет. Пустая строка --
+шаблон ещё не загружался, работает только автосгенерированная заготовка
+(generate_title_fragment()).
+
+template_path -- полный путь к .docx-заготовке варианта, который выбрал
+сам оператор (диалог «Сохранить как», src/ui/template_location.py) --
+пользователь сам решает, где хранить шаблон, а не только в
+templates/fragments. Пустая строка (по умолчанию, и все записи, созданные
+до появления этого поля) -- значит путь не выбирался, find_title_template()/
+find_intro_template()/find_appendix_template()/find_section_template()
+(src/config.py) в этом случае, как и раньше, резолвят фиксированный путь
+FRAGMENTS_DIR/{slot}_{id}.docx.
 
 Сам текст/вёрстка/таблицы/подпись титульника этим приложением больше не
 редактируются -- пользователь ведёт их напрямую в .docx-файле варианта
@@ -44,6 +52,7 @@ class TitleVariant:
     document_title: str = ""
     subtitle_fields: List[str] = field(default_factory=list)
     template_filename: str = ""
+    template_path: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -55,4 +64,5 @@ class TitleVariant:
             document_title=data.get('document_title', ''),
             subtitle_fields=list(data.get('subtitle_fields', [])),
             template_filename=data.get('template_filename', ''),
+            template_path=data.get('template_path', ''),
         )
