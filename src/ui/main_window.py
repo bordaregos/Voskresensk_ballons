@@ -178,6 +178,20 @@ QGroupBox[role="fieldsPanel"] QPlainTextEdit {
     color: #e5e5e7; font-size: 12px; padding: 6px 8px;
 }
 QGroupBox[role="fieldsPanel"] QPlainTextEdit:focus { border-color: #0a84ff; }
+/* Кратковременная подсветка ПОДПИСИ плейсхолдера (не текстового поля со
+   значением) после перехода по клику на "· уже в «...»" в каталоге
+   плейсхолдеров (см. _reveal_variant_field()/_flash_field_widget() в
+   main_window.py) -- приглушённый серый, а не акцентный синий: первое
+   правило работает для обычной (не кликабельной) подписи встроенного
+   варианта, второе -- добавляет более светлую рамку поверх уже
+   существующего синего чипа пользовательского варианта
+   (QLabel[titleChip="true"]), чтобы вспышка не терялась на его фоне. */
+QGroupBox[role="fieldsPanel"] QLabel[fieldFlash="true"] {
+    background: rgba(199, 199, 204, 40); border-radius: 4px;
+}
+QGroupBox[role="fieldsPanel"] QLabel[titleChip="true"][fieldFlash="true"] {
+    border: 1.5px solid #c7c7cc;
+}
 QGroupBox[role="fieldsPanel"] QToolButton {
     background: transparent; border: none; color: #c7c7cc; font-size: 11.5px;
     padding: 4px 8px; border-radius: 5px;
@@ -916,8 +930,8 @@ class MainWindow(QMainWindow):
                     widget.setPlainText(prefill)
 
     def _slots_using_field(self, slot: str, field_id: str) -> list:
-        """Список display_label слотов (кроме slot), в реквизиты
-        включённого блока которых уже добавлен field_id (см.
+        """Список (other_slot, display_label) слотов (кроме slot), в
+        реквизиты включённого блока которых уже добавлен field_id (см.
         _build_placeholder_menu()) -- статус "уже вставлен" (✓, серым,
         некликабельно) в меню «Вставить плейсхолдер» должен относиться
         ТОЛЬКО к текущему варианту текущего слота (в отличие от общего
@@ -926,8 +940,10 @@ class MainWindow(QMainWindow):
         другом. Использование в другом слоте -- отдельная, не блокирующая
         пометка рядом со строкой (см. вызывающую сторону), с указанием
         КОНКРЕТНОГО раздела (или нескольких), а не просто "в другом
-        шаблоне"."""
-        labels = []
+        шаблоне". Возвращает и сам ключ слота (не только подпись) --
+        подпись в меню кликабельна (см. _reveal_variant_field()) и должна
+        знать, куда именно вести."""
+        entries = []
         for other_slot in self._CONSTRUCTOR_SLOTS:
             if other_slot == slot:
                 continue
@@ -936,8 +952,8 @@ class MainWindow(QMainWindow):
                 continue
             other_variant = self._slot_store(other_slot).get_all_variants().get(other_variant_id)
             if other_variant is not None and field_id in other_variant.subtitle_fields:
-                labels.append(self._CONSTRUCTOR_SLOTS[other_slot]["display_label"])
-        return labels
+                entries.append((other_slot, self._CONSTRUCTOR_SLOTS[other_slot]["display_label"]))
+        return entries
 
     def _init_constructor_slot(self, slot: str):
         """Инициализация одного слота конструктора -- вызывается по разу
@@ -3726,29 +3742,79 @@ class MainWindow(QMainWindow):
         searchable_rows = []
         for field_id, label, already, other_slot_labels in rows:
             used_elsewhere = bool(other_slot_labels)
-            if already:
-                row_text = label + " ✓"
-            elif used_elsewhere:
-                other_names = "«" + "», «".join(other_slot_labels) + "»"
-                row_text = (
-                    f'{html.escape(label)} '
-                    f'<span style="color:#5a5a5c; font-size:10.5px;">· уже в {html.escape(other_names)}</span>'
-                )
-            else:
-                row_text = label
 
             row = QWidget()
-            row.enterEvent = lambda event, r=row: r.setStyleSheet("background: #0a84ff;")
+            # Приглушённая серая заливка (не насыщенный #0a84ff, как было) --
+            # у строк с приписками "· уже в «...»" синий фон на весь ряд
+            # спорил бы с собственной, куда более узкой ховер-подсветкой
+            # ссылок на разделы внутри (см. ветку used_elsewhere ниже);
+            # тот же нейтральный серый, что и у QToolButton:hover в
+            # CONSTRUCTOR_QSS -- единообразный "наведено" по всему меню.
+            row.enterEvent = lambda event, r=row: r.setStyleSheet("background: #3a3a3c;")
             row.leaveEvent = lambda event, r=row: r.setStyleSheet("")
             row_layout = QHBoxLayout(row)
             row_layout.setContentsMargins(10, 2, 4, 2)
             row_layout.setSpacing(4)
-            text_label = QLabel(row_text)
-            if used_elsewhere:
-                text_label.setTextFormat(Qt.TextFormat.RichText)
+            text_label = QLabel()
             if already:
+                text_label.setText(label + " ✓")
                 text_label.setStyleSheet("color: #5a5a5c;")
+            elif used_elsewhere:
+                # Подпись "· уже в «...»" -- кликабельна ПО РАЗДЕЛАМ
+                # (переход + подсветка поля, см. _reveal_variant_field()),
+                # а сама подпись поля остаётся кликабельной целиком для
+                # вставки, как и в ветке else ниже -- оба поведения нельзя
+                # совместить через text_label.mousePressEvent (тот
+                # перехватывает клик ДО того, как Qt успел бы понять, что
+                # курсор был именно над <a href>), поэтому оба варианта
+                # клика идут через одну и ту же ссылочную машинерию QLabel
+                # (linkActivated) -- href="add" для самой подписи поля,
+                # href="slot:{other_slot}" для каждого раздела в приписке.
+                #
+                # _row_html() перестраивает текст целиком под текущий
+                # наведённый href (или без наведения, hovered_href=None) --
+                # у rich-text ссылок в QLabel нет штатного QSS ":hover" на
+                # отдельный <a>, единственный способ подсветить именно ТОТ
+                # раздел, над которым сейчас курсор -- перерисовать разметку
+                # с его цветом ярче остальных (см. linkHovered ниже).
+                # lbl=label/others=other_slot_labels -- защита от позднего
+                # связывания замыкания (тот же приём, что и у fid=field_id
+                # в остальных обработчиках этого цикла): без них все строки
+                # меню делили бы значения ПОСЛЕДНЕЙ итерации цикла.
+                def _row_html(hovered_href=None, lbl=label, others=other_slot_labels):
+                    links = []
+                    for other_slot, other_label in others:
+                        href = f"slot:{other_slot}"
+                        hovered = href == hovered_href
+                        color = "#c7c7cc" if hovered else "#8e8e93"
+                        decoration = "underline" if hovered else "none"
+                        links.append(
+                            f'<a href="{href}" style="color:{color}; text-decoration:{decoration};">'
+                            f'«{html.escape(other_label)}»</a>'
+                        )
+                    return (
+                        f'<a href="add" style="color:#e5e5e7; text-decoration:none;">{html.escape(lbl)}</a> '
+                        f'<span style="color:#5a5a5c; font-size:10.5px;">· уже в {", ".join(links)}</span>'
+                    )
+
+                text_label.setText(_row_html())
+                text_label.setTextFormat(Qt.TextFormat.RichText)
+                text_label.setTextInteractionFlags(Qt.TextInteractionFlag.LinksAccessibleByMouse)
+
+                def _on_link(href, fid=field_id, m=menu):
+                    if href == "add":
+                        self._add_variant_placeholder(slot, variant_id, fid)
+                        m.close()
+                    elif href.startswith("slot:"):
+                        m.close()
+                        self._reveal_variant_field(href[len("slot:"):], fid)
+
+                text_label.linkActivated.connect(_on_link)
+                text_label.linkHovered.connect(
+                    lambda href, lbl=text_label, build=_row_html: lbl.setText(build(href or None))
+                )
             else:
+                text_label.setText(label)
                 text_label.setCursor(Qt.CursorShape.PointingHandCursor)
 
                 def _add_and_close(event, fid=field_id, m=menu):
@@ -3841,6 +3907,64 @@ class MainWindow(QMainWindow):
             lambda checked=False: self._create_and_add_variant_field(slot, variant_id)
         )
         return menu
+
+    def _reveal_variant_field(self, slot: str, field_id: str):
+        """Клик по названию раздела в приписке "· уже в «...»" каталога
+        плейсхолдеров (см. _build_placeholder_menu()) -- разворачивает
+        реквизиты указанного раздела (если свёрнуты, см.
+        _toggle_fields_panel()), прокручивает канву конструктора
+        (mainAreaScrollArea) так, чтобы нужное поле оказалось в видимой
+        области, и кратко подсвечивает не сам текстовый виджет со
+        значением, а ЕГО ПОДПИСЬ -- чип плейсхолдера слева от поля (см.
+        _flash_field_widget()) -- глаз ищет по подписи "какой это
+        плейсхолдер", а не по рамке произвольного текста внутри.
+
+        Виджет поля уже гарантированно существует: other_slot_labels
+        (см. _slots_using_field()) отбирает только те разделы, у которых
+        ЕСТЬ заполненный вариант с этим field_id в subtitle_fields, а
+        значит _render_slot_fields() уже создал под него
+        self.<_slot_placeholder_name(slot, field_id)> (см. её докстринг)."""
+        fields_panel = self._slot_widget(slot, "fields_panel")
+        if not fields_panel.isVisible():
+            fields_panel.setVisible(True)
+            chevron_attr = self._slot_config(slot, "chevron_attr")
+            chevron = getattr(self, chevron_attr, None)
+            if chevron is not None:
+                chevron.setPixmap(icons.render("chevron-down", "#8e8e93", 13))
+        widget = getattr(self, self._slot_placeholder_name(slot, field_id), None)
+        if widget is None:
+            return
+        self.mainAreaScrollArea.ensureWidgetVisible(widget, 24, 80)
+        # QFormLayout.labelForField() -- та же подпись, что addRow(row_label,
+        # widget) поставил в _render_slot_fields(), независимо от того,
+        # интерактивный ли это чип пользовательского варианта (QLabel[titleChip])
+        # или обычная подпись встроенного (Qt сам оборачивает переданную
+        # строку в QLabel) -- в обоих случаях labelForField() возвращает
+        # именно её, без отдельного словаря-реестра чипов.
+        fields_layout = self._slot_widget(slot, "fields_layout")
+        chip = fields_layout.labelForField(widget)
+        self._flash_field_widget(chip if chip is not None else widget)
+
+    def _flash_field_widget(self, widget):
+        """Кратковременная (900ms) приглушённая серая подсветка --
+        тот же приём, что и у _flash_tree_item()/_copy_chip() (динамическое
+        свойство + unpolish/polish, а не прямой setStyleSheet(): поле уже
+        стилизовано через CONSTRUCTOR_QSS, отдельный inline-стиль перебил
+        бы его целиком, а не только рамку/фон). Серый, не синий -- заметно
+        на тёмном фоне, но не так ярко, как акцентный #0a84ff, которым и
+        так пестрит остальной интерфейс (кнопки, чипы, фокус полей)."""
+        widget.setProperty("fieldFlash", True)
+        widget.style().unpolish(widget)
+        widget.style().polish(widget)
+        QTimer.singleShot(900, lambda w=widget: self._clear_field_flash(w))
+
+    def _clear_field_flash(self, widget):
+        try:
+            widget.setProperty("fieldFlash", False)
+            widget.style().unpolish(widget)
+            widget.style().polish(widget)
+        except RuntimeError:
+            pass  # поле могло быть удалено (набор плейсхолдеров изменился) раньше таймера -- не ошибка
 
     def _reopen_insert_menu(self, slot: str, pos):
         """Открывает меню «Вставить плейсхолдер» заново на месте pos --
