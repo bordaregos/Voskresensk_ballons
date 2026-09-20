@@ -6,7 +6,8 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QPlainTextEdit, QComboBo
                              QTreeWidgetItem, QInputDialog, QMenu, QListWidgetItem,
                              QDialog, QLineEdit, QVBoxLayout, QHBoxLayout, QDialogButtonBox,
                              QLabel, QWidget, QToolButton, QWidgetAction, QFormLayout,
-                             QListWidget, QListView, QFrame, QAbstractItemView, QSizePolicy)
+                             QListWidget, QListView, QFrame, QAbstractItemView, QSizePolicy,
+                             QScrollArea)
 from PyQt6.QtCore import QLocale, Qt, QDate, QPointF, QTimer, QSize, QMimeData, QSignalBlocker
 from PyQt6.QtGui import QPixmap, QIcon, QPainter, QColor, QPen, QGuiApplication, QDrag
 from PyQt6.uic import loadUi
@@ -24,7 +25,6 @@ import shutil
 import subprocess
 import html
 import math
-import tempfile
 import functools
 from types import SimpleNamespace
 
@@ -58,6 +58,7 @@ from ..services import workspace
 from ..services import custom_sections_store
 from . import icons
 from .open_with import open_with_prompt
+from .template_location import choose_template_save_path
 from .growable_placeholder_field import GrowablePlaceholderField
 from .formula_editor_dialog import FormulaEditorDialog
 from .table_editor_dialog import TableEditorDialog
@@ -572,15 +573,18 @@ class MainWindow(QMainWindow):
             self._ADD_VARIANT_DIALOG_TITLE = dict(self._ADD_VARIANT_DIALOG_TITLE)
             self.setStyleSheet(CONSTRUCTOR_QSS)
             self._dynamic_field_names = {slot: [] for slot in self._CONSTRUCTOR_SLOTS}
-            # (slot, variant_id) пар, для которых предпросмотр уже
-            # открывали хотя бы раз в текущем запуске приложения -- чисто в
-            # памяти, не персистится: сам предпросмотр рендерится во
-            # временный файл заново при каждом клике
-            # (_open_variant_preview()), а не хранится постоянно, так что
-            # флаг "документ уже есть", переживающий перезапуск приложения,
-            # указывал бы на файл, которого уже не существует. См.
-            # _build_preview_field().
-            self._preview_generated = set()
+            # (slot, variant_id) -> путь последнего сгенерированного .docx
+            # предпросмотра (лежит рядом с самим файлом шаблона, см.
+            # _open_variant_preview()) -- сам файл переживает перезапуск
+            # приложения (перезаписывается на месте, не в temp-каталоге),
+            # а вот эта карта -- нет: она только про то, открывали ли
+            # предпросмотр этого варианта в ТЕКУЩЕМ запуске (визуальное
+            # состояние поля, см. _build_preview_field()). Значение (не
+            # только сам факт наличия ключа) нужно кнопкам «Сохранить
+            # как»/«Показать в Finder» на поле предпросмотра
+            # (_reveal_preview()/_save_preview_as()), чтобы знать, какой
+            # именно файл открывать.
+            self._preview_generated = {}
 
             # Путь документа, чьё содержимое сейчас показано в правой
             # части «Базы документов» (см. _show_document_preview()) --
@@ -911,16 +915,19 @@ class MainWindow(QMainWindow):
                 if prefill:
                     widget.setPlainText(prefill)
 
-    def _used_in_other_slot(self, slot: str, field_id: str) -> bool:
-        """True, если field_id уже добавлен в реквизиты включённого блока
-        КАКОГО-ТО ДРУГОГО слота (см. _build_placeholder_menu()) -- статус
-        "уже вставлен" (✓, серым, некликабельно) в меню «Вставить
-        плейсхолдер» должен относиться ТОЛЬКО к текущему варианту текущего
-        слота (в отличие от общего каталога полей -- он один на все
-        слоты), иначе пользователь не смог бы вставить в этот слот
-        плейсхолдер, который уже стоит в другом. Использование в другом
-        слоте -- отдельная, не блокирующая пометка рядом со строкой (см.
-        вызывающую сторону)."""
+    def _slots_using_field(self, slot: str, field_id: str) -> list:
+        """Список display_label слотов (кроме slot), в реквизиты
+        включённого блока которых уже добавлен field_id (см.
+        _build_placeholder_menu()) -- статус "уже вставлен" (✓, серым,
+        некликабельно) в меню «Вставить плейсхолдер» должен относиться
+        ТОЛЬКО к текущему варианту текущего слота (в отличие от общего
+        каталога полей -- он один на все слоты), иначе пользователь не
+        смог бы вставить в этот слот плейсхолдер, который уже стоит в
+        другом. Использование в другом слоте -- отдельная, не блокирующая
+        пометка рядом со строкой (см. вызывающую сторону), с указанием
+        КОНКРЕТНОГО раздела (или нескольких), а не просто "в другом
+        шаблоне"."""
+        labels = []
         for other_slot in self._CONSTRUCTOR_SLOTS:
             if other_slot == slot:
                 continue
@@ -929,8 +936,8 @@ class MainWindow(QMainWindow):
                 continue
             other_variant = self._slot_store(other_slot).get_all_variants().get(other_variant_id)
             if other_variant is not None and field_id in other_variant.subtitle_fields:
-                return True
-        return False
+                labels.append(self._CONSTRUCTOR_SLOTS[other_slot]["display_label"])
+        return labels
 
     def _init_constructor_slot(self, slot: str):
         """Инициализация одного слота конструктора -- вызывается по разу
@@ -2250,6 +2257,21 @@ class MainWindow(QMainWindow):
         return functools.partial(generate_section_fragment, slot=slot)
 
     @staticmethod
+    def _variant_fragment_path(slot: str, variant) -> Path:
+        """Куда фактически сохранён/будет сохранён .docx-файл варианта --
+        выбранный оператором путь (variant.template_path), если он есть, иначе
+        фиксированный FRAGMENTS_DIR/{slot}_{id}.docx, как и раньше (см.
+        find_title_template()/find_intro_template()/find_appendix_template()/
+        find_section_template() в src/config.py -- та же логика приоритета,
+        этот хелпер её только дублирует для UI-кода, которому нужен путь ДО
+        того, как файл реально создан на диске)."""
+        from ..config import FRAGMENTS_DIR
+
+        if variant.template_path:
+            return Path(variant.template_path)
+        return FRAGMENTS_DIR / f"{slot}_{variant.id}.docx"
+
+    @staticmethod
     def _slot_builtin_variants(slot: str):
         from ..services.template_schema import APPENDIX_VARIANTS, INTRO_VARIANTS, TITLE_VARIANTS
         if slot == "title":
@@ -2456,7 +2478,12 @@ class MainWindow(QMainWindow):
         без файла, пока оператор вручную не запускал CLI (см.
         find_title_template() и historical note в src/config.py); теперь
         find_title_template()/find_intro_template() у нового варианта не
-        падает никогда."""
+        падает никогда. Заготовка молча ложится в FRAGMENTS_DIR -- без
+        диалога выбора места (было и сразу убрано: прерывало создание
+        варианта лишним вопросом при каждом «Добавить»). Перенести файл в
+        другое место можно потом, отдельным действием -- «Сохранить как»
+        на уже загруженной карточке (_save_variant_template_as(),
+        src/ui/template_location.py)."""
         dialog = QDialog(self)
         dialog_title = self._ADD_VARIANT_DIALOG_TITLE.get(slot) or f"Новый вариант: {self._CONSTRUCTOR_SLOTS[slot]['display_label']}"
         dialog.setWindowTitle(dialog_title)
@@ -3198,6 +3225,10 @@ class MainWindow(QMainWindow):
 
         toolbar = QHBoxLayout()
         insert_btn = QToolButton()
+        # objectName -- чтобы _reopen_insert_menu() мог найти именно эту
+        # (пере)созданную кнопку и её меню после удаления поля из каталога
+        # (см. её докстринг).
+        insert_btn.setObjectName(f"insertPlaceholderBtn_{slot}")
         insert_btn.setIcon(icons.icon("tag", "#c7c7cc", 13))
         insert_btn.setText(" Вставить плейсхолдер")
         insert_btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
@@ -3272,10 +3303,16 @@ class MainWindow(QMainWindow):
           для предпросмотра" (аналог пустого состояния карточки шаблона,
           _build_template_drop_hint());
         - хотя бы раз открывали -- обычный активный вид с подписью
-          "Открыть предпросмотр итогового документа". Клик работает
-          одинаково в обоих состояниях (в первый раз он же и генерирует
-          первый предпросмотр) -- разница чисто визуальная, подсказка "тут
-          появится результат" до первого клика."""
+          "Открыть предпросмотр итогового документа", плюс те же кнопки
+          «Сохранить как»/«Показать в Finder», что и на карточке загруженного
+          шаблона (_build_template_loaded_card()) -- файл предпросмотра
+          лежит рядом с самим шаблоном варианта (см. _open_variant_preview()),
+          эти кнопки дают перенести его в другое место или просто увидеть в
+          Finder, не открывая заново в Word (_save_preview_as()/
+          _reveal_preview()). Клик по самому полю работает одинаково в
+          обоих состояниях (в первый раз он же и генерирует первый
+          предпросмотр) -- разница чисто визуальная,
+          подсказка "тут появится результат" до первого клика."""
         already_generated = (slot, variant_id) in self._preview_generated
 
         field = QWidget()
@@ -3303,6 +3340,27 @@ class MainWindow(QMainWindow):
         text_label.setProperty("titlePreviewFieldActive", already_generated)
         text_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         layout.addWidget(text_label, stretch=1)
+
+        if already_generated:
+            # Обычные (не прозрачные для мыши) QPushButton -- собственный
+            # клик обрабатывается ими самими, до field.mousePressEvent не
+            # долетает, тот же приём, что и у reveal_btn/save_as_btn
+            # карточки шаблона (_build_template_loaded_card()).
+            save_as_btn = QPushButton()
+            save_as_btn.setIcon(icons.icon("download", "#8e8e93", 14))
+            save_as_btn.setFixedSize(22, 22)
+            save_as_btn.setFlat(True)
+            save_as_btn.setToolTip("Сохранить как -- сохранить файл предпросмотра в другое место")
+            save_as_btn.clicked.connect(functools.partial(self._save_preview_as, slot, variant_id))
+            layout.addWidget(save_as_btn)
+
+            reveal_btn = QPushButton()
+            reveal_btn.setIcon(icons.icon("files", "#8e8e93", 14))
+            reveal_btn.setFixedSize(22, 22)
+            reveal_btn.setFlat(True)
+            reveal_btn.setToolTip("Показать в Finder")
+            reveal_btn.clicked.connect(functools.partial(self._reveal_preview, slot, variant_id))
+            layout.addWidget(reveal_btn)
 
         return field
 
@@ -3383,6 +3441,20 @@ class MainWindow(QMainWindow):
         # выделенным файлом -- в дополнение к клику по самой карточке
         # (открывает файл В ПРИЛОЖЕНИИ, см. card.mousePressEvent выше), а
         # не вместо него.
+        # «Сохранить как» -- рядом с «Показать в Finder», по той же логике
+        # (своя кнопка, не пункт меню). В отличие от загрузки/перетаскивания
+        # (_install_variant_template(), молча копирует в уже резолвящееся
+        # место, без диалога -- см. её докстринг), это единственное место,
+        # где оператор ЯВНО решает перенести файл варианта в другую папку
+        # (_save_variant_template_as()).
+        save_as_btn = QPushButton()
+        save_as_btn.setIcon(icons.icon("download", "#8e8e93", 14))
+        save_as_btn.setFixedSize(22, 22)
+        save_as_btn.setFlat(True)
+        save_as_btn.setToolTip("Сохранить как -- перенести файл варианта в другую папку")
+        save_as_btn.clicked.connect(functools.partial(self._save_variant_template_as, slot, variant_id))
+        layout.addWidget(save_as_btn)
+
         reveal_btn = QPushButton()
         reveal_btn.setIcon(icons.icon("files", "#8e8e93", 14))
         reveal_btn.setFixedSize(22, 22)
@@ -3418,6 +3490,86 @@ class MainWindow(QMainWindow):
             return
         self._reveal_in_finder(template_path)
 
+    def _save_variant_template_as(self, slot: str, variant_id: str):
+        """«Сохранить как» на карточке загруженного шаблона -- единственное
+        место, где оператор ЯВНО переносит .docx-файл варианта в другую
+        папку (диалог choose_template_save_path(), src/ui/template_location.py,
+        стартует в последней использованной папке). В отличие от загрузки/
+        перетаскивания (_install_variant_template()) это не срабатывает
+        автоматически -- отдельное намеренное действие. Сохраняет выбранный
+        путь в variant.template_path -- дальше find_title_template()/
+        find_intro_template() (src/config.py) резолвят файл уже оттуда,
+        старая копия на прежнем месте не удаляется (тот же принцип, что и у
+        остального кода этой фичи -- см. _delete_variant(), файлы вариантов
+        никогда не удаляются с диска автоматически)."""
+        try:
+            current_path = self._find_slot_template(slot, variant_id)
+        except FileNotFoundError:
+            self.show_message(
+                "Нет файла шаблона",
+                "У этого варианта пока нет сгенерированного .docx-файла.",
+                QMessageBox.Icon.Warning,
+            )
+            return
+
+        target_path = choose_template_save_path(self, current_path.name)
+        if target_path is None:
+            return
+        current_path = current_path.resolve()
+        if target_path.resolve() == current_path:
+            return
+
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(current_path, target_path)
+
+        store = self._slot_store(slot)
+        variants = store.load_variants()
+        variant = next((v for v in variants if v.id == variant_id), None)
+        if variant is not None:
+            variant.template_path = str(target_path)
+            store.save_variants(variants)
+
+    def _reveal_preview(self, slot: str, variant_id: str):
+        """«Показать в Finder» на поле предпросмотра -- показывает
+        последний сгенерированный .docx предпросмотра (лежит рядом с
+        файлом шаблона, путь запоминается в self._preview_generated при
+        _open_variant_preview()), не открывая его повторно ни в
+        приложении, ни во внешнем редакторе -- та же логика, что и у
+        _reveal_variant_template() для файла самого варианта."""
+        preview_path = self._preview_generated.get((slot, variant_id))
+        if preview_path is None or not preview_path.exists():
+            self.show_message(
+                "Нет файла предпросмотра",
+                "Сначала откройте предпросмотр -- файл ещё не сгенерирован.",
+                QMessageBox.Icon.Warning,
+            )
+            return
+        self._reveal_in_finder(preview_path)
+
+    def _save_preview_as(self, slot: str, variant_id: str):
+        """«Сохранить как» на поле предпросмотра -- копирует последний
+        сгенерированный .docx предпросмотра (лежит рядом с самим файлом
+        шаблона, см. _open_variant_preview() -- перезаписывается там же
+        при следующем клике «Открыть предпросмотр») в постоянное место,
+        которое выбирает оператор -- тот же диалог, что и у карточки
+        шаблона (choose_template_save_path(), src/ui/template_location.py).
+        В отличие от _save_variant_template_as() НЕ трогает
+        variant.template_path -- предпросмотр не является шаблоном
+        варианта, это отдельный, уже отрендеренный со значениями документ."""
+        preview_path = self._preview_generated.get((slot, variant_id))
+        if preview_path is None or not preview_path.exists():
+            self.show_message(
+                "Нет файла предпросмотра",
+                "Сначала откройте предпросмотр -- файл ещё не сгенерирован.",
+                QMessageBox.Icon.Warning,
+            )
+            return
+        target_path = choose_template_save_path(self, preview_path.name)
+        if target_path is None:
+            return
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(preview_path, target_path)
+
     def _remove_variant_template(self, slot: str, variant_id: str):
         """Крестик на карточке загруженного шаблона -- отвязывает файл и
         возвращает панель в состояние "шаблон не загружен" (после
@@ -3426,12 +3578,14 @@ class MainWindow(QMainWindow):
         удаляется, а перегенерируется заново (generate_title_fragment()/
         generate_intro_fragment(), тот же вызов, что и при создании нового
         варианта) -- иначе find_title_template()/find_intro_template()
-        продолжал бы резолвить СТАРЫЙ файл на диске (путь фиксированный,
-        FRAGMENTS_DIR/{slot}_{id}.docx, не зависит от template_filename), и
-        «Открыть предпросмотр»/«Посмотреть шаблон»
-        показывали бы отвязанное по названию, но реально то же самое
-        содержимое -- вариант никогда не должен оставаться "осиротевшим"
-        (см. find_title_template()/find_intro_template() в src/config.py)."""
+        продолжал бы резолвить СТАРЫЙ файл на диске, и «Открыть
+        предпросмотр»/«Посмотреть шаблон» показывали бы отвязанное по
+        названию, но реально то же самое содержимое -- вариант никогда не
+        должен оставаться "осиротевшим" (см. find_title_template()/
+        find_intro_template() в src/config.py). Явный откат к управляемой
+        заготовке -- поэтому и путь, выбранный оператором (template_path),
+        тоже сбрасывается: заново сгенерированный файл всегда ложится в
+        FRAGMENTS_DIR/{slot}_{id}.docx, без диалога выбора места."""
         from ..config import FRAGMENTS_DIR
 
         store = self._slot_store(slot)
@@ -3450,6 +3604,7 @@ class MainWindow(QMainWindow):
             return
 
         variant.template_filename = ""
+        variant.template_path = ""
         store.save_variants(variants)
         self._slot_generate_fragment(slot)(variant, FRAGMENTS_DIR / f"{slot}_{variant_id}.docx")
         self._render_slot_fields(slot, variant_id)
@@ -3501,25 +3656,83 @@ class MainWindow(QMainWindow):
         enter/leaveEvent самого row; раз теперь ВСЕ строки такие, подсветка
         стала единообразной для всего меню (раньше, пока часть строк были
         обычными QAction, а часть -- QWidgetAction, подсвечивались
-        синим только первые)."""
+        синим только первые).
+
+        Сами строки лежат не по одной QWidgetAction на пункт меню
+        (было раньше), а ВСЕ вместе в одном QScrollArea, который и есть
+        единственная QWidgetAction меню. Каталог полей растёт (каждое «+
+        Новое поле» добавляет строку навсегда) и легко перерастает высоту
+        экрана -- тогда штатный QMenu сам переходит в режим прокрутки
+        (стрелочки вверху/внизу поповера), а этот режим не расчитан на
+        пункты с тяжёлыми виджетами (QHBoxLayout + QLabel + QPushButton в
+        каждой строке) -- на реальном каталоге в полсотни полей прокрутка
+        ощутимо подлагивала. QScrollArea прокручивает свой viewport
+        обычным Qt-механизмом (клиппинг + перерисовка только видимой
+        части) и с тем же набором строк не лагает вообще.
+
+        Строка поиска -- первым пунктом меню, ДО списка (не рядом с «+
+        Новое поле…» внизу -- фильтровать нужно то, что над ней, а не сам
+        добавляющий пункт). QLineEdit.textChanged просто скрывает
+        (setVisible(False)) строки, чей label не содержит введённый текст
+        (регистронезависимо) -- QVBoxLayout сам схлопывает место под
+        скрытыми виджетами, отдельного re-layout не требуется. Фокус в
+        поле сразу при открытии меню (aboutToShow) -- каталог уже вырос
+        до полусотни+ полей (см. выше), пользователю обычно быстрее
+        напечатать несколько букв, чем листать список глазами."""
         from ..services.title_variants_store import get_all_field_labels
 
-        menu = QMenu(self)
+        # Поля, уже используемые в ДРУГОМ разделе, идут первыми в списке --
+        # без этого они вперемешку с ещё не задействованными полями, и
+        # пользователь не видит с ходу, что часть каталога уже занята
+        # (sorted() -- стабильная сортировка, порядок внутри каждой из двух
+        # групп остаётся как в get_all_field_labels()).
+        rows = []
         for field_id, label in get_all_field_labels().items():
             already = field_id in field_ids
             # "Уже вставлен" -- строго про ТЕКУЩИЙ вариант этого слота (see
             # docstring), а не про общий каталог -- тот же field_id мог
             # быть отдельно вставлен и в другой слот, это не должно мешать
             # вставить его и сюда. Такое использование в другом слоте --
-            # не блокирующая, отдельная пометка (used_elsewhere), а не тот
-            # же статус "✓ уже вставлен".
-            used_elsewhere = not already and self._used_in_other_slot(slot, field_id)
+            # не блокирующая, отдельная пометка (other_slot_labels), а не
+            # тот же статус "✓ уже вставлен".
+            other_slot_labels = [] if already else self._slots_using_field(slot, field_id)
+            rows.append((field_id, label, already, other_slot_labels))
+        rows.sort(key=lambda row: 0 if row[3] else 1)
+
+        menu = QMenu(self)
+
+        search_edit = QLineEdit()
+        search_edit.setPlaceholderText("Поиск плейсхолдера…")
+        search_edit.setClearButtonEnabled(True)
+        search_edit.addAction(icons.icon("search", "#8e8e93", 13), QLineEdit.ActionPosition.LeadingPosition)
+        search_edit.setStyleSheet(
+            "QLineEdit { background: #1c1c1e; border: 0.5px solid #38383a; border-radius: 6px; "
+            "color: #e5e5e7; font-size: 12px; padding: 5px 8px; margin: 6px 8px; }"
+            "QLineEdit:focus { border-color: #0a84ff; }"
+        )
+        search_action = QWidgetAction(menu)
+        search_action.setDefaultWidget(search_edit)
+        menu.addAction(search_action)
+        menu.aboutToShow.connect(lambda: QTimer.singleShot(0, search_edit.setFocus))
+
+        list_container = QWidget()
+        list_container.setStyleSheet("background: #2c2c2e;")
+        list_layout = QVBoxLayout(list_container)
+        list_layout.setContentsMargins(0, 0, 0, 0)
+        list_layout.setSpacing(0)
+
+        # (виджет строки, label в нижнем регистре) -- используется ниже
+        # обработчиком search_edit.textChanged для фильтрации по подстроке.
+        searchable_rows = []
+        for field_id, label, already, other_slot_labels in rows:
+            used_elsewhere = bool(other_slot_labels)
             if already:
                 row_text = label + " ✓"
             elif used_elsewhere:
+                other_names = "«" + "», «".join(other_slot_labels) + "»"
                 row_text = (
                     f'{html.escape(label)} '
-                    '<span style="color:#5a5a5c; font-size:10.5px;">· уже в другом шаблоне</span>'
+                    f'<span style="color:#5a5a5c; font-size:10.5px;">· уже в {html.escape(other_names)}</span>'
                 )
             else:
                 row_text = label
@@ -3551,13 +3764,76 @@ class MainWindow(QMainWindow):
             delete_btn.setToolTip("Удалить поле из каталога")
             delete_btn.enterEvent = lambda event, b=delete_btn: b.setIcon(icons.icon("trash", "#ff453a", 12))
             delete_btn.leaveEvent = lambda event, b=delete_btn: b.setIcon(icons.icon("trash", "#8e8e93", 12))
-            delete_btn.clicked.connect(
-                functools.partial(self._delete_catalog_field, slot, variant_id, field_id, label)
-            )
+
+            def _delete_and_reopen(checked=False, fid=field_id, lbl=label, m=menu):
+                # m.pos() -- ПОКА меню ещё реально открыто (сам клик по
+                # корзинке пришёл из его же виджета), захватываем позицию
+                # ДО вызова _delete_catalog_field(): там QMessageBox.question()
+                # -- модальный, и уже само его появление молча закрывает
+                # открытый QMenu (стандартное поведение Qt-попапов -- любое
+                # другое окно, становясь активным, закрывает все открытые
+                # попапы). См. _reopen_insert_menu() -- он открывает меню
+                # заново на этом месте, что и даёт эффект "список не
+                # закрылся".
+                pos = m.pos()
+                self._delete_catalog_field(slot, variant_id, fid, lbl)
+                QTimer.singleShot(
+                    0, lambda: QTimer.singleShot(0, functools.partial(self._reopen_insert_menu, slot, pos))
+                )
+
+            delete_btn.clicked.connect(_delete_and_reopen)
             row_layout.addWidget(delete_btn)
-            widget_action = QWidgetAction(menu)
-            widget_action.setDefaultWidget(row)
-            menu.addAction(widget_action)
+            list_layout.addWidget(row)
+            searchable_rows.append((row, label.lower()))
+
+        # QScrollArea ниже -- setWidgetResizable(True), поэтому list_container
+        # растягивается минимум под высоту вьюпорта. Без завершающего
+        # stretch лишнее место (когда после фильтра видимых строк мало)
+        # распределялось бы QVBoxLayout между самими строками -- каждая
+        # растягивалась бы на всю оставшуюся высоту (видно по результату
+        # поиска: 2-3 строки вместо компактного списка занимали всю
+        # видимую область). Stretch забирает остаток на себя, строки
+        # остаются естественной высоты и прижаты к верху.
+        list_layout.addStretch(1)
+
+        def _filter_rows(text: str, entries=searchable_rows):
+            needle = text.strip().lower()
+            for row_widget, label_lower in entries:
+                row_widget.setVisible(not needle or needle in label_lower)
+
+        search_edit.textChanged.connect(_filter_rows)
+
+        scroll_area = QScrollArea()
+        scroll_area.setWidget(list_container)
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        # На macOS по умолчанию (системная настройка "показывать полосы
+        # прокрутки: при прокрутке") скроллбар оверлейный -- рисуется
+        # ПОВЕРХ содержимого, без выделенного места под него, из-за чего
+        # корзинки у правого края строк оказывались частично под ним.
+        # Собственный QSS для QScrollBar переключает Qt с нативной
+        # NSScrollView-полосы на обычную стилизованную -- та всегда
+        # занимает свою полосу пространства во viewport, содержимое
+        # подвинется, а не перекроется.
+        scroll_area.setStyleSheet(
+            "QScrollArea { background: #2c2c2e; border: none; }"
+            "QScrollBar:vertical { background: transparent; width: 10px; margin: 2px 1px; }"
+            "QScrollBar::handle:vertical { background: #48484a; border-radius: 5px; min-height: 24px; }"
+            "QScrollBar::handle:vertical:hover { background: #5a5a5c; }"
+            "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
+            "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }"
+        )
+        # QAbstractScrollArea.sizeHint() по умолчанию не связан с реальным
+        # содержимым viewport -- без явной ширины QMenu мог бы отвести под
+        # список меньше места, чем нужно самой длинной строке (особенно с
+        # припиской "· уже в «...»"), и она бы обрезалась/переносилась.
+        scroll_area.setMinimumWidth(list_container.sizeHint().width())
+        # 420px -- примерно 12 строк, дальше уже сам QScrollArea, не QMenu.
+        scroll_area.setMaximumHeight(420)
+        list_action = QWidgetAction(menu)
+        list_action.setDefaultWidget(scroll_area)
+        menu.addAction(list_action)
 
         menu.addSeparator()
         new_field_action = menu.addAction(icons.icon("plus", "#0a84ff", 13), "Новое поле…")
@@ -3565,6 +3841,29 @@ class MainWindow(QMainWindow):
             lambda checked=False: self._create_and_add_variant_field(slot, variant_id)
         )
         return menu
+
+    def _reopen_insert_menu(self, slot: str, pos):
+        """Открывает меню «Вставить плейсхолдер» заново на месте pos --
+        вызывается с задержкой после удаления поля через корзинку (см.
+        _delete_and_reopen() внутри _build_placeholder_menu()), чтобы
+        закрытие меню модальным QMessageBox.question() из
+        _delete_catalog_field() не выглядело для оператора так, будто
+        список закрылся -- иначе после каждого удаления пришлось бы заново
+        кликать «Вставить плейсхолдер», чтобы удалить следующее поле.
+
+        Кнопка ищется по имени (insertPlaceholderBtn_{slot}, см.
+        _build_placeholder_catalog()), а не берётся по ссылке, сохранённой
+        в замыкании -- если поле реально удалено, _render_slot_fields()
+        (тоже отложенная на singleShot(0, ...), см. _delete_catalog_field())
+        успевает перестроить fields_layout ДО этого вызова (двойной
+        singleShot(0, ...) у места вызова гарантирует порядок) и завести
+        СОВСЕМ ДРУГОЙ QToolButton с новым меню; при отмене удаления
+        (ответ "Нет") ничего не перестраивалось -- кнопка та же, что и
+        была, просто снова показываем то же самое меню."""
+        fields_panel = self._slot_widget(slot, "fields_panel")
+        btn = fields_panel.findChild(QToolButton, f"insertPlaceholderBtn_{slot}")
+        if btn is not None and btn.menu() is not None:
+            btn.menu().popup(pos)
 
     def _delete_catalog_field(self, slot: str, variant_id: str, field_id: str, label: str):
         """Корзина у поля в меню «Вставить плейсхолдер» -- удаляет поле из
@@ -3658,10 +3957,11 @@ class MainWindow(QMainWindow):
         если файла ещё нет (создан не был или удалён вручную с диска).
         НЕ вызывается безусловно -- иначе затирала бы ручную правку,
         сделанную пользователем в Word (см. generate_title_fragment()/
-        generate_intro_fragment())."""
-        from ..config import FRAGMENTS_DIR
-
-        fragment_path = FRAGMENTS_DIR / f"{slot}_{variant.id}.docx"
+        generate_intro_fragment()). Целевой путь -- тот же, что и при
+        обычной резолюции (_variant_fragment_path()): если у варианта
+        выбрано своё место хранения (template_path), перегенерирует именно
+        там, а не в FRAGMENTS_DIR."""
+        fragment_path = self._variant_fragment_path(slot, variant)
         if not fragment_path.exists():
             self._slot_generate_fragment(slot)(variant, fragment_path)
 
@@ -3867,8 +4167,8 @@ class MainWindow(QMainWindow):
         """«Загрузить шаблон Word» -- диалог выбора файла, пользователь
         указывает ЛЮБОЙ существующий .docx (например, уже готовый
         реальный отчёт), в который собирается вставлять плейсхолдеры.
-        Сама установка файла (копирование, подтверждение замены, запрос
-        приложения для редактирования) вынесена в
+        Сама привязка файла (без копирования -- см. _install_variant_template(),
+        подтверждение замены, запрос приложения для редактирования) вынесена в
         _install_variant_template() -- та же логика нужна и для
         перетаскивания .docx прямо на панель каталога плейсхолдеров (см.
         setAcceptDrops в _build_placeholder_catalog()), кнопка при этом
@@ -3881,45 +4181,45 @@ class MainWindow(QMainWindow):
         self._install_variant_template(slot, variant_id, Path(file_path))
 
     def _install_variant_template(self, slot: str, variant_id: str, source_path: Path):
-        """Общая часть установки .docx как шаблона варианта -- копирует
-        файл в FRAGMENTS_DIR под именем, которое find_title_template()/
-        find_intro_template() и так ожидает для этого варианта
-        ({slot}_{id}.docx) -- дальше рендер при сборке документа
-        (_calculate_constructor()) смотрит в ту же точку без отдельного
-        шага "привязать файл к варианту". open_with_prompt() затем
-        спрашивает, каким приложением редактировать (см.
-        src/ui/open_with.py). Исходное имя файла запоминается в
-        variant.template_filename и показывается над каталогом
-        плейсхолдеров (_build_placeholder_catalog()) -- чтобы было видно, с
-        каким документом сейчас идёт работа. Сохранение и выход из
-        редактора после правок -- дело пользователя, приложение это не
-        отслеживает (см. «Открыть предпросмотр», _open_variant_preview())."""
-        from ..config import FRAGMENTS_DIR
-
+        """Общая часть установки .docx как шаблона варианта -- БЕЗ копии:
+        variant.template_path указывает прямо на выбранный файл, в том
+        месте и под тем именем, где он реально лежит у пользователя (см.
+        обсуждение задачи -- копия в FRAGMENTS_DIR под переименованным
+        title_{id}.docx путала пользователя: «Показать в Finder»/открытие
+        в Word показывали не тот файл, что он выбрал). Дальше рендер при
+        сборке документа (_calculate_constructor()) и «Показать в
+        Finder»/«Открыть предпросмотр» резолвят СТРОГО тот же путь
+        (find_title_template()/find_intro_template(), см. src/config.py).
+        open_with_prompt() затем спрашивает, каким приложением
+        редактировать (см. src/ui/open_with.py) -- открывает и правит
+        ИМЕННО этот файл, а не его копию: если это уже готовый реальный
+        документ пользователя, правки в Word сразу применяются к нему.
+        Явная копия на новое место -- отдельное, осознанное действие
+        («Сохранить как», _save_variant_template_as())."""
         store = self._slot_store(slot)
-        target_path = FRAGMENTS_DIR / f"{slot}_{variant_id}.docx"
+        variants = store.load_variants()
+        variant = next((v for v in variants if v.id == variant_id), None)
+        if variant is None:
+            return
+
         source_path = source_path.resolve()
-        if target_path.exists() and source_path != target_path.resolve():
+        current_path = self._variant_fragment_path(slot, variant)
+        if variant.template_filename and current_path.exists() and current_path.resolve() != source_path:
             confirm = QMessageBox.question(
-                self, "Заменить шаблон варианта?",
-                f"У варианта уже есть загруженный шаблон ({target_path.name}). Заменить его выбранным "
-                "файлом?\n\nТекущее содержимое, включая любые правки, сделанные в Word, будет потеряно.",
+                self, "Привязать другой файл варианта?",
+                f"У варианта уже привязан файл ({current_path.name}). Привязать вместо него выбранный "
+                "файл?\n\nПрежний файл на диске не изменится и не удалится -- просто перестанет "
+                "использоваться этим вариантом.",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
             )
             if confirm != QMessageBox.StandardButton.Yes:
                 return
 
-        target_path.parent.mkdir(parents=True, exist_ok=True)
-        if source_path != target_path.resolve():
-            shutil.copyfile(source_path, target_path)
+        variant.template_filename = source_path.name
+        variant.template_path = str(source_path)
+        store.save_variants(variants)
 
-        variants = store.load_variants()
-        variant = next((v for v in variants if v.id == variant_id), None)
-        if variant is not None:
-            variant.template_filename = source_path.name
-            store.save_variants(variants)
-
-        open_with_prompt(target_path, self)
+        open_with_prompt(source_path, self)
         self._render_slot_fields(slot, variant_id)
 
     @staticmethod
@@ -4006,14 +4306,21 @@ class MainWindow(QMainWindow):
         (find_title_template()/find_intro_template(), тот же файл, что
         правится в Word через «Загрузить шаблон Word») с уже введёнными в
         форму значениями -- тот же get_form_data()/DocxTemplate.render(),
-        что и «Собрать документ» (_calculate_constructor()) -- во временный
-        файл и открывает его. В отличие от самого файла варианта (там
-        буквально "{{ field }}"), тут плейсхолдеры уже подставлены
-        реальными значениями -- посмотреть, как будет выглядеть готовый
-        документ, не собирая его окончательно. Рендерится в новый временный
-        каталог при каждом вызове (не поверх предыдущего файла) -- если
-        предыдущий предпросмотр всё ещё открыт в Word/Pages, тот держит
-        файл заблокированным, перезапись бы упала с ошибкой доступа.
+        что и «Собрать документ» (_calculate_constructor()). В отличие от
+        самого файла варианта (там буквально "{{ field }}"), тут
+        плейсхолдеры уже подставлены реальными значениями -- посмотреть,
+        как будет выглядеть готовый документ, не собирая его окончательно.
+
+        Сохраняется РЯДОМ с самим файлом шаблона (template_path.parent),
+        под понятным именем "<имя шаблона>_предпросмотр.docx" -- та же
+        причина, что и у отказа от копии в FRAGMENTS_DIR для самого
+        шаблона (см. _install_variant_template()): раньше рендерился в
+        новый tempfile.mkdtemp() при каждом клике, и «Показать в
+        Finder» открывал случайную папку вроде "title_preview_k_c4ewb2" --
+        непонятно и негде искать повторно. Один и тот же путь на каждый
+        клик означает перезапись поверх предыдущего предпросмотра -- если
+        файл всё ещё открыт в Word/Pages, tpl.save() упадёт с ошибкой
+        доступа, отловлено ниже отдельно, а не падает необработанным.
 
         _splice_table_placeholders() -- ОБЯЗАТЕЛЬНО после render(), до
         save(): табличные поля (field_tables) рендерятся в маркер (см.
@@ -4030,13 +4337,31 @@ class MainWindow(QMainWindow):
             )
             return
 
-        tpl = DocxTemplate(template_path)
-        tpl.render(self.get_form_data())
-        self._splice_table_placeholders(tpl.docx)
+        try:
+            tpl = DocxTemplate(template_path)
+            tpl.render(self.get_form_data())
+            self._splice_table_placeholders(tpl.docx)
+        except Exception as e:
+            self.show_message(
+                "Не удалось открыть шаблон",
+                f"Файл {template_path.name} повреждён или не является корректным .docx "
+                f"(например, в нём есть ссылка на картинку, которой физически нет в архиве) -- "
+                f"откройте его в Word и пересохраните.\n\nОшибка: {e}",
+                QMessageBox.Icon.Critical,
+            )
+            return
 
-        preview_dir = Path(tempfile.mkdtemp(prefix=f"{slot}_preview_"))
-        preview_path = preview_dir / f"предпросмотр_{variant_id}.docx"
-        tpl.save(str(preview_path))
+        preview_path = template_path.with_name(f"{template_path.stem}_предпросмотр{template_path.suffix}")
+        try:
+            tpl.save(str(preview_path))
+        except OSError:
+            self.show_message(
+                "Не удалось сохранить предпросмотр",
+                f"Файл {preview_path.name} сейчас открыт в другой программе -- закройте его и "
+                "попробуйте снова.",
+                QMessageBox.Icon.Warning,
+            )
+            return
         open_with_prompt(preview_path, self)
 
         # Поле «Открыть предпросмотр итогового документа»
@@ -4057,7 +4382,7 @@ class MainWindow(QMainWindow):
         # же класс проблемы, что уже решён похожим приёмом в
         # _on_block_dropped()/_process_block_drop() (там -- по другой
         # причине, но тот же instrument: отложить на следующий тик).
-        self._preview_generated.add((slot, variant_id))
+        self._preview_generated[(slot, variant_id)] = preview_path
         QTimer.singleShot(0, functools.partial(self._render_slot_fields, slot, variant_id))
 
     def _open_variant_raw_file(self, slot: str, variant_id: str):

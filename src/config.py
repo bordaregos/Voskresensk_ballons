@@ -59,6 +59,12 @@ CUSTOM_SECTION_VARIANTS_FILE = DATA_DIR / "custom_section_variants.json"
 # открывает тем же приложением без повторного диалога выбора.
 PREFERRED_EDITOR_FILE = DATA_DIR / "preferred_editor.json"
 
+# Папка, в которой пользователь в последний раз сохранил .docx-заготовку
+# варианта конструктора документов через диалог «Сохранить как» (см.
+# src/ui/template_location.py) -- тот же приём, что и PREFERRED_EDITOR_FILE:
+# запоминается один раз, дальше диалог сохранения стартует в этой же папке.
+PREFERRED_TEMPLATE_DIR_FILE = DATA_DIR / "preferred_template_dir.json"
+
 # Схемы НК (Приложение 7, трубопровод) — привязаны к конкретному отчёту
 # (хранятся в report_data проекта как имя файла), но физически лежат в
 # общей папке data/, как и клише — см. store_kleishe_image().
@@ -175,9 +181,18 @@ def find_title_template(variant_id: str):
     from .services.title_variants_store import load_title_variants
 
     is_builtin = variant_id in TITLE_VARIANTS
-    is_custom = any(v.id == variant_id for v in load_title_variants())
-    if not is_builtin and not is_custom:
+    custom_variant = next((v for v in load_title_variants() if v.id == variant_id), None)
+    if not is_builtin and custom_variant is None:
         raise ValueError(f"Неизвестный вариант титульного листа: {variant_id}")
+
+    if custom_variant is not None and custom_variant.template_path:
+        custom_path = Path(custom_variant.template_path)
+        if custom_path.exists():
+            return custom_path
+        raise FileNotFoundError(
+            f"Не найден шаблон титульного листа «{variant_id}» по выбранному пути "
+            f"{custom_path} -- похоже, файл переместили или удалили."
+        )
 
     path = FRAGMENTS_DIR / f"title_{variant_id}.docx"
     if path.exists():
@@ -204,9 +219,18 @@ def find_intro_template(variant_id: str):
     from .services.intro_variants_store import load_intro_variants
 
     is_builtin = variant_id in INTRO_VARIANTS
-    is_custom = any(v.id == variant_id for v in load_intro_variants())
-    if not is_builtin and not is_custom:
+    custom_variant = next((v for v in load_intro_variants() if v.id == variant_id), None)
+    if not is_builtin and custom_variant is None:
         raise ValueError(f"Неизвестный вариант вводной части: {variant_id}")
+
+    if custom_variant is not None and custom_variant.template_path:
+        custom_path = Path(custom_variant.template_path)
+        if custom_path.exists():
+            return custom_path
+        raise FileNotFoundError(
+            f"Не найден шаблон вводной части «{variant_id}» по выбранному пути "
+            f"{custom_path} -- похоже, файл переместили или удалили."
+        )
 
     path = FRAGMENTS_DIR / f"intro_{variant_id}.docx"
     if path.exists():
@@ -233,9 +257,18 @@ def find_appendix_template(variant_id: str):
     from .services.appendix_variants_store import load_appendix_variants
 
     is_builtin = variant_id in APPENDIX_VARIANTS
-    is_custom = any(v.id == variant_id for v in load_appendix_variants())
-    if not is_builtin and not is_custom:
+    custom_variant = next((v for v in load_appendix_variants() if v.id == variant_id), None)
+    if not is_builtin and custom_variant is None:
         raise ValueError(f"Неизвестный вариант приложения 1: {variant_id}")
+
+    if custom_variant is not None and custom_variant.template_path:
+        custom_path = Path(custom_variant.template_path)
+        if custom_path.exists():
+            return custom_path
+        raise FileNotFoundError(
+            f"Не найден шаблон приложения 1 «{variant_id}» по выбранному пути "
+            f"{custom_path} -- похоже, файл переместили или удалили."
+        )
 
     path = FRAGMENTS_DIR / f"appendix1_{variant_id}.docx"
     if path.exists():
@@ -264,9 +297,20 @@ def find_section_template(slot: str, variant_id: str):
     APPENDIX_VARIANTS сейчас тоже пустые (см. их комментарии)."""
     from .services import custom_section_variants_store
 
-    is_custom = any(v.id == variant_id for v in custom_section_variants_store.load_variants(slot))
-    if not is_custom:
+    custom_variant = next(
+        (v for v in custom_section_variants_store.load_variants(slot) if v.id == variant_id), None
+    )
+    if custom_variant is None:
         raise ValueError(f"Неизвестный вариант раздела «{slot}»: {variant_id}")
+
+    if custom_variant.template_path:
+        custom_path = Path(custom_variant.template_path)
+        if custom_path.exists():
+            return custom_path
+        raise FileNotFoundError(
+            f"Не найден шаблон раздела «{slot}» варианта «{variant_id}» по выбранному пути "
+            f"{custom_path} -- похоже, файл переместили или удалили."
+        )
 
     path = FRAGMENTS_DIR / f"{slot}_{variant_id}.docx"
     if path.exists():
