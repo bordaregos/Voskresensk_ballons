@@ -91,6 +91,10 @@ class EmployeesTabController:
         self._current_id = employee.id
         self.mw.employee_position.setPlainText(employee.position)
         self.mw.employee_fio.setPlainText(employee.full_name)
+        # employee_qualification -- только в constructor_window.ui (см.
+        # Employee.qualification), у трубопровода этого виджета нет.
+        if hasattr(self.mw, "employee_qualification"):
+            self.mw.employee_qualification.setPlainText(employee.qualification)
 
         self.mw.employee_certificates_list.clear()
         for certificate in employee.certificates:
@@ -106,6 +110,8 @@ class EmployeesTabController:
         self._current_id = None
         self.mw.employee_position.setPlainText("")
         self.mw.employee_fio.setPlainText("")
+        if hasattr(self.mw, "employee_qualification"):
+            self.mw.employee_qualification.setPlainText("")
         self.mw.employee_certificates_list.clear()
         self.mw.employee_certificate_input.setPlainText("")
         self._set_kleishe_preview(None)
@@ -172,12 +178,17 @@ class EmployeesTabController:
             self.mw.employee_certificates_list.item(i).text()
             for i in range(self.mw.employee_certificates_list.count())
         ]
+        qualification = (
+            self.mw.employee_qualification.toPlainText().strip()
+            if hasattr(self.mw, "employee_qualification") else ""
+        )
 
         if self._current_id is None:
             employee = Employee(
                 id=uuid4().hex[:8],
                 position=position,
                 full_name=full_name,
+                qualification=qualification,
                 certificates=certificates,
                 kleishe_filename=self._current_kleishe_filename,
             )
@@ -188,6 +199,7 @@ class EmployeesTabController:
                 if existing.id == self._current_id:
                     existing.position = position
                     existing.full_name = full_name
+                    existing.qualification = qualification
                     existing.certificates = certificates
                     existing.kleishe_filename = self._current_kleishe_filename
                     break
