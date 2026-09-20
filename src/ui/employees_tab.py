@@ -10,13 +10,14 @@ _specialist_kleishe_image() -- специалистов отчёта выбир�
 from pathlib import Path
 from uuid import uuid4
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QSize, Qt
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (
     QAbstractItemView, QFileDialog, QHBoxLayout, QHeaderView, QLabel, QListWidgetItem,
-    QMessageBox, QTableWidgetItem, QVBoxLayout, QWidget,
+    QMessageBox, QPushButton, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
+from . import icons
 from ..config import KLEISHE_DIR
 from ..models.employee import Employee
 from ..services.employees_store import load_employees, save_employees, store_kleishe_image
@@ -42,6 +43,29 @@ class EmployeesTabController:
         self.mw.pushButt_chooseKleishe.clicked.connect(self._choose_kleishe)
         self.mw.pushButt_clearKleishe.clicked.connect(self._clear_kleishe)
         self.mw.pushButt_saveEmployee.clicked.connect(self._save_employee)
+
+        # Удостоверение -- одна строка на запись (домен: "№ 0039-33918 от
+        # 20.12.2024 г."), но employee_certificate_input -- QPlainTextEdit
+        # (та же стилизация, что у остальных полей формы), а не QLineEdit,
+        # поэтому по умолчанию Enter вставляет перевод строки вместо
+        # отправки записи (расхождение с docs/design/
+        # сотрудники_конструктор.html, #certInput onkeydown). Подменяем
+        # keyPressEvent конкретного экземпляра -- в .ui это обычный
+        # QPlainTextEdit без promoted-подкласса, менять там нечего.
+        # Shift+Enter по-прежнему вставляет перевод строки (на случай, если
+        # он всё же понадобится).
+        input_widget = self.mw.employee_certificate_input
+        default_key_press = input_widget.keyPressEvent
+
+        def _certificate_input_key_press(event, _default=default_key_press):
+            plain_enter = event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter)
+            if plain_enter and not (event.modifiers() & Qt.KeyboardModifier.ShiftModifier):
+                self._add_certificate()
+                event.accept()
+                return
+            _default(event)
+
+        input_widget.keyPressEvent = _certificate_input_key_press
 
         self._refresh_table()
         self._clear_form()
@@ -87,7 +111,10 @@ class EmployeesTabController:
         self._set_kleishe_preview(None)
 
     def _add_certificate(self):
-        text = self.mw.employee_certificate_input.toPlainText().strip()
+        # " ".join(...split()) вместо .strip() -- схлопывает и внутренние
+        # переводы строк/пробелы тоже (например, из вставки многострочного
+        # текста), не только по краям: удостоверение -- одна строка записи.
+        text = " ".join(self.mw.employee_certificate_input.toPlainText().split())
         if not text:
             return
         self.mw.employee_certificates_list.addItem(QListWidgetItem(text))
@@ -215,6 +242,14 @@ class ConstructorEmployeesTabController(EmployeesTabController):
         table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         super().__init__(main_window)
         main_window.employeeSearchBox.textChanged.connect(self.filter_employees)
+        # В мокапе (docs/design/сотрудники_конструктор.html) удаление
+        # удостоверения -- крестик у самой строки (_wrap_certificate_item()
+        # ниже), отдельной кнопки нет. Сама pushButt_removeCertificate не
+        # удалена из .ui и остаётся подключена к _remove_certificate() --
+        # EmployeesTabController.__init__ коннектит её безусловно, а
+        # трубопровод (EmployeesTabController напрямую) по-прежнему
+        # показывает её как есть.
+        main_window.pushButt_removeCertificate.setVisible(False)
 
     def _refresh_table(self):
         table = self.mw.table_employees
@@ -247,15 +282,100 @@ class ConstructorEmployeesTabController(EmployeesTabController):
 
         return card
 
+    # Потолок высоты employee_certificates_list (px) -- дальше появляется
+    # внутренняя прокрутка вместо разрастания на всю оставшуюся площадь
+    # панели (см. _sync_certificates_list_height()).
+    CERT_LIST_MAX_HEIGHT = 150
+    CERT_ROW_HEIGHT = 30
+
     def _load_employee_into_form(self, employee: Employee):
         super()._load_employee_into_form(employee)
+        self._wrap_all_certificate_items()
         self.mw.employeeCrumbLabel.setText(f"Сотрудники / {employee.full_name}")
         self.mw.pushButt_deleteEmployee.setVisible(True)
 
     def _clear_form(self):
         super()._clear_form()
+        self._sync_certificates_list_height()
         self.mw.employeeCrumbLabel.setText("Сотрудники / Новый сотрудник")
         self.mw.pushButt_deleteEmployee.setVisible(False)
+
+    def _add_certificate(self):
+        """Как EmployeesTabController._add_certificate(), плюс построчный
+        крестик удаления на добавленном элементе (см. _wrap_certificate_item())."""
+        list_widget = self.mw.employee_certificates_list
+        count_before = list_widget.count()
+        super()._add_certificate()
+        if list_widget.count() > count_before:
+            self._wrap_certificate_item(list_widget.item(count_before))
+            self._sync_certificates_list_height()
+
+    def _wrap_all_certificate_items(self):
+        list_widget = self.mw.employee_certificates_list
+        for row in range(list_widget.count()):
+            self._wrap_certificate_item(list_widget.item(row))
+        self._sync_certificates_list_height()
+
+    def _sync_certificates_list_height(self):
+        """Высота списка -- под фактическое число строк (компактно, как
+        .cert-list в docs/design/сотрудники_конструктор.html), а не под
+        Preferred/Maximum-потолок из .ui сразу: тот декларирует лишь верхнюю
+        границу, реальная высота считается здесь на каждое изменение
+        списка (загрузка карточки, добавление/удаление удостоверения)."""
+        list_widget = self.mw.employee_certificates_list
+        height = max(list_widget.count(), 1) * self.CERT_ROW_HEIGHT + 6
+        list_widget.setMaximumHeight(min(height, self.CERT_LIST_MAX_HEIGHT))
+
+    def _remove_certificate_row(self, item: QListWidgetItem):
+        list_widget = self.mw.employee_certificates_list
+        list_widget.takeItem(list_widget.row(item))
+        self._sync_certificates_list_height()
+
+    def _wrap_certificate_item(self, item: QListWidgetItem):
+        """Подменяет стандартный текстовый рендер QListWidgetItem компактной
+        строкой с крестиком удаления -- docs/design/сотрудники_конструктор.html,
+        .cert-row + .remove-btn. Строка одна на удостоверение (CERT_ROW_HEIGHT
+        в _sync_certificates_list_height() это предполагает), поэтому
+        встроенные переводы строк схлопываются -- на новые записи их уже не
+        пропускает _add_certificate(), но для удостоверений, сохранённых до
+        этой правки (или основного EmployeesTabController.employee_certificate_input,
+        общего с трубопроводом), это чинит отображение и сам item.text() тут
+        же, при открытии карточки. _save_employee() (базовый, не переопределён,
+        читает список через item(i).text()) от этого не страдает -- сохранит
+        уже нормализованный текст."""
+        list_widget = self.mw.employee_certificates_list
+
+        normalized_text = " ".join(item.text().split())
+        if normalized_text != item.text():
+            item.setText(normalized_text)
+
+        row = QWidget()
+        # setItemWidget() накладывает row поверх ячейки как дочерний
+        # виджет, а не заменяет отрисовку -- у прозрачного QWidget без
+        # своего фона сквозь него всё равно видно исходный item.text(),
+        # нарисованный делегатом списка ПОД ним (двоящийся текст). objectName
+        # + непрозрачный фон в CONSTRUCTOR_QSS (см. QWidget#certRow) это
+        # перекрывает.
+        row.setObjectName("certRow")
+        layout = QHBoxLayout(row)
+        layout.setContentsMargins(10, 0, 6, 0)
+        layout.setSpacing(8)
+
+        label = QLabel(normalized_text)
+        label.setObjectName("certRowLabel")
+        layout.addWidget(label, 1)
+
+        remove_btn = QPushButton()
+        remove_btn.setObjectName("certRowRemoveBtn")
+        remove_btn.setIcon(icons.icon("x", "#8e8e93", 12))
+        remove_btn.setIconSize(QSize(12, 12))
+        remove_btn.setFixedSize(20, 20)
+        remove_btn.setToolTip("Удалить")
+        remove_btn.clicked.connect(lambda: self._remove_certificate_row(item))
+        layout.addWidget(remove_btn)
+
+        item.setSizeHint(QSize(0, 30))
+        list_widget.setItemWidget(item, row)
 
     def filter_employees(self, text: str):
         """Живой поиск по сайдбару (employeeSearchBox) -- прячет строки
