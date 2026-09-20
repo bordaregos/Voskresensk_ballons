@@ -667,9 +667,15 @@
                      <widget class="QLabel" name="label_employee_position"><property name="text"><string>Должность</string></property></widget>
                     </item>
                     <item row="0" column="1">
+                     <!-- Высота 32, не 27: при font-size 12px + padding
+                          5px/5px (CONSTRUCTOR_QSS), плюс собственный document
+                          margin QPlainTextEdit (4px сверху/снизу поверх
+                          padding), 27px не хватало на нижние выносные
+                          элементы кириллицы ("у", "р", "д"), обрезались,
+                          "уровня" читалось как "vровня". -->
                      <widget class="QPlainTextEdit" name="employee_position">
-                      <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
-                      <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+                      <property name="minimumSize"><size><width>0</width><height>32</height></size></property>
+                      <property name="maximumSize"><size><width>16777215</width><height>32</height></size></property>
                      </widget>
                     </item>
                     <item row="1" column="0">
@@ -677,8 +683,8 @@
                     </item>
                     <item row="1" column="1">
                      <widget class="QPlainTextEdit" name="employee_fio">
-                      <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
-                      <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+                      <property name="minimumSize"><size><width>0</width><height>32</height></size></property>
+                      <property name="maximumSize"><size><width>16777215</width><height>32</height></size></property>
                      </widget>
                     </item>
                    </layout>
@@ -686,16 +692,46 @@
                   <item>
                    <widget class="QLabel" name="employeeSectionLabel_certs"><property name="text"><string>Удостоверения</string></property></widget>
                   </item>
-                  <item><widget class="QListWidget" name="employee_certificates_list"/></item>
+                  <!-- maximumSize по высоте + sizePolicy Maximum, без этого
+                       QListWidget по умолчанию Expanding и забирает себе всё
+                       свободное место в employeesScrollContentLayout,
+                       раздувая список до пустого блока в полэкрана при 1-2
+                       удостоверениях (расхождение со docs/design/
+                       сотрудники_конструктор.html, где .cert-list компактный,
+                       под высоту содержимого). Лишнее место теперь достаётся
+                       employeesContentSpacer внизу, как в мокапе. -->
+                  <item>
+                   <widget class="QListWidget" name="employee_certificates_list">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
+                      <horstretch>0</horstretch><verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                    <property name="maximumSize"><size><width>16777215</width><height>150</height></size></property>
+                   </widget>
+                  </item>
                   <item>
                    <layout class="QHBoxLayout" name="employee_certificate_input_layout">
                     <item>
+                     <!-- 32, не 27, см. employee_position/employee_fio
+                          выше (обрезка нижних выносных элементов шрифта). -->
                      <widget class="QPlainTextEdit" name="employee_certificate_input">
-                      <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
-                      <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+                      <property name="minimumSize"><size><width>0</width><height>32</height></size></property>
+                      <property name="maximumSize"><size><width>16777215</width><height>32</height></size></property>
                      </widget>
                     </item>
-                    <item><widget class="QPushButton" name="pushButt_addCertificate"><property name="text"><string>+ Добавить</string></property></widget></item>
+                    <!-- Текст задаётся в Designer как fallback, иконка
+                         "plus" (квадратная кнопка, см. docs/design/
+                         сотрудники_конструктор.html #certInput + .btn-square)
+                         выставляется поверх в main_window.py, как и у
+                         pushButt_newEmployee. -->
+                    <item><widget class="QPushButton" name="pushButt_addCertificate"><property name="maximumSize"><size><width>29</width><height>32</height></size></property><property name="text"><string></string></property><property name="toolTip"><string>Добавить удостоверение</string></property></widget></item>
+                    <!-- Скрывается в конструкторе (ConstructorEmployeesTabController.
+                         __init__): в мокапе удаление построчное (крестик у
+                         каждой записи), отдельной кнопки нет. Виджет не
+                         удалён из .ui, т.к. EmployeesTabController.__init__
+                         (базовый, общий с трубопроводом) безусловно
+                         коннектит pushButt_removeCertificate.clicked. -->
                     <item><widget class="QPushButton" name="pushButt_removeCertificate"><property name="text"><string>− Удалить</string></property></widget></item>
                    </layout>
                   </item>

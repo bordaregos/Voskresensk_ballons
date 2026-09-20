@@ -366,12 +366,30 @@ QWidget#employeesMainArea QListWidget {
     color: #e5e5e7; font-size: 12px;
 }
 QWidget#employeesMainArea QListWidget::item:selected { background: rgba(10, 132, 255, 60); color: #e5e5e7; }
+/* Строка удостоверения с крестиком построчного удаления (см.
+   ConstructorEmployeesTabController._wrap_certificate_item()) --
+   .cert-row/.remove-btn в docs/design/сотрудники_конструктор.html. Фон
+   непрозрачный -- setItemWidget() кладёт этот QWidget поверх ячейки, не
+   заменяя отрисовку item.text() делегатом списка под ним; без своего
+   фона исходный текст просвечивал бы (двоился с QLabel сверху). */
+QWidget#certRow { background: #232325; border-bottom: 0.5px solid #2c2c2e; }
+QLabel#certRowLabel { background: transparent; color: #e5e5e7; font-size: 12px; }
+QPushButton#certRowRemoveBtn {
+    background: transparent; border: none; border-radius: 5px; color: #8e8e93; padding: 0;
+}
+QPushButton#certRowRemoveBtn:hover { background: #3a3a3c; color: #e5e5e7; }
 QWidget#employeesBottomBar { border-top: 0.5px solid #2c2c2e; }
 QWidget#employeesMainArea QPushButton {
     background: #2c2c2e; border: 0.5px solid #38383a; border-radius: 6px;
     color: #e5e5e7; font-size: 12px; padding: 6px 12px;
 }
 QWidget#employeesMainArea QPushButton:hover { background: #3a3a3c; }
+/* Квадратная icon-only кнопка «+ Добавить» удостоверение (.btn-square в
+   мокапе) -- переопределяет padding/цвет общего правила выше. */
+QWidget#employeesMainArea QPushButton#pushButt_addCertificate {
+    background: #2c2c2e; border: 0.5px solid #38383a; border-radius: 6px; padding: 0;
+}
+QWidget#employeesMainArea QPushButton#pushButt_addCertificate:hover { background: #3a3a3c; }
 QWidget#employeesMainArea QPushButton#pushButt_saveEmployee {
     background: #0a84ff; border: none; color: #fff; font-weight: 500;
 }
@@ -724,6 +742,12 @@ class MainWindow(QMainWindow):
             self.employees_tab = ConstructorEmployeesTabController(self)
             self.pushButt_newEmployee.setIcon(icons.icon("plus", "#8e8e93", 13))
             self.pushButt_newEmployee.setIconSize(QSize(13, 13))
+            # Квадратная icon-only кнопка добавления удостоверения (docs/design/
+            # сотрудники_конструктор.html, .cert-add-row .btn-square) --
+            # "− Удалить" рядом с ней скрыта в ConstructorEmployeesTabController.
+            # __init__ (построчное удаление крестиком вместо неё, см. там же).
+            self.pushButt_addCertificate.setIcon(icons.icon("plus", "#8e8e93", 13))
+            self.pushButt_addCertificate.setIconSize(QSize(13, 13))
             for label_name in (
                 "employeeSectionLabel_data", "employeeSectionLabel_certs", "employeeSectionLabel_kleishe",
             ):
