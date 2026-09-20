@@ -13,7 +13,8 @@ from uuid import uuid4
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (
-    QAbstractItemView, QFileDialog, QListWidgetItem, QMessageBox, QTableWidgetItem,
+    QAbstractItemView, QFileDialog, QHBoxLayout, QHeaderView, QLabel, QListWidgetItem,
+    QMessageBox, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
 from ..config import KLEISHE_DIR
@@ -181,3 +182,91 @@ class EmployeesTabController:
             if employee.id == employee_id:
                 self.mw.table_employees.selectRow(row)
                 return
+
+
+def _employee_initials(full_name: str) -> str:
+    """Инициалы для аватара-кружка в карточке (docs/design/
+    сотрудники_конструктор.html, initials()) -- первые буквы первых двух
+    "слов" ФИО, в верхнем регистре. Терпимо к пустому/однословному имени
+    (аватар тогда с одной буквой или пустой, не падает)."""
+    parts = full_name.split()
+    letters = (part[0] for part in parts[:2])
+    return "".join(letters).upper()
+
+
+class ConstructorEmployeesTabController(EmployeesTabController):
+    """Тот же общий справочник и та же CRUD-логика, что и
+    EmployeesTabController (сохранение/удаление/сертификаты/клише -- ни
+    один из этих методов здесь не переопределён), только отрисовка списка
+    и карточки сотрудника -- под визуал конструктора документов (docs/design/
+    сотрудники_конструктор.html): карточки с аватаром-инициалами вместо
+    строк таблицы с шапкой, хлебная крошка "Сотрудники / <ФИО>" вместо
+    заголовка группы, кнопка «Удалить» скрыта, пока не выбран существующий
+    сотрудник. Пайплайн (EmployeesTabController напрямую) этот класс не
+    использует и не затрагивается его изменениями."""
+
+    def __init__(self, main_window):
+        table = main_window.table_employees
+        table.horizontalHeader().setVisible(False)
+        table.verticalHeader().setVisible(False)
+        table.setShowGrid(False)
+        for col in (1, 2, 3):
+            table.setColumnHidden(col, True)
+        table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        super().__init__(main_window)
+        main_window.employeeSearchBox.textChanged.connect(self.filter_employees)
+
+    def _refresh_table(self):
+        table = self.mw.table_employees
+        table.setRowCount(len(self.employees))
+        for row, employee in enumerate(self.employees):
+            table.setRowHeight(row, 44)
+            table.setCellWidget(row, 0, self._build_employee_card(employee))
+
+    def _build_employee_card(self, employee: Employee) -> QWidget:
+        card = QWidget()
+        layout = QHBoxLayout(card)
+        layout.setContentsMargins(8, 4, 8, 4)
+        layout.setSpacing(8)
+
+        avatar = QLabel(_employee_initials(employee.full_name))
+        avatar.setObjectName("employeeCardAvatar")
+        avatar.setFixedSize(26, 26)
+        avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(avatar)
+
+        text_col = QVBoxLayout()
+        text_col.setSpacing(0)
+        name_label = QLabel(employee.full_name)
+        name_label.setObjectName("employeeCardName")
+        position_label = QLabel(employee.position)
+        position_label.setObjectName("employeeCardPosition")
+        text_col.addWidget(name_label)
+        text_col.addWidget(position_label)
+        layout.addLayout(text_col, 1)
+
+        return card
+
+    def _load_employee_into_form(self, employee: Employee):
+        super()._load_employee_into_form(employee)
+        self.mw.employeeCrumbLabel.setText(f"Сотрудники / {employee.full_name}")
+        self.mw.pushButt_deleteEmployee.setVisible(True)
+
+    def _clear_form(self):
+        super()._clear_form()
+        self.mw.employeeCrumbLabel.setText("Сотрудники / Новый сотрудник")
+        self.mw.pushButt_deleteEmployee.setVisible(False)
+
+    def filter_employees(self, text: str):
+        """Живой поиск по сайдбару (employeeSearchBox) -- прячет строки
+        table_employees, не совпавшие по ФИО или должности, тем же приёмом,
+        что и _filter_objects_tree() у objectsTree."""
+        needle = text.strip().lower()
+        table = self.mw.table_employees
+        for row, employee in enumerate(self.employees):
+            match = (
+                not needle
+                or needle in employee.full_name.lower()
+                or needle in employee.position.lower()
+            )
+            table.setRowHidden(row, not match)

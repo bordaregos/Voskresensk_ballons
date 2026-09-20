@@ -307,6 +307,79 @@ QWidget#page_database QLabel#databasePreviewFieldLabel { color: #8e8e93; font-si
 QWidget#page_database QLabel#databasePreviewFieldValue { color: #c7c7cc; font-size: 12px; }
 QWidget#page_stub QLabel#activityStubTitle { color: #8e8e93; font-size: 13px; }
 QWidget#page_stub QLabel#activityStubHint { color: #5a5a5c; font-size: 12px; }
+
+/* «Сотрудники» (page_employees, см. constructor_window.ui и
+   ConstructorEmployeesTabController в employees_tab.py) -- визуал по
+   образцу docs/design/сотрудники_конструктор.html: сайдбар со списком
+   карточек слева (тот же приём, что и #sidebar/objectsTree у "База
+   документов"), хлебная крошка и форма без рамок групп-боксов справа,
+   общая панель Удалить/Сохранить снизу. */
+QWidget#employeesSidebar { background: #242426; border-right: 0.5px solid #38383a; }
+QWidget#employeesSidebar QLabel#employeesSidebarHeader {
+    color: #8e8e93; font-size: 11px; font-weight: 500;
+}
+QWidget#employeesSidebar QPushButton#pushButt_newEmployee {
+    background: transparent; border: none; border-radius: 5px; color: #8e8e93;
+}
+QWidget#employeesSidebar QPushButton#pushButt_newEmployee:hover { background: #3a3a3c; color: #e5e5e7; }
+QLineEdit#employeeSearchBox {
+    background: #1c1c1e; border: 0.5px solid #38383a; border-radius: 6px;
+    color: #e5e5e7; font-size: 12px; padding: 6px 8px;
+}
+QLineEdit#employeeSearchBox:focus { border-color: #0a84ff; }
+/* Список-каталог сотрудников -- та же QTableWidget, что и table_employees
+   у трубопровода, но шапка/сетка/колонки 1-3 спрятаны кодом
+   (ConstructorEmployeesTabController.__init__), а видимая колонка 0 несёт
+   не текстовый item, а карточку-виджет (см. _build_employee_card()) --
+   поэтому строчный ::item здесь не участвует в подсветке выбора, только
+   фон самой таблицы и рамка выбранной ЯЧЕЙКИ (::item:selected всё равно
+   рисуется ПОД cellWidget, если у виджета карточки прозрачный фон). */
+QWidget#employeesSidebar QTableWidget {
+    background: transparent; border: none; outline: none;
+}
+QWidget#employeesSidebar QTableWidget::item { border-radius: 6px; }
+QWidget#employeesSidebar QTableWidget::item:selected { background: rgba(10, 132, 255, 40); }
+QLabel#employeeCardAvatar {
+    background: #38383a; color: #c7c7cc; font-size: 10.5px; font-weight: 600; border-radius: 13px;
+}
+QLabel#employeeCardName { background: transparent; color: #e5e5e7; font-size: 12px; }
+QLabel#employeeCardPosition { background: transparent; color: #8e8e93; font-size: 10.5px; }
+QLabel#employeeCrumbLabel {
+    background: #202022; color: #8e8e93; font-size: 11px; padding: 8px 18px;
+    border-bottom: 0.5px solid #2c2c2e;
+}
+QWidget#employeesMainArea QLabel[role="sectionTitle"] {
+    color: #8e8e93; font-size: 11px; margin-top: 14px;
+}
+QLabel#label_employee_position, QLabel#label_employee_fio { color: #c7c7cc; font-size: 12px; }
+QWidget#employeesMainArea QLabel#employee_kleishe_preview {
+    background: #232325; border: 0.5px dashed #48484a; border-radius: 6px;
+    color: #5a5a5c; font-size: 10.5px;
+}
+QWidget#employeesMainArea QPlainTextEdit {
+    background: #2c2c2e; border: 0.5px solid #38383a; border-radius: 5px;
+    color: #e5e5e7; font-size: 12px; padding: 5px 7px;
+}
+QWidget#employeesMainArea QPlainTextEdit:focus { border-color: #0a84ff; }
+QWidget#employeesMainArea QListWidget {
+    background: #232325; border: 0.5px solid #38383a; border-radius: 6px;
+    color: #e5e5e7; font-size: 12px;
+}
+QWidget#employeesMainArea QListWidget::item:selected { background: rgba(10, 132, 255, 60); color: #e5e5e7; }
+QWidget#employeesBottomBar { border-top: 0.5px solid #2c2c2e; }
+QWidget#employeesMainArea QPushButton {
+    background: #2c2c2e; border: 0.5px solid #38383a; border-radius: 6px;
+    color: #e5e5e7; font-size: 12px; padding: 6px 12px;
+}
+QWidget#employeesMainArea QPushButton:hover { background: #3a3a3c; }
+QWidget#employeesMainArea QPushButton#pushButt_saveEmployee {
+    background: #0a84ff; border: none; color: #fff; font-weight: 500;
+}
+QWidget#employeesMainArea QPushButton#pushButt_saveEmployee:hover { background: #1f92ff; }
+QWidget#employeesMainArea QPushButton#pushButt_deleteEmployee {
+    background: transparent; border: 0.5px solid rgba(255, 69, 58, 130); color: #ff453a;
+}
+QWidget#employeesMainArea QPushButton#pushButt_deleteEmployee:hover { background: rgba(255, 69, 58, 30); }
 """
 
 
@@ -639,16 +712,36 @@ class MainWindow(QMainWindow):
 
             self.pushButt_generateWord.setEnabled(False)
 
+            # «Сотрудники» (docs/design/сотрудники_конструктор.html) -- тот
+            # же общий справочник компании, что и у трубопровода (см.
+            # EmployeesTabController выше в ветке equipment_type.id ==
+            # "pipeline"), но список рисуется карточками, а не строками
+            # таблицы с шапкой -- под визуал конструктора (сайдбар + основная
+            # область, как у "База документов"). ConstructorEmployeesTabController
+            # (см. employees_tab.py) наследует ВСЮ CRUD-логику без изменений,
+            # переопределяет только отрисовку -- пайплайн этим не затронут.
+            from .employees_tab import ConstructorEmployeesTabController
+            self.employees_tab = ConstructorEmployeesTabController(self)
+            self.pushButt_newEmployee.setIcon(icons.icon("plus", "#8e8e93", 13))
+            self.pushButt_newEmployee.setIconSize(QSize(13, 13))
+            for label_name in (
+                "employeeSectionLabel_data", "employeeSectionLabel_certs", "employeeSectionLabel_kleishe",
+            ):
+                label = getattr(self, label_name)
+                label.setProperty("role", "sectionTitle")
+                label.style().unpolish(label)
+                label.style().polish(label)
+
             # Активити-бар (docs/design/вводная_часть.html, #activityBar) --
             # узкая колонка иконок слева от viewStack, переключает ЦЕЛИКОМ
             # страницу viewStack (см. _switch_activity_view()): «Редактор
-            # документов» (палитра блоков + канва, страница tab_document,
-            # уже существовала до этой правки) и «База документов» (дерево
-            # объектов/документов, страница page_database, см. ниже) --
-            # взаимоисключающие разделы, а не два одновременно видимых
-            # сайдбара, как было в предыдущей (ошибочной) версии этой
-            # правки. «Поиск»/«Сотрудники» -- заглушка (page_stub), как и в
-            # самом мокапе (activityViewTitles там же).
+            # документов» (палитра блоков + канва, страница tab_document),
+            # «База документов» (дерево объектов/документов, страница
+            # page_database) и «Сотрудники» (page_employees, см. выше) --
+            # взаимоисключающие разделы, а не несколько одновременно видимых
+            # сайдбаров, как было в предыдущей (ошибочной) версии этой
+            # правки. «Поиск» -- пока единственная заглушка (page_stub), как
+            # и в самом мокапе (activityViewTitles там же).
             _activity_icons = {"search": "search", "database": "database", "editor": "edit", "employees": "users"}
             for name, icon_name in _activity_icons.items():
                 btn = getattr(self, f"activityBtn_{name}")
@@ -5585,31 +5678,35 @@ class MainWindow(QMainWindow):
         self._current_view = view
         self._update_report_buttons_visibility()
 
-    _ACTIVITY_VIEW_TITLES = {"search": "Поиск", "employees": "Сотрудники"}
+    _ACTIVITY_VIEW_TITLES = {"search": "Поиск"}
 
     def _switch_activity_view(self, view):
         """Переключатель активити-бара конструктора документов (docs/design/
         вводная_часть.html, switchView()) -- аналог _switch_view() выше, но
         для конструктора: переключает ЦЕЛИКОМ страницу viewStack, а не
-        только основную область, поскольку у "editor" и "database" разный
-        сайдбар (палитра блоков vs. дерево объектов), а не общий, как у
-        трубопровода. "search"/"employees" -- заглушка (page_stub), как и
-        в самом мокапе (activityViewTitles там же) -- раздел не
-        реализован, страница просто показывает название.
+        только основную область, поскольку у "editor"/"database"/"employees"
+        разный сайдбар (палитра блоков / дерево объектов / список
+        сотрудников), а не общий, как у трубопровода. "search" -- пока
+        единственная заглушка (page_stub), как и в самом мокапе
+        (activityViewTitles там же) -- раздел не реализован, страница
+        просто показывает название. "employees" -- реальный раздел
+        (page_employees, см. docs/design/сотрудники_конструктор.html и
+        EmployeesTabController в __init__ выше), несмотря на то, что
+        мокап вводная_часть.html всё ещё рисует его заглушкой.
 
         Повторный клик по уже активной иконке «Редактор документов» вместо
         обычного переключения сворачивает/разворачивает constructorSidebar
         (см. _toggle_constructor_sidebar()) -- тот же паттерн, что в
         VSCode (клик по активной иконке активити-бара прячет её панель), и
         в мокапе (toggleEditorSidebar()). Только для "editor" -- у
-        "database"/заглушек своего сайдбара для сворачивания либо нет
-        (page_stub), либо он уже сворачивается отдельной кнопкой
-        (sidebarBtn_collapse/_toggle_sidebar(), другой, не связанный
-        виджет -- см. обсуждение задачи)."""
+        "database"/"employees"/заглушек своего сайдбара для сворачивания
+        либо нет (page_stub/page_employees), либо он уже сворачивается
+        отдельной кнопкой (sidebarBtn_collapse/_toggle_sidebar(), другой,
+        не связанный виджет -- см. обсуждение задачи)."""
         if view == "editor" and getattr(self, "_current_view", None) == "editor":
             self._toggle_constructor_sidebar()
             return
-        page_names = {"editor": "tab_document", "database": "page_database"}
+        page_names = {"editor": "tab_document", "database": "page_database", "employees": "page_employees"}
         page = getattr(self, page_names.get(view, "page_stub"))
         self.viewStack.setCurrentWidget(page)
         for name in ("search", "database", "editor", "employees"):

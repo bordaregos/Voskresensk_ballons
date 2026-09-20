@@ -548,6 +548,210 @@
            </item>
           </layout>
          </widget>
+         <widget class="QWidget" name="page_employees">
+          <!-- Визуал по образцу docs/design/сотрудники_конструктор.html:
+               слева узкий список-каталог сотрудников (карточки, не строки
+               таблицы с шапкой), справа хлебная крошка и форма реквизитов
+               без рамок групп-боксов, снизу общая панель действий
+               Удалить/Сохранить, тот же принцип, что и у page_database
+               рядом (сайдбар и основная область). Виджеты: ТОЧНО те же
+               objectName, что и tab_employees в pipeline_window.ui
+               (table_employees/employee_position/.../pushButt_saveEmployee),
+               поэтому базовый EmployeesTabController по-прежнему заводится
+               без единой строчки новой CRUD-логики, визуал карточек и
+               хлебной крошки добавлен отдельным подклассом
+               ConstructorEmployeesTabController (см. employees_tab.py),
+               переопределяющим только отрисовку. -->
+          <layout class="QHBoxLayout" name="pageEmployeesLayout">
+           <property name="spacing"><number>0</number></property>
+           <property name="leftMargin"><number>0</number></property>
+           <property name="topMargin"><number>0</number></property>
+           <property name="rightMargin"><number>0</number></property>
+           <property name="bottomMargin"><number>0</number></property>
+           <item>
+            <widget class="QWidget" name="employeesSidebar">
+             <property name="minimumSize"><size><width>220</width><height>0</height></size></property>
+             <property name="maximumSize"><size><width>220</width><height>16777215</height></size></property>
+             <layout class="QVBoxLayout" name="employeesSidebarLayout">
+              <property name="leftMargin"><number>10</number></property>
+              <property name="topMargin"><number>10</number></property>
+              <property name="rightMargin"><number>10</number></property>
+              <property name="bottomMargin"><number>10</number></property>
+              <property name="spacing"><number>8</number></property>
+              <item>
+               <widget class="QWidget" name="employeesSidebarHeaderRow">
+                <layout class="QHBoxLayout" name="employeesSidebarHeaderRowLayout">
+                 <property name="leftMargin"><number>0</number></property>
+                 <property name="topMargin"><number>0</number></property>
+                 <property name="rightMargin"><number>0</number></property>
+                 <property name="bottomMargin"><number>0</number></property>
+                 <item><widget class="QLabel" name="employeesSidebarHeader"><property name="text"><string>СОТРУДНИКИ</string></property></widget></item>
+                 <item>
+                  <spacer name="employeesSidebarHeaderSpacer">
+                   <property name="orientation"><enum>Qt::Orientation::Horizontal</enum></property>
+                   <property name="sizeHint" stdset="0"><size><width>20</width><height>20</height></size></property>
+                  </spacer>
+                 </item>
+                 <!-- "+ Новый сотрудник" из pipeline_window.ui, здесь
+                      компактная иконка-кнопка в шапке сайдбара (иконка
+                      выставляется в коде, см. main_window.py), тот же
+                      pushButt_newEmployee, EmployeesTabController не
+                      меняется. -->
+                 <item>
+                  <widget class="QPushButton" name="pushButt_newEmployee">
+                   <property name="maximumSize"><size><width>22</width><height>22</height></size></property>
+                   <property name="text"><string></string></property>
+                   <property name="toolTip"><string>Новый сотрудник</string></property>
+                  </widget>
+                 </item>
+                </layout>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLineEdit" name="employeeSearchBox">
+                <property name="placeholderText"><string>Поиск по ФИО или должности</string></property>
+               </widget>
+              </item>
+              <!-- Тот же QTableWidget, что и table_employees у
+                   трубопровода. ConstructorEmployeesTabController прячет
+                   шапку/сетку/колонки 1-3 и рисует карточки через
+                   setCellWidget() в единственную видимую колонку 0 (см.
+                   _refresh_table() в employees_tab.py). -->
+              <item>
+               <widget class="QTableWidget" name="table_employees">
+                <property name="rowCount"><number>0</number></property>
+                <property name="columnCount"><number>4</number></property>
+                <column><property name="text"><string>Должность</string></property></column>
+                <column><property name="text"><string>ФИО</string></property></column>
+                <column><property name="text"><string>Удостоверения</string></property></column>
+                <column><property name="text"><string>Клише</string></property></column>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="QWidget" name="employeesMainArea">
+             <layout class="QVBoxLayout" name="employeesMainAreaLayout">
+              <property name="spacing"><number>0</number></property>
+              <property name="leftMargin"><number>0</number></property>
+              <property name="topMargin"><number>0</number></property>
+              <property name="rightMargin"><number>0</number></property>
+              <property name="bottomMargin"><number>0</number></property>
+              <item>
+               <widget class="QLabel" name="employeeCrumbLabel">
+                <property name="text"><string>Сотрудники / Новый сотрудник</string></property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QScrollArea" name="employeesScrollArea">
+                <property name="widgetResizable"><bool>true</bool></property>
+                <property name="frameShape"><enum>QFrame::Shape::NoFrame</enum></property>
+                <widget class="QWidget" name="employeesScrollContent">
+                 <layout class="QVBoxLayout" name="employeesScrollContentLayout">
+                  <property name="leftMargin"><number>18</number></property>
+                  <property name="topMargin"><number>16</number></property>
+                  <property name="rightMargin"><number>18</number></property>
+                  <property name="bottomMargin"><number>16</number></property>
+                  <item>
+                   <!-- role="sectionTitle" выставляется программно в
+                        main_window.py (тот же приём, что и role="groupToggle"
+                        и т.п. в CONSTRUCTOR_QSS: Designer не хранит
+                        произвольные строковые свойства в разметке этого
+                        проекта, только через setProperty() в коде). -->
+                   <widget class="QLabel" name="employeeSectionLabel_data"><property name="text"><string>Данные сотрудника</string></property></widget>
+                  </item>
+                  <item>
+                   <layout class="QGridLayout" name="employeeDataGrid">
+                    <item row="0" column="0">
+                     <widget class="QLabel" name="label_employee_position"><property name="text"><string>Должность</string></property></widget>
+                    </item>
+                    <item row="0" column="1">
+                     <widget class="QPlainTextEdit" name="employee_position">
+                      <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+                      <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+                     </widget>
+                    </item>
+                    <item row="1" column="0">
+                     <widget class="QLabel" name="label_employee_fio"><property name="text"><string>ФИО</string></property></widget>
+                    </item>
+                    <item row="1" column="1">
+                     <widget class="QPlainTextEdit" name="employee_fio">
+                      <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+                      <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+                     </widget>
+                    </item>
+                   </layout>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="employeeSectionLabel_certs"><property name="text"><string>Удостоверения</string></property></widget>
+                  </item>
+                  <item><widget class="QListWidget" name="employee_certificates_list"/></item>
+                  <item>
+                   <layout class="QHBoxLayout" name="employee_certificate_input_layout">
+                    <item>
+                     <widget class="QPlainTextEdit" name="employee_certificate_input">
+                      <property name="minimumSize"><size><width>0</width><height>27</height></size></property>
+                      <property name="maximumSize"><size><width>16777215</width><height>27</height></size></property>
+                     </widget>
+                    </item>
+                    <item><widget class="QPushButton" name="pushButt_addCertificate"><property name="text"><string>+ Добавить</string></property></widget></item>
+                    <item><widget class="QPushButton" name="pushButt_removeCertificate"><property name="text"><string>− Удалить</string></property></widget></item>
+                   </layout>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="employeeSectionLabel_kleishe"><property name="text"><string>Клише подписи</string></property></widget>
+                  </item>
+                  <item>
+                   <layout class="QHBoxLayout" name="employee_kleishe_hlayout">
+                    <item>
+                     <widget class="QLabel" name="employee_kleishe_preview">
+                      <property name="minimumSize"><size><width>150</width><height>80</height></size></property>
+                      <property name="maximumSize"><size><width>150</width><height>80</height></size></property>
+                      <property name="text"><string>нет изображения</string></property>
+                     </widget>
+                    </item>
+                    <item>
+                     <layout class="QVBoxLayout" name="employee_kleishe_buttons">
+                      <item><widget class="QPushButton" name="pushButt_chooseKleishe"><property name="text"><string>Загрузить изображение…</string></property></widget></item>
+                      <item><widget class="QPushButton" name="pushButt_clearKleishe"><property name="text"><string>Очистить</string></property></widget></item>
+                     </layout>
+                    </item>
+                   </layout>
+                  </item>
+                  <item>
+                   <spacer name="employeesContentSpacer">
+                    <property name="orientation"><enum>Qt::Orientation::Vertical</enum></property>
+                    <property name="sizeHint" stdset="0"><size><width>20</width><height>40</height></size></property>
+                   </spacer>
+                  </item>
+                 </layout>
+                </widget>
+               </widget>
+              </item>
+              <item>
+               <widget class="QWidget" name="employeesBottomBar">
+                <layout class="QHBoxLayout" name="employeesBottomBarLayout">
+                 <property name="leftMargin"><number>10</number></property>
+                 <property name="topMargin"><number>10</number></property>
+                 <property name="rightMargin"><number>10</number></property>
+                 <property name="bottomMargin"><number>10</number></property>
+                 <item><widget class="QPushButton" name="pushButt_deleteEmployee"><property name="text"><string>Удалить</string></property></widget></item>
+                 <item>
+                  <spacer name="employeesBottomBarSpacer">
+                   <property name="orientation"><enum>Qt::Orientation::Horizontal</enum></property>
+                   <property name="sizeHint" stdset="0"><size><width>20</width><height>20</height></size></property>
+                  </spacer>
+                 </item>
+                 <item><widget class="QPushButton" name="pushButt_saveEmployee"><property name="text"><string>Сохранить</string></property></widget></item>
+                </layout>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+          </layout>
+         </widget>
          <widget class="QWidget" name="page_stub">
           <layout class="QVBoxLayout" name="pageStubLayout">
            <item>
