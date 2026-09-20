@@ -1,0 +1,356 @@
+<title>Конструктор документов — Сотрудники</title>
+<h2 style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);">Мокап раздела «Сотрудники» в активити-баре конструктора документов: список слева, карточка сотрудника справа</h2>
+
+<!-- Отдельный, самодостаточный мокап (свой набор иконок/стилей/скриптов,
+     не зависит от вводная_часть.html) -- по просьбе пользователя "сделай
+     отдельный мокап" для раздела «Сотрудники» активити-бара конструктора.
+
+     Контекст: в docs/design/вводная_часть.html раздел "employees" активити-
+     бара сейчас заглушка (viewStub, см. activityViewTitles/switchView() в
+     том файле) -- показывает только название, без содержимого. Это мокап
+     того, чем эта заглушка должна стать.
+
+     «Сотрудники» -- это НЕ новая сущность, а тот же самый общий справочник
+     компании, что уже реализован для трубопровода (src/ui/employees_tab.py
+     EmployeesTabController, src/services/employees_store.py, src/models/
+     employee.py -- Employee{position, full_name, certificates[],
+     kleishe_filename}). Мокап воспроизводит РОВНО ту же функциональность
+     (список + карточка: должность/ФИО/удостоверения/клише, Сохранить/
+     Новый/Удалить), просто в визуальном языке конструктора (тёмная
+     активити-бар-панель вместо side-nav-кнопок трубопровода). Данные общие
+     -- сотрудник, добавленный здесь, должен быть виден и в трубопроводе, и
+     наоборот; это не отдельная копия справочника. -->
+
+<svg style="position:absolute;width:0;height:0;overflow:hidden;" aria-hidden="true" focusable="false">
+<defs>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.4" y2="16.4"/></symbol>
+<symbol id="i-database" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/></symbol>
+<symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
+<symbol id="i-users" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><line x1="4" y1="7" x2="20" y2="7"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/></symbol>
+<symbol id="i-upload" viewBox="0 0 24 24"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><polyline points="7 9 12 4 17 9"/><line x1="12" y1="4" x2="12" y2="15"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+<symbol id="i-signature" viewBox="0 0 24 24"><path d="M3 17c2-4 3-6 5-6s1.5 4 3 4 2-6 4-6 1 5 3 5 1.5-2 3-2"/></symbol>
+</defs>
+</svg>
+
+<style>
+body{margin:0;}
+.icon{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+.activity-icon{width:44px;height:40px;display:flex;align-items:center;justify-content:center;color:#8e8e93;cursor:pointer;position:relative;flex-shrink:0;}
+.activity-icon:hover{color:#e5e5e7;}
+.activity-icon.active{color:#e5e5e7;}
+.activity-icon.active::before{content:'';position:absolute;left:0;top:6px;bottom:6px;width:2px;background:#0a84ff;border-radius:1px;}
+.search-box{display:flex;align-items:center;gap:6px;background:#1c1c1e;border:0.5px solid #38383a;border-radius:6px;padding:6px 8px;margin:0 10px 8px;}
+.search-box input{flex:1;background:transparent;border:none;outline:none;color:#e5e5e7;font-size:12px;font-family:inherit;}
+.search-box input::placeholder{color:#5a5a5c;}
+.emp-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;cursor:pointer;margin:0 6px 2px;}
+.emp-row:hover{background:#2c2c2e;}
+.emp-row.active{background:rgba(10,132,255,.16);}
+.emp-avatar{width:26px;height:26px;border-radius:50%;background:#38383a;color:#c7c7cc;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0;}
+.emp-row.active .emp-avatar{background:#0a84ff;color:#fff;}
+.emp-text{min-width:0;flex:1;}
+.emp-name{font-size:12px;color:#e5e5e7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.emp-pos{font-size:10.5px;color:#8e8e93;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.remove-btn{display:flex;align-items:center;justify-content:center;width:22px;height:22px;flex-shrink:0;background:transparent;border:none;border-radius:5px;color:#8e8e93;font-size:14px;cursor:pointer;padding:0;}
+.remove-btn:hover{background:#3a3a3c;color:#e5e5e7;}
+.sidebar-add-btn{display:flex;align-items:center;justify-content:center;width:22px;height:22px;flex-shrink:0;background:transparent;border:none;border-radius:5px;color:#8e8e93;cursor:pointer;padding:0;}
+.sidebar-add-btn:hover{background:#3a3a3c;color:#e5e5e7;}
+.field-grid{display:grid;grid-template-columns:130px 1fr;row-gap:9px;column-gap:10px;align-items:center;font-size:12px;}
+.lbl{color:#c7c7cc;}
+input.fld{background:#2c2c2e;border:0.5px solid #38383a;border-radius:5px;padding:6px 8px;color:#e5e5e7;font-family:inherit;font-size:12px;box-sizing:border-box;width:100%;}
+input.fld:focus{outline:none;border-color:#0a84ff;}
+input.fld::placeholder{color:#5a5a5c;}
+.sec-title{font-size:11px;color:#8e8e93;text-transform:uppercase;letter-spacing:.03em;margin:18px 0 8px;}
+.sec-title:first-child{margin-top:0;}
+.cert-list{border:0.5px solid #38383a;border-radius:8px;overflow:hidden;margin-bottom:8px;}
+.cert-row{display:flex;align-items:center;gap:8px;padding:8px 10px;font-size:12px;color:#e5e5e7;border-top:0.5px solid #2c2c2e;}
+.cert-row:first-child{border-top:none;}
+.cert-row span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cert-empty{padding:10px;font-size:11.5px;color:#5a5a5c;font-style:italic;}
+.cert-add-row{display:flex;gap:6px;}
+.btn-square{display:flex;align-items:center;justify-content:center;width:29px;height:29px;flex-shrink:0;background:#2c2c2e;border:0.5px solid #38383a;border-radius:6px;color:#8e8e93;cursor:pointer;}
+.btn-square:hover{background:#3a3a3c;color:#e5e5e7;}
+.kleishe-row{display:flex;align-items:center;gap:12px;}
+.kleishe-preview{width:120px;height:60px;flex-shrink:0;background:#232325;border:0.5px dashed #48484a;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#5a5a5c;font-size:10.5px;text-align:center;overflow:hidden;}
+.kleishe-preview img{max-width:100%;max-height:100%;}
+.btn-outline{background:transparent;border:0.5px solid #48484a;color:#c7c7cc;font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;}
+.btn-outline:hover{background:#3a3a3c;}
+.btn-primary{background:#0a84ff;border:none;color:#fff;font-size:12px;font-weight:500;padding:6px 12px;border-radius:6px;cursor:pointer;}
+.btn-primary:hover{background:#1f92ff;}
+.btn-danger{background:transparent;border:0.5px solid rgba(255,69,58,.5);color:#ff453a;font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;}
+.btn-danger:hover{background:rgba(255,69,58,.12);}
+</style>
+
+<div style="background:#eeeeef;min-height:100vh;box-sizing:border-box;padding:32px 20px;display:flex;align-items:flex-start;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,sans-serif;">
+<div style="width:100%;max-width:760px;">
+<p style="margin:0 0 14px;font-size:13px;color:#6b6b70;text-align:center;">Кликабельный мокап — выберите сотрудника слева или создайте нового</p>
+<div style="max-width:720px;margin:0 auto;background:#1c1c1e;border-radius:10px;overflow:hidden;border:0.5px solid #38383a;position:relative;box-shadow:0 12px 32px rgba(0,0,0,.18);">
+
+  <div style="display:flex;align-items:center;padding:10px 14px;background:#2c2c2e;border-bottom:0.5px solid #38383a;position:relative;">
+    <span style="width:11px;height:11px;border-radius:50%;background:#ff5f57;margin-right:6px;"></span>
+    <span style="width:11px;height:11px;border-radius:50%;background:#febc2e;margin-right:6px;"></span>
+    <span style="width:11px;height:11px;border-radius:50%;background:#28c840;"></span>
+    <span style="position:absolute;left:50%;transform:translateX(-50%);font-size:12px;color:#8e8e93;">Конструктор документов — MainWindow</span>
+  </div>
+
+  <div style="display:flex;height:560px;">
+    <!-- Тот же активити-бар, что и в вводная_часть.html -- «Сотрудники»
+         теперь активный раздел вместо заглушки. -->
+    <div style="width:44px;background:#1c1c1e;border-right:0.5px solid #38383a;flex-shrink:0;display:flex;flex-direction:column;align-items:center;padding:8px 0;">
+      <div class="activity-icon" title="Поиск"><svg class="icon" style="width:19px;height:19px;" aria-hidden="true"><use href="#i-search"/></svg></div>
+      <div class="activity-icon" title="База документов"><svg class="icon" style="width:19px;height:19px;" aria-hidden="true"><use href="#i-database"/></svg></div>
+      <div class="activity-icon" title="Редактор документов"><svg class="icon" style="width:19px;height:19px;" aria-hidden="true"><use href="#i-edit"/></svg></div>
+      <div class="activity-icon active" title="Сотрудники"><svg class="icon" style="width:19px;height:19px;" aria-hidden="true"><use href="#i-users"/></svg></div>
+    </div>
+
+    <!-- Левая колонка -- список сотрудников (см. table_employees /
+         EmployeesTabController._refresh_table() в реальном коде; здесь --
+         карточки вместо строк таблицы, под стиль остальной части
+         конструктора, а не QTableWidget трубопровода). -->
+    <div style="width:220px;background:#242426;border-right:0.5px solid #38383a;flex-shrink:0;display:flex;flex-direction:column;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 10px 8px;">
+        <span style="font-size:11px;color:#8e8e93;text-transform:uppercase;letter-spacing:.03em;">Сотрудники</span>
+        <button class="sidebar-add-btn" title="Новый сотрудник" onclick="newEmployee()"><svg class="icon" style="width:14px;height:14px;" aria-hidden="true"><use href="#i-plus"/></svg></button>
+      </div>
+      <div class="search-box">
+        <svg class="icon" style="width:13px;height:13px;color:#5a5a5c;flex-shrink:0;" aria-hidden="true"><use href="#i-search"/></svg>
+        <input id="empSearch" type="text" placeholder="Поиск по ФИО или должности" oninput="renderList()" />
+      </div>
+      <div id="empList" style="flex:1;overflow-y:auto;padding-bottom:6px;"></div>
+    </div>
+
+    <!-- Правая часть -- карточка сотрудника (форма реквизитов, см.
+         EmployeesTabController._load_employee_into_form()/_save_employee()). -->
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;">
+      <div style="padding:8px 18px;background:#202022;border-bottom:0.5px solid #2c2c2e;font-size:11px;color:#8e8e93;flex-shrink:0;">
+        Сотрудники / <span id="crumbName" style="color:#e5e5e7;">Новый сотрудник</span>
+      </div>
+
+      <div style="flex:1;overflow-y:auto;padding:16px 18px;">
+        <div class="sec-title">Данные сотрудника</div>
+        <div class="field-grid">
+          <span class="lbl">Должность</span>
+          <input id="fPosition" class="fld" type="text" placeholder="Например, Специалист НК II ур." />
+          <span class="lbl">ФИО</span>
+          <input id="fFio" class="fld" type="text" placeholder="Например, Грищенко С.В." />
+        </div>
+
+        <div class="sec-title">Удостоверения</div>
+        <div id="certList" class="cert-list"></div>
+        <div class="cert-add-row">
+          <input id="certInput" class="fld" type="text" placeholder="№ 0010-6557 от 02.09.2022" onkeydown="if(event.key==='Enter'){event.preventDefault();addCertificate();}" />
+          <button class="btn-square" title="Добавить удостоверение" onclick="addCertificate()"><svg class="icon" style="width:14px;height:14px;" aria-hidden="true"><use href="#i-plus"/></svg></button>
+        </div>
+
+        <div class="sec-title">Клише подписи</div>
+        <div class="kleishe-row">
+          <div id="kleishePreview" class="kleishe-preview">нет изображения</div>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <label class="btn-outline" style="display:inline-flex;align-items:center;gap:6px;">
+              <svg class="icon" style="width:13px;height:13px;" aria-hidden="true"><use href="#i-upload"/></svg>Выбрать файл…
+              <input id="kleisheFile" type="file" accept="image/*" style="display:none;" onchange="chooseKleishe(this)" />
+            </label>
+            <button class="btn-outline" onclick="clearKleishe()">Очистить</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 18px;border-top:0.5px solid #2c2c2e;flex-shrink:0;">
+        <button id="deleteBtn" class="btn-danger" style="display:none;" onclick="deleteEmployee()">
+          <svg class="icon" style="width:13px;height:13px;vertical-align:-2px;margin-right:5px;" aria-hidden="true"><use href="#i-trash"/></svg>Удалить
+        </button>
+        <span></span>
+        <button class="btn-primary" onclick="saveEmployee()">Сохранить</button>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+<!-- Замена window.confirm() -- см. тот же паттерн в вводная_часть.html
+     (нативные confirm()/alert() заблокированы в песочнице превью
+     артефактов). -->
+<div id="confirmModal" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.55);align-items:center;justify-content:center;z-index:10;">
+  <div style="background:#2c2c2e;border:0.5px solid #48484a;border-radius:10px;padding:18px;width:280px;">
+    <div id="confirmModalText" style="font-size:12.5px;color:#e5e5e7;line-height:1.4;margin-bottom:14px;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button onclick="closeConfirmModal()" class="btn-outline">Отмена</button>
+      <button onclick="confirmModalAccept()" style="background:#ff453a;border:none;color:#fff;font-size:12px;font-weight:500;padding:6px 12px;border-radius:6px;cursor:pointer;">Удалить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// -- Мок-данные -- в реальном коде это load_employees()/save_employees()
+// (src/services/employees_store.py, общий JSON-файл data/employees.json,
+// НЕ привязан к текущему документу/проекту конструктора). kleishe --
+// data-URL картинки вместо employee.kleishe_filename (реальный код хранит
+// имя файла в data/kleishe/, см. store_kleishe_image()/KLEISHE_DIR).
+var employees = [
+  { id: 'e1', position: 'Специалист НК II ур.', full_name: 'Грищенко С.В.', certificates: ['№ 0010-6557 от 02.09.2022'], kleishe: null },
+  { id: 'e2', position: 'Ведущий эксперт', full_name: 'Климов А.П.', certificates: ['№ 0007-3312 от 14.05.2021', 'Аттестат эксперта № ЭД-441'], kleishe: null }
+];
+var currentId = null; // null -- форма нового сотрудника, как _current_id в реальном коде
+
+function initials(fullName){
+  var parts = fullName.trim().split(/\s+/);
+  return (parts[0] ? parts[0][0] : '') + (parts[1] ? parts[1][0] : '');
+}
+
+function renderList(){
+  var q = document.getElementById('empSearch').value.trim().toLowerCase();
+  var list = document.getElementById('empList');
+  list.innerHTML = '';
+  employees.filter(function(e){
+    return !q || e.full_name.toLowerCase().indexOf(q) >= 0 || e.position.toLowerCase().indexOf(q) >= 0;
+  }).forEach(function(e){
+    var row = document.createElement('div');
+    row.className = 'emp-row' + (e.id === currentId ? ' active' : '');
+    row.onclick = function(){ selectEmployee(e.id); };
+    row.innerHTML =
+      '<div class="emp-avatar">' + initials(e.full_name).toUpperCase() + '</div>' +
+      '<div class="emp-text"><div class="emp-name">' + e.full_name + '</div><div class="emp-pos">' + e.position + '</div></div>';
+    list.appendChild(row);
+  });
+  if (!employees.length){
+    list.innerHTML = '<div class="cert-empty" style="margin:4px 10px;">Справочник пуст</div>';
+  }
+}
+
+function selectEmployee(id){
+  var e = employees.find(function(x){ return x.id === id; });
+  if (!e) return;
+  currentId = id;
+  document.getElementById('fPosition').value = e.position;
+  document.getElementById('fFio').value = e.full_name;
+  renderCertificates(e.certificates.slice());
+  setKleishePreview(e.kleishe);
+  document.getElementById('crumbName').textContent = e.full_name;
+  document.getElementById('deleteBtn').style.display = 'inline-flex';
+  renderList();
+}
+
+function newEmployee(){
+  currentId = null;
+  document.getElementById('fPosition').value = '';
+  document.getElementById('fFio').value = '';
+  renderCertificates([]);
+  setKleishePreview(null);
+  document.getElementById('crumbName').textContent = 'Новый сотрудник';
+  document.getElementById('deleteBtn').style.display = 'none';
+  renderList();
+}
+
+// -- Список удостоверений редактируется в памяти черновика (draftCertificates),
+// пишется в employees[] только по «Сохранить» -- как в реальном коде
+// QListWidget employee_certificates_list заполняется/читается только на
+// _load_employee_into_form()/_save_employee(), а не сразу.
+var draftCertificates = [];
+function renderCertificates(list){
+  draftCertificates = list;
+  var box = document.getElementById('certList');
+  box.innerHTML = '';
+  if (!draftCertificates.length){
+    box.innerHTML = '<div class="cert-empty">Удостоверения не добавлены</div>';
+    return;
+  }
+  draftCertificates.forEach(function(cert, idx){
+    var row = document.createElement('div');
+    row.className = 'cert-row';
+    row.innerHTML = '<span>' + cert + '</span>';
+    var del = document.createElement('button');
+    del.className = 'remove-btn';
+    del.title = 'Удалить';
+    del.innerHTML = '<svg class="icon" style="width:14px;height:14px;" aria-hidden="true"><use href="#i-x"/></svg>';
+    del.onclick = function(){ draftCertificates.splice(idx, 1); renderCertificates(draftCertificates); };
+    row.appendChild(del);
+    box.appendChild(row);
+  });
+}
+
+function addCertificate(){
+  var input = document.getElementById('certInput');
+  var text = input.value.trim();
+  if (!text) return;
+  draftCertificates.push(text);
+  renderCertificates(draftCertificates);
+  input.value = '';
+  input.focus();
+}
+
+var draftKleishe = null;
+function setKleishePreview(dataUrl){
+  draftKleishe = dataUrl;
+  var box = document.getElementById('kleishePreview');
+  if (!dataUrl){
+    box.innerHTML = 'нет изображения';
+    return;
+  }
+  box.innerHTML = '<img src="' + dataUrl + '" alt="Клише подписи" />';
+}
+
+function chooseKleishe(input){
+  var file = input.files && input.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(){ setKleishePreview(reader.result); };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+function clearKleishe(){
+  setKleishePreview(null);
+}
+
+function saveEmployee(){
+  var position = document.getElementById('fPosition').value.trim();
+  var fullName = document.getElementById('fFio').value.trim();
+  if (!position || !fullName){
+    alert('Укажите должность и ФИО сотрудника.');
+    return;
+  }
+  if (currentId === null){
+    var id = 'e' + Date.now();
+    employees.push({ id: id, position: position, full_name: fullName, certificates: draftCertificates.slice(), kleishe: draftKleishe });
+    currentId = id;
+  } else {
+    var e = employees.find(function(x){ return x.id === currentId; });
+    e.position = position;
+    e.full_name = fullName;
+    e.certificates = draftCertificates.slice();
+    e.kleishe = draftKleishe;
+  }
+  selectEmployee(currentId);
+}
+
+function deleteEmployee(){
+  if (currentId === null) return;
+  var e = employees.find(function(x){ return x.id === currentId; });
+  showConfirm('Удалить сотрудника «' + e.full_name + '» из справочника?', function(){
+    employees = employees.filter(function(x){ return x.id !== currentId; });
+    newEmployee();
+  });
+}
+
+var confirmModalCallback = null;
+function showConfirm(text, onAccept){
+  document.getElementById('confirmModalText').textContent = text;
+  confirmModalCallback = onAccept;
+  document.getElementById('confirmModal').style.display = 'flex';
+}
+function closeConfirmModal(){
+  document.getElementById('confirmModal').style.display = 'none';
+  confirmModalCallback = null;
+}
+function confirmModalAccept(){
+  var cb = confirmModalCallback;
+  closeConfirmModal();
+  if (cb) cb();
+}
+
+renderList();
+newEmployee();
+</script>
