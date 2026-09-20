@@ -15,6 +15,12 @@ class Employee:
     id: str
     position: str = ""
     full_name: str = ""
+    # Квалификация -- отдельно от position (например, "II уровень" при
+    # должности "Специалист НК II уровня"): нужна для готовых плейсхолдеров
+    # сотрудника в редакторе сотрудника конструктора документов (см.
+    # src/ui/employee_placeholder_dialog.py). Редактируется только в
+    # constructor_window.ui -- см. EmployeesTabController.
+    qualification: str = ""
     certificates: List[str] = field(default_factory=list)
     kleishe_filename: Optional[str] = None
 
@@ -27,6 +33,7 @@ class Employee:
             id=data['id'],
             position=data.get('position', ''),
             full_name=data.get('full_name', ''),
+            qualification=data.get('qualification', ''),
             certificates=list(data.get('certificates', [])),
             kleishe_filename=data.get('kleishe_filename'),
         )

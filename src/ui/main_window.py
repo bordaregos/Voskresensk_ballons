@@ -62,6 +62,8 @@ from .template_location import choose_template_save_path
 from .growable_placeholder_field import GrowablePlaceholderField
 from .formula_editor_dialog import FormulaEditorDialog
 from .table_editor_dialog import TableEditorDialog
+from .employee_placeholder_dialog import EmployeePlaceholderDialog
+from ..services.employee_placeholders import EMPLOYEE_DATA_FIELDS, employee_data_value, fio_short
 from ..models.project import Project
 from ..config import NK_SCHEME_DIR, PNEVMO_GRAPH_DIR
 from .widget_names_pipeline import SEGMENT_TYPES, PROGRAM_DEFAULT_ITEMS, AE_CLASS_TYPES
@@ -230,6 +232,32 @@ QGroupBox[role="fieldsPanel"] QLabel[titleChipTable="true"] {
 QGroupBox[role="fieldsPanel"] QPlainTextEdit[computedTable="true"] {
     background: rgba(100, 210, 255, 24); border-color: rgba(100, 210, 255, 140);
 }
+/* Чип поля, значение которого взято из справочника сотрудников (см.
+   _render_slot_fields()/_create_employee_from_chip_menu()) -- отдельный
+   акцент (зелёный, тот же принцип, что у формулы/таблицы выше), РАБОТАЕТ
+   ПО ТОЙ ЖЕ ЛОГИКЕ, ЧТО И ОБЫЧНЫЕ (синие) чипы, без исключений -- клик
+   копирует "{{ field_id }}" через тот же _copy_chip(), ПКМ открывает то
+   же меню, перетаскивание переставляет порядок (см.
+   _wire_chip_drag_reorder()). Единственное отличие от обычного поля --
+   ИСТОЧНИК значения (справочник сотрудников вместо ввода руками) и цвет.
+
+   Резервная (менее насыщенная) заливка -- НЕ те же rgba/цвет, что у
+   titleChipCopied (вспышка подтверждения копирования, см. _copy_chip())
+   -- иначе вспышка была бы визуально неотличима от состояния покоя (оба
+   зелёные) и не подтверждала бы копирование. titleChipCopied, временно
+   выставляемый ПОВЕРХ этого при клике, ярче -- вспышка читается как
+   потемнение-посветление, а не как "ничего не изменилось". */
+QGroupBox[role="fieldsPanel"] QLabel[titleChipEmployee="true"] {
+    background: rgba(48, 209, 88, 22); color: #6fdb93;
+    border: 1px solid rgba(48, 209, 88, 90);
+}
+QGroupBox[role="fieldsPanel"] QLabel[titleChipEmployee="true"][titleChipCopied="true"] {
+    background: rgba(48, 209, 88, 40); color: #30d158;
+    border: 1px solid rgba(48, 209, 88, 140);
+}
+QGroupBox[role="fieldsPanel"] QPlainTextEdit[computedEmployee="true"] {
+    background: rgba(48, 209, 88, 20); border-color: rgba(48, 209, 88, 140);
+}
 QWidget#titleTemplateDropHint {
     border: 1.5px dashed #38383a; border-radius: 8px;
 }
@@ -351,7 +379,7 @@ QLabel#employeeCrumbLabel {
 QWidget#employeesMainArea QLabel[role="sectionTitle"] {
     color: #8e8e93; font-size: 11px; margin-top: 14px;
 }
-QLabel#label_employee_position, QLabel#label_employee_fio { color: #c7c7cc; font-size: 12px; }
+QLabel#label_employee_position, QLabel#label_employee_fio, QLabel#label_employee_qualification { color: #c7c7cc; font-size: 12px; }
 QWidget#employeesMainArea QLabel#employee_kleishe_preview {
     background: #232325; border: 0.5px dashed #48484a; border-radius: 6px;
     color: #5a5a5c; font-size: 10.5px;
@@ -3039,7 +3067,9 @@ class MainWindow(QMainWindow):
         (_build_placeholder_catalog()), которые только для
         пользовательских: предпросмотр с подставленными значениями
         одинаково полезен и для готовых встроенных вариантов."""
-        from ..services.title_variants_store import get_all_field_labels, load_field_formulas, load_field_tables
+        from ..services.title_variants_store import (
+            get_all_field_labels, load_field_formulas, load_field_tables, load_field_employee_bindings,
+        )
         from ..services.formula_engine import evaluate_formula, format_formula_result
 
         get_all_variants = self._slot_store(slot).get_all_variants
@@ -3084,10 +3114,35 @@ class MainWindow(QMainWindow):
         labels = get_all_field_labels()
         formulas = load_field_formulas()
         tables = load_field_tables()
+        # employee_bindings -- см. _create_employee_from_chip_menu(): КАЖДЫЙ
+        # field_id здесь -- отдельное, ранее автоматически заведённое поле
+        # (field_catalog запись "<подпись триггера> — <представление>"),
+        # держащее РОВНО ОДНО представление ОДНОГО сотрудника ({"employee_id":
+        # .., "key": .., "source_field_id": ..}) -- не привязка САМОГО
+        # триггерного поля (тот остаётся обычным, ничем не помеченным полем,
+        # см. докстринг _create_employee_from_chip_menu()). employees_by_id
+        # загружается ОДИН раз на весь рендер (не на каждое поле) -- тот же
+        # приём, что и labels/formulas/tables выше.
+        employee_bindings = load_field_employee_bindings()
+        employees_by_id = {employee.id: employee for employee in load_employees()}
         for field_id in field_ids:
             widget_name = self._slot_placeholder_name(slot, field_id)
             formula = formulas.get(field_id)
             table = tables.get(field_id)
+            binding = employee_bindings.get(field_id)
+            binding_key = binding.get("key") if binding else None
+            # bound_employee/employee_value -- None, если у поля нет
+            # привязки, у привязки нет ключа (старый формат ДО того, как
+            # каждое представление стало отдельным полем -- {"employee_id",
+            # "keys": [...]} вместо {"employee_id", "key", "source_field_id"},
+            # см. docstring load_field_employee_bindings() -- реальный
+            # случай, встретился в проде на данных, сохранённых прошлой
+            # итерацией фичи), ЛИБО привязанного сотрудника с тех пор
+            # удалили из справочника (EmployeePlaceholderDialog._on_delete_employee())
+            # -- тогда поле ведёт себя так, будто привязки не было вовсе
+            # (обычное пустое/ранее введённое поле), без падения.
+            bound_employee = employees_by_id.get(binding["employee_id"]) if binding and binding_key else None
+            employee_value = employee_data_value(bound_employee, binding_key) if bound_employee else None
             # GrowablePlaceholderField, а не голый QPlainTextEdit -- значения
             # бывают длиной в целый абзац (см. содержательные пункты вводной
             # части вроде «1.1. На основании требований п.198 ФНП ТТ ...»).
@@ -3122,6 +3177,20 @@ class MainWindow(QMainWindow):
                 rows = table.get("rows", [])
                 cols = len(rows[0]) if rows else 0
                 widget.setPlaceholderText(f"▦ Таблица {len(rows)}×{cols} — редактирование через ПКМ")
+            elif bound_employee is not None:
+                # Значение из справочника сотрудников -- readOnly, тем же
+                # принципом, что формула/таблица выше: единственный
+                # источник истины -- справочник (EmployeePlaceholderDialog),
+                # а не то, что было напечатано руками. Само поле при этом
+                # РАБОТАЕТ ПО ТОЙ ЖЕ ЛОГИКЕ, ЧТО И ОБЫЧНЫЕ ПОЛЯ -- обычный
+                # чип-метка (клик копирует "{{ field_id }}", как у всех,
+                # см. ниже), просто зелёного цвета и с readOnly-значением;
+                # никакого отдельного виджета/особого поведения копирования
+                # для него больше нет (см. историю _EmployeeChipsField,
+                # удалён -- пользователь явно попросил единую логику).
+                widget.setReadOnly(True)
+                widget.setProperty("computedEmployee", True)
+                widget.setPlainText(employee_value)
             else:
                 if widget_name in previous_values:
                     widget.setPlainText(previous_values[widget_name])
@@ -3156,6 +3225,7 @@ class MainWindow(QMainWindow):
                     labels.get(field_id, field_id)
                     + (" ƒ" if formula is not None else "")
                     + (" ▦" if table is not None else "")
+                    + (" 👤" if bound_employee is not None else "")
                 )
                 row_label = QLabel(chip_text)
                 tooltip = f"{{{{ {widget_name} }}}}"
@@ -3163,6 +3233,11 @@ class MainWindow(QMainWindow):
                     tooltip += "\nВычисляется по формуле — правка недоступна, см. ПКМ."
                 if table is not None:
                     tooltip += "\nПредставлено таблицей — правка через ПКМ → «Редактировать таблицу»."
+                if bound_employee is not None:
+                    tooltip += (
+                        f"\nЗначение из справочника сотрудников ({fio_short(bound_employee.full_name)}) — "
+                        "правка через ПКМ → «Создать сотрудника»."
+                    )
                 tooltip += "\nКлик — скопировать для Word. ПКМ — меню. Перетащите на другое поле — переставить порядок."
                 row_label.setToolTip(tooltip)
                 row_label.setProperty("titleChip", True)
@@ -3170,6 +3245,8 @@ class MainWindow(QMainWindow):
                     row_label.setProperty("titleChipFormula", True)
                 if table is not None:
                     row_label.setProperty("titleChipTable", True)
+                if bound_employee is not None:
+                    row_label.setProperty("titleChipEmployee", True)
                 row_label.setCursor(Qt.CursorShape.PointingHandCursor)
                 row_label.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
                 row_label.customContextMenuRequested.connect(
@@ -3177,6 +3254,9 @@ class MainWindow(QMainWindow):
                         slot, variant_id, fid, w.mapToGlobal(pos)
                     )
                 )
+                # copyable по умолчанию True -- РОВНО ТА ЖЕ ЛОГИКА, ЧТО И У
+                # ОБЫЧНЫХ (синих) ЧИПОВ, без исключений для поля,
+                # привязанного к сотруднику (пользователь явно попросил).
                 self._wire_chip_drag_reorder(row_label, slot, variant_id, field_id, widget_name)
             else:
                 row_label = labels.get(field_id, field_id)
@@ -3202,6 +3282,9 @@ class MainWindow(QMainWindow):
         в variant.subtitle_fields (см. _reorder_variant_placeholder()).
         Только для пользовательских вариантов (см. вызывающую сторону) --
         у встроенных чипов нет вовсе, порядок полей там не через UI.
+        Действует ОДИНАКОВО для любого поля реквизитов, включая привязанные
+        к формуле/таблице/сотруднику -- пользователь явно попросил единую
+        логику для чипа, привязанного к сотруднику, без исключений.
 
         Клик (копирование, _copy_chip()) и начало перетаскивания различаем
         порогом смещения (QApplication.startDragDistance()) между press и
@@ -4273,7 +4356,17 @@ class MainWindow(QMainWindow):
 
         «Удалить» -- убирает плейсхолдер из РЕКВИЗИТОВ этого варианта
         (variant.subtitle_fields), а не из каталога -- другая операция,
-        см. _remove_variant_placeholder()."""
+        см. _remove_variant_placeholder().
+
+        «Создать сотрудника» -- открывает EmployeePlaceholderDialog (см.
+        _create_employee_from_chip_menu()): выбор сотрудника из общего
+        справочника + множественный выбор готовых представлений его данных
+        (ФИО, должность, квалификация, удостоверения). В отличие от формулы
+        и таблицы выше, НЕ превращает ЭТО поле в вычисляемое -- вместо
+        этого на каждое отмеченное представление заводится ОТДЕЛЬНОЕ новое
+        поле реквизитов рядом с текущим (readOnly, значение из справочника
+        сотрудников, field_employee_bindings в title_variants_store.py),
+        работающее по той же логике, что и любой другой плейсхолдер."""
         from ..services.title_variants_store import load_field_catalog, load_field_formulas, load_field_tables
 
         menu = QMenu(self)
@@ -4284,16 +4377,136 @@ class MainWindow(QMainWindow):
         rename_action = None
         if field_id in load_field_catalog():
             rename_action = menu.addAction(icons.icon("edit", "#c7c7cc", 13), "Переименовать")
+        employee_action = menu.addAction(icons.icon("users", "#30d158", 13), "Создать сотрудника")
         delete_action = menu.addAction(icons.icon("trash", "#ff453a", 13), "Удалить")
         chosen = menu.exec(global_pos)
         if chosen == formula_action:
             self._open_formula_editor(slot, variant_id, field_id)
         elif chosen == table_action:
             self._open_table_editor(slot, variant_id, field_id)
+        elif chosen == employee_action:
+            self._create_employee_from_chip_menu(slot, variant_id, field_id)
         elif chosen == delete_action:
             self._remove_variant_placeholder(slot, variant_id, field_id)
         elif rename_action is not None and chosen == rename_action:
             self._rename_catalog_field(slot, variant_id, field_id)
+
+    def _create_employee_from_chip_menu(self, slot: str, variant_id: str, field_id: str):
+        """«Создать сотрудника» из ПКМ-меню чипа -- открывает
+        EmployeePlaceholderDialog модально ПОВЕРХ конструктора (тем же
+        приёмом, что _open_formula_editor()/_open_table_editor()), а НЕ
+        переключает активити-бар в раздел «Сотрудники» (так было в первой
+        версии этой кнопки -- уводило оператора со страницы реквизитов,
+        см. docs/design/редактор_сотрудника.html, третья итерация мокапа).
+
+        НЕ привязывает field_id (поле, из которого вызвано меню) напрямую --
+        тот остаётся обычным полем, каким был. Вместо этого на каждое
+        ОТМЕЧЕННОЕ в диалоге представление данных сотрудника заводится
+        ОТДЕЛЬНОЕ новое поле в общем каталоге (field_catalog), сразу же
+        вставляемое в реквизиты РЯДОМ с полем-триггером (сразу после него) --
+        каждое такое поле дальше работает ровно как любой другой
+        плейсхолдер (чип копирует "{{ field_id }}", см. _render_slot_fields()),
+        просто зелёного цвета и readOnly, со значением из справочника
+        сотрудников. Четвёртая (эта) итерация: раньше несколько
+        представлений сводились в ОДНО поле-триггер (см. историю
+        _EmployeeChipsField, удалён) -- пользователь явно попросил вместо
+        этого "ту же логику, что у синих" плейсхолдеров, т.е. отдельное
+        полноценное поле на каждое представление.
+
+        Диалог открывается с уже сохранённым для этого триггера выбором,
+        если он есть (тем же сотрудником и объединением ключей уже
+        существующих сгенерированных полей) -- повторное открытие позволяет
+        сменить сотрудника/набор отмеченных данных, а не только завести
+        всё с нуля. На повторном сохранении поля для СНЯТЫХ ключей
+        удаляются из реквизитов/каталога/привязок, поля для ключей, что
+        остались отмеченными, СОХРАНЯЮТ свой field_id (не перегенерируются
+        заново) -- важно, если на такое поле уже случайно сослались в
+        чьей-то формуле."""
+        from ..services.title_variants_store import (
+            load_field_catalog, save_field_catalog,
+            load_field_employee_bindings, save_field_employee_bindings,
+            get_all_field_labels,
+        )
+
+        all_bindings = load_field_employee_bindings()
+        existing_for_trigger = {
+            gen_field_id: binding for gen_field_id, binding in all_bindings.items()
+            if binding.get("source_field_id") == field_id
+        }
+        existing_employee_id = next(iter(existing_for_trigger.values()), {}).get("employee_id")
+        existing_keys = {binding["key"] for binding in existing_for_trigger.values()}
+        existing_binding_for_dialog = (
+            {"employee_id": existing_employee_id, "keys": sorted(existing_keys)}
+            if existing_employee_id else None
+        )
+
+        dialog = EmployeePlaceholderDialog(existing_binding=existing_binding_for_dialog, parent=self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        selected_keys = set(dialog.selected_keys) if dialog.employee_id else set()
+        existing_by_key = {binding["key"]: gen_field_id for gen_field_id, binding in existing_for_trigger.items()}
+
+        # Ничего не выбрано и раньше тоже ничего не было заведено для этого
+        # триггера -- честный no-op, не трогаем store вовсе.
+        if not selected_keys and not existing_for_trigger:
+            return
+
+        store = self._slot_store(slot)
+        variants = store.load_variants()
+        variant = next((v for v in variants if v.id == variant_id), None)
+        if variant is None:
+            return
+
+        catalog = load_field_catalog()
+        trigger_label = get_all_field_labels().get(field_id, field_id)
+
+        # Поля, чей ключ сняли с отметки, убираем из реквизитов/каталога/
+        # привязок целиком -- та же "судьба", что у поля, удалённого через
+        # «Удалить» в меню чипа (осиротевшую формулу/таблицу, если на него
+        # кто-то ссылался, это, как и там, не чистит -- сознательно, см.
+        # _remove_variant_placeholder()).
+        for key, gen_field_id in existing_by_key.items():
+            if key in selected_keys:
+                continue
+            if gen_field_id in variant.subtitle_fields:
+                variant.subtitle_fields.remove(gen_field_id)
+            catalog.pop(gen_field_id, None)
+            all_bindings.pop(gen_field_id, None)
+
+        # Заводим/обновляем поля для отмеченных ключей, в ПОРЯДКЕ
+        # EMPLOYEE_DATA_FIELDS (не в порядке отметки в диалоге) -- каждое
+        # новое поле вставляется СРАЗУ после предыдущего в этой же цепочке
+        # (insert_after сдвигается), т.е. все вместе оказываются одним
+        # блоком сразу после поля-триггера, а не разбросаны по реквизитам.
+        # У уже существующих (ключ остался отмеченным) field_id НЕ
+        # перегенерируется -- только employee_id в привязке обновляется
+        # (мог смениться сотрудник при том же наборе ключей).
+        insert_after = field_id
+        for data_field in EMPLOYEE_DATA_FIELDS:
+            if data_field.key not in selected_keys:
+                continue
+            gen_field_id = existing_by_key.get(data_field.key)
+            if gen_field_id is None:
+                gen_field_id = "field_" + uuid4().hex[:8]
+                catalog[gen_field_id] = f"{trigger_label} — {data_field.label}"
+                if insert_after in variant.subtitle_fields:
+                    variant.subtitle_fields.insert(variant.subtitle_fields.index(insert_after) + 1, gen_field_id)
+                else:
+                    variant.subtitle_fields.append(gen_field_id)
+            all_bindings[gen_field_id] = {
+                "employee_id": dialog.employee_id, "key": data_field.key, "source_field_id": field_id,
+            }
+            insert_after = gen_field_id
+
+        save_field_catalog(catalog)
+        save_field_employee_bindings(all_bindings)
+        store.save_variants(variants)
+
+        for refresh_slot in self._CONSTRUCTOR_SLOTS:
+            refresh_variant_id = self._filled_slot_variant(refresh_slot)
+            if refresh_variant_id is not None:
+                self._render_slot_fields(refresh_slot, refresh_variant_id)
 
     def _open_formula_editor(self, slot: str, variant_id: str, field_id: str):
         """Открывает FormulaEditorDialog для field_id -- на успешном

@@ -1,0 +1,438 @@
+<title>Редактор сотрудника</title>
+<h2 style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);">Мокап: пункт «Создать сотрудника» в ПКМ-меню плейсхолдера открывает модальное окно «Редактор сотрудника» — выбор уже записанного сотрудника и готовые плейсхолдеры его данных</h2>
+
+<!-- Отдельный, самодостаточный мокап (по просьбе пользователя "сделай для
+     этого отдельный мокап") для НОВОГО поведения пункта «Создать
+     сотрудника» в ПКМ-меню плейсхолдера конструктора документов.
+
+     Контекст и текущее расхождение с реальным кодом (на момент
+     создания этого мокапа, ветка vsk-35):
+     в src/ui/main_window.py уже добавлен пункт «Создать сотрудника» в
+     _show_chip_context_menu() (между «Переименовать» и «Удалить»), но
+     обработчик _create_employee_from_chip_menu() СЕЙЧАС переключает
+     весь конструктор в раздел «Сотрудники» активити-бара и открывает
+     там пустую форму (_switch_activity_view("employees") +
+     employees_tab._new_employee()) -- то есть уводит оператора со
+     страницы реквизитов.
+
+     Этот мокап прорабатывает ДРУГОЙ вариант: клик по пункту «Создать
+     сотрудника» открывает МОДАЛЬНОЕ окно «Редактор сотрудника» поверх
+     текущего экрана (как редактор формулы/таблицы --
+     FormulaEditorDialog/TableEditorDialog, те же QDialog поверх
+     MainWindow, а не переключение активити-бара), не уводя оператора со
+     страницы.
+
+     ВАЖНО, третья итерация этого мокапа: окно -- это ТОЛЬКО выбор уже
+     записанного сотрудника + просмотр готовых плейсхолдеров его данных.
+     Редактирование самой карточки сотрудника (должность/квалификация/
+     ФИО/удостоверения/клише) сюда НЕ входит -- пользователь явно попросил
+     убрать эти поля из этого окна (см. скриншот в диалоге). Полное
+     редактирование остаётся исключительно в разделе «Сотрудники»
+     активити-бара (см. docs/design/сотрудники_конструктор.html,
+     EmployeesTabController) -- это окно только читает уже существующие
+     записи оттуда, ничего не создаёт и не правит. Отсюда и слегка
+     нестыкующееся название кнопки-триггера «Создать сотрудника» --
+     осталось от предыдущей итерации, переименование не запрошено, но
+     стоит поднять с пользователем перед переносом в реальный код (по
+     факту это скорее «Вставить данные сотрудника»/«Плейсхолдеры
+     сотрудника»).
+
+     При выборе сотрудника из списка слева правая часть окна показывает
+     блок «Готовые плейсхолдеры» -- набор ГОТОВЫХ чипов с разными
+     представлениями данных сотрудника: полное ФИО, фамилия с инициалами
+     («Клименко А. А.»), должность, квалификация, удостоверения. Это и
+     есть мост "плейсхолдер <-> сотрудник", которого не было в проекте
+     раньше -- не привязка чипа к employee_id, а генерация готовых
+     текстовых значений для вставки в разные поля документа. «Удалить» в
+     подвале -- по-прежнему валидное действие (убрать запись из общего
+     справочника), не зависит от убранных полей формы, поэтому оставлено;
+     «Сохранить» и «+ Новый сотрудник» убраны вместе с формой -- сохранять
+     больше нечего.
+
+     Четвёртая итерация (эта): чипы «Готовых плейсхолдеров» -- теперь
+     МНОЖЕСТВЕННЫЙ ВЫБОР, не клик-копирование в буфер. ЛКМ по чипу
+     переключает его синий/зелёный (зелёный = выбран, см. CHIP_DEFS/
+     renderPlaceholders()/selectedKeys ниже) -- можно выбрать любое
+     подмножество из пяти. По закрытию окна (кнопка «Готово» или крестик
+     -- оба пути теперь применяют выбор, отдельного «Отмена» без
+     применения нет, симметрично тому, что раньше уже убрали различие
+     Сохранить/Отмена) выбранный набор ЗЕЛЁНЫХ чипов переносится в фоновую
+     сцену реквизитов, в ту же строку, где был плейсхолдер, из которого
+     открыли редактор -- на месте прежнего одиночного синего
+     ph-chip-block «Ответственный специалист» появляется синий чип с
+     кратким ФИО сотрудника (по образцу скриншота пользователя
+     «Сотрудник 1» -- в этом мокапе вместо номера слота показано реальное
+     сокращённое ФИО, см. applySelectionToBackground(), это осознанная
+     замена, не то же самое, что в скриншоте буквально, стоит свериться с
+     пользователем) плюс соседний блок-«поле значения», куда и попадают
+     выбранные зелёные чипы -- визуально заменяя собой то, что раньше
+     было бы обычным текстовым полем ввода. Пересмотр сотрудника
+     (переоткрыть редактор через то же ПКМ-меню) сбрасывает выбор чипов
+     заново -- выбор не сохраняется между сотрудниками/переоткрытиями.
+
+     Требует НОВОГО поля в модели сотрудника, которого сейчас нет:
+     «Квалификация» (src/models/employee.py Employee{position, full_name,
+     certificates, kleishe_filename} -- квалификации там нет, добавлена
+     только в этом мокапе как employees[].qualification). Также
+     предполагает, что full_name хранится ПОЛНОСТЬЮ ("Клименко Алексей
+     Александрович"), а не уже сокращённо, как было в тестовых данных
+     сотрудники_конструктор.html ("Грищенко С.В.") -- иначе «Фамилия И.О.»
+     нечего было бы вычислять. Оба этих несоответствия реальному коду --
+     на обсуждение с пользователем перед переносом в PyQt. -->
+
+<svg style="position:absolute;width:0;height:0;overflow:hidden;" aria-hidden="true" focusable="false">
+<defs>
+<symbol id="i-formula" viewBox="0 0 24 24"><line x1="4" y1="12" x2="20" y2="12"/><circle cx="8" cy="6" r="1.3"/><circle cx="16" cy="18" r="1.3"/></symbol>
+<symbol id="i-table" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1.5"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="9" y1="10" x2="9" y2="20"/></symbol>
+<symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
+<symbol id="i-users" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><line x1="4" y1="7" x2="20" y2="7"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.4" y2="16.4"/></symbol>
+</defs>
+</svg>
+
+<style>
+body{margin:0;background:#eeeeef;}
+.icon{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+.menu-row{padding:8px 10px;font-size:12px;color:#e5e5e7;cursor:pointer;display:flex;align-items:center;gap:7px;white-space:nowrap;}
+.menu-row:hover{background:#3a3a3c;}
+.ph-chip-block{display:inline-block;background:rgba(10,132,255,.16);color:#5ab4ff;border:0.5px solid rgba(10,132,255,.4);border-radius:6px;padding:4px 9px;font-size:11.5px;cursor:context-menu;}
+.field-grid{display:grid;grid-template-columns:150px 1fr;row-gap:10px;column-gap:10px;align-items:center;font-size:12px;}
+.lbl{color:#c7c7cc;}
+.search-box{display:flex;align-items:center;gap:6px;background:#1c1c1e;border:0.5px solid #38383a;border-radius:6px;padding:6px 8px;margin:0 10px 8px;}
+.search-box input{flex:1;background:transparent;border:none;outline:none;color:#e5e5e7;font-size:12px;font-family:inherit;}
+.search-box input::placeholder{color:#5a5a5c;}
+.emp-row{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:6px;cursor:pointer;margin:0 6px 2px;}
+.emp-row:hover{background:#2c2c2e;}
+.emp-row.active{background:rgba(10,132,255,.16);}
+.emp-avatar{width:24px;height:24px;border-radius:50%;background:#38383a;color:#c7c7cc;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:600;flex-shrink:0;}
+.emp-row.active .emp-avatar{background:#0a84ff;color:#fff;}
+.emp-text{min-width:0;flex:1;}
+.emp-name{font-size:11.5px;color:#e5e5e7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.emp-pos{font-size:10px;color:#8e8e93;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.empty-hint{padding:10px;font-size:11px;color:#5a5a5c;font-style:italic;}
+.sec-title{font-size:10.5px;color:#8e8e93;text-transform:uppercase;letter-spacing:.03em;margin:16px 0 8px;}
+.sec-title:first-child{margin-top:0;}
+.btn-outline{background:transparent;border:0.5px solid #48484a;color:#c7c7cc;font-size:11.5px;padding:6px 11px;border-radius:6px;cursor:pointer;}
+.btn-outline:hover{background:#3a3a3c;}
+.btn-primary{background:#0a84ff;border:none;color:#fff;font-size:12px;font-weight:500;padding:6px 13px;border-radius:6px;cursor:pointer;}
+.btn-primary:hover{background:#1f92ff;}
+.btn-danger{background:transparent;border:0.5px solid rgba(255,69,58,.5);color:#ff453a;font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;}
+.btn-danger:hover{background:rgba(255,69,58,.12);}
+.modal-close{display:flex;align-items:center;justify-content:center;width:22px;height:22px;flex-shrink:0;background:transparent;border:none;border-radius:5px;color:#8e8e93;cursor:pointer;padding:0;}
+.modal-close:hover{background:#3a3a3c;color:#e5e5e7;}
+.ph-chip-block.copyable{cursor:pointer;user-select:none;}
+.ph-chip-block.copyable:hover{border-color:#0a84ff;}
+.ph-chip-block.selected{background:rgba(48,209,88,.16);color:#30d158;border-color:rgba(48,209,88,.4);}
+.ph-empty-hint{grid-column:1 / -1;font-size:11.5px;color:#5a5a5c;font-style:italic;padding:2px 0;}
+.employee-tag{font-weight:600;cursor:context-menu;flex-shrink:0;}
+.specialist-value-box{flex:1;min-height:27px;background:#2c2c2e;border:0.5px solid #38383a;border-radius:6px;padding:4px 6px;display:flex;flex-wrap:wrap;gap:5px;align-items:center;}
+.specialist-value-box .ph-chip-block{cursor:default;padding:3px 8px;}
+</style>
+
+<div style="min-height:100vh;box-sizing:border-box;padding:32px 20px;display:flex;align-items:flex-start;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,sans-serif;">
+<div style="width:100%;max-width:760px;">
+  <p style="margin:0 0 14px;font-size:13px;color:#6b6b70;text-align:center;">Кликабельный мокап — нажмите ПКМ на плейсхолдере «Ответственный специалист», затем «Создать сотрудника»</p>
+
+  <div style="max-width:720px;margin:0 auto;background:#1c1c1e;border-radius:10px;overflow:hidden;border:0.5px solid #38383a;position:relative;box-shadow:0 12px 32px rgba(0,0,0,.18);">
+
+    <div style="display:flex;align-items:center;padding:10px 14px;background:#2c2c2e;border-bottom:0.5px solid #38383a;position:relative;">
+      <span style="width:11px;height:11px;border-radius:50%;background:#ff5f57;margin-right:6px;"></span>
+      <span style="width:11px;height:11px;border-radius:50%;background:#febc2e;margin-right:6px;"></span>
+      <span style="width:11px;height:11px;border-radius:50%;background:#28c840;"></span>
+      <span style="position:absolute;left:50%;transform:translateX(-50%);font-size:12px;color:#8e8e93;">Конструктор документов — Реквизиты</span>
+    </div>
+
+    <!-- Фоновая сцена -- упрощённая панель реквизитов с одним чипом-
+         плейсхолдером, на котором и демонстрируется ПКМ-меню. -->
+    <div style="height:560px;padding:20px 22px;overflow-y:auto;">
+      <div class="sec-title">Реквизиты варианта</div>
+      <div class="field-grid">
+        <span class="lbl">Номер заключения</span>
+        <span class="ph-chip-block" title="{{ doc_number }}">Номер заключения</span>
+        <span class="lbl">Дата освидетельствования</span>
+        <span class="ph-chip-block" title="{{ inspection_date }}">Дата освидетельствования</span>
+        <span class="lbl">Ответственный специалист</span>
+        <div id="specialistFieldValue" style="display:flex;align-items:center;gap:8px;">
+          <span class="ph-chip-block" title="{{ specialist_name }}" oncontextmenu="return openChipMenu(event)">Ответственный специалист</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ПКМ-меню чипа -- те же пункты и порядок, что сейчас в
+         _show_chip_context_menu() (main_window.py): формула, таблица,
+         переименовать, создать сотрудника (новый пункт), удалить. -->
+    <div id="chipMenu" style="display:none;position:absolute;z-index:20;background:#2c2c2e;border:0.5px solid #48484a;border-radius:8px;overflow:hidden;min-width:190px;box-shadow:0 8px 24px rgba(0,0,0,.4);">
+      <div class="menu-row"><svg class="icon" style="width:14px;height:14px;color:#bf5af2;" aria-hidden="true"><use href="#i-formula"/></svg>Создать формулу</div>
+      <div class="menu-row"><svg class="icon" style="width:14px;height:14px;color:#64d2ff;" aria-hidden="true"><use href="#i-table"/></svg>Создать таблицу</div>
+      <div class="menu-row"><svg class="icon" style="width:14px;height:14px;color:#c7c7cc;" aria-hidden="true"><use href="#i-edit"/></svg>Переименовать</div>
+      <div class="menu-row" onclick="openEmployeeEditor()"><svg class="icon" style="width:14px;height:14px;color:#30d158;" aria-hidden="true"><use href="#i-users"/></svg>Создать сотрудника</div>
+      <div class="menu-row" style="color:#ff453a;"><svg class="icon" style="width:14px;height:14px;color:#ff453a;" aria-hidden="true"><use href="#i-trash"/></svg>Удалить</div>
+    </div>
+
+    <!-- Модальное окно «Редактор сотрудника» -- QDialog поверх MainWindow
+         (тот же принцип, что FormulaEditorDialog/TableEditorDialog), НЕ
+         переключение активити-бара. Список слева -- то же чтение
+         load_employees(), что и в разделе «Сотрудники», но БЕЗ формы
+         редактирования справа -- только готовые плейсхолдеры выбранного
+         сотрудника (см. комментарий в начале файла, третья итерация). -->
+    <div id="employeeEditorModal" style="display:none;position:absolute;inset:26px 40px;background:#1c1c1e;border:0.5px solid #48484a;border-radius:10px;box-shadow:0 16px 40px rgba(0,0,0,.5);z-index:30;flex-direction:column;overflow:hidden;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#242426;border-bottom:0.5px solid #38383a;flex-shrink:0;">
+        <span style="font-size:12.5px;font-weight:500;color:#e5e5e7;">Редактор сотрудника</span>
+        <button class="modal-close" onclick="closeEmployeeEditor()"><svg class="icon" style="width:14px;height:14px;" aria-hidden="true"><use href="#i-x"/></svg></button>
+      </div>
+
+      <div style="display:flex;flex:1;min-height:0;">
+        <div style="width:190px;background:#202022;border-right:0.5px solid #38383a;flex-shrink:0;display:flex;flex-direction:column;">
+          <div style="padding:10px 10px 8px;">
+            <span style="font-size:10.5px;color:#8e8e93;text-transform:uppercase;letter-spacing:.03em;">Сотрудники</span>
+          </div>
+          <div class="search-box">
+            <svg class="icon" style="width:12px;height:12px;color:#5a5a5c;flex-shrink:0;" aria-hidden="true"><use href="#i-search"/></svg>
+            <input id="empSearch" type="text" placeholder="Поиск по ФИО" oninput="renderList()" />
+          </div>
+          <div id="empList" style="flex:1;overflow-y:auto;padding-bottom:6px;"></div>
+        </div>
+
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;">
+          <div style="padding:7px 16px;background:#202022;border-bottom:0.5px solid #2c2c2e;font-size:10.5px;color:#8e8e93;flex-shrink:0;">
+            Сотрудники / <span id="crumbName" style="color:#e5e5e7;">Выберите сотрудника</span>
+          </div>
+
+          <div style="flex:1;overflow-y:auto;padding:14px 16px;">
+            <div class="sec-title">Готовые плейсхолдеры</div>
+            <div id="placeholderBlock" class="field-grid"></div>
+          </div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-top:0.5px solid #2c2c2e;flex-shrink:0;">
+            <button id="deleteBtn" class="btn-danger" style="display:none;" onclick="deleteEmployee()">
+              <svg class="icon" style="width:12px;height:12px;vertical-align:-2px;margin-right:5px;" aria-hidden="true"><use href="#i-trash"/></svg>Удалить
+            </button>
+            <span></span>
+            <button class="btn-primary" onclick="closeEmployeeEditor()">Готово</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<!-- Замена window.confirm() -- нативные confirm()/alert() заблокированы в
+     песочнице превью артефактов (тот же паттерн, что и в
+     сотрудники_конструктор.html). -->
+<div id="confirmModal" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.55);align-items:center;justify-content:center;z-index:40;">
+  <div style="background:#2c2c2e;border:0.5px solid #48484a;border-radius:10px;padding:18px;width:280px;">
+    <div id="confirmModalText" style="font-size:12.5px;color:#e5e5e7;line-height:1.4;margin-bottom:14px;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button onclick="closeConfirmModal()" class="btn-outline">Отмена</button>
+      <button onclick="confirmModalAccept()" style="background:#ff453a;border:none;color:#fff;font-size:12px;font-weight:500;padding:6px 12px;border-radius:6px;cursor:pointer;">Удалить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// -- Мок-данные справочника сотрудников (то же, что уже создано в разделе
+// «Сотрудники» -- это окно только читает, см. комментарий в начале файла).
+// full_name -- ПОЛНОЕ ФИО (не сокращённое, как было в
+// сотрудники_конструктор.html) -- нужно, чтобы вычислять "Фамилия И.О."
+// для готовых плейсхолдеров, см. fioShort() ниже. qualification -- новое
+// поле, которого нет в реальной модели Employee (см. комментарий в начале
+// файла).
+var employees = [
+  { id: 'e1', position: 'Специалист НК II уровня', qualification: 'II уровень', full_name: 'Грищенко Сергей Викторович', certificates: ['№ 0010-6557 от 02.09.2022'] },
+  { id: 'e2', position: 'Ведущий эксперт', qualification: 'Эксперт I категории', full_name: 'Климов Андрей Павлович', certificates: ['№ 0007-3312 от 14.05.2021', 'Аттестат эксперта № ЭД-441'] }
+];
+var currentId = null;
+
+// Пять готовых представлений данных сотрудника -- общий источник и для
+// renderPlaceholders() (чипы выбора в диалоге), и для updateBackgroundField()
+// (какие из выбранных чипов переносятся в фоновую сцену).
+var CHIP_DEFS = [
+  { key: 'fio_full', label: 'Полное ФИО', value: function(e){ return e.full_name || ''; } },
+  { key: 'fio_short', label: 'Фамилия И.О.', value: function(e){ return e.full_name ? fioShort(e.full_name) : ''; } },
+  { key: 'position', label: 'Должность', value: function(e){ return e.position || ''; } },
+  { key: 'qualification', label: 'Квалификация', value: function(e){ return e.qualification || ''; } },
+  { key: 'certificates', label: 'Удостоверения', value: function(e){ return (e.certificates || []).join('; '); } }
+];
+// Какие ключи CHIP_DEFS сейчас выбраны (зелёные) в открытом редакторе --
+// сбрасывается на каждый выбор/сброс сотрудника, см. selectEmployee()/
+// clearSelection().
+var selectedKeys = new Set();
+
+function openChipMenu(ev){
+  ev.preventDefault();
+  var menu = document.getElementById('chipMenu');
+  var wrap = ev.currentTarget.closest('div[style*="position:relative"]');
+  var wrapRect = wrap.getBoundingClientRect();
+  menu.style.left = (ev.clientX - wrapRect.left) + 'px';
+  menu.style.top = (ev.clientY - wrapRect.top) + 'px';
+  menu.style.display = 'block';
+  document.addEventListener('click', closeChipMenu, { once: true });
+  return false;
+}
+function closeChipMenu(){
+  document.getElementById('chipMenu').style.display = 'none';
+}
+
+function openEmployeeEditor(){
+  closeChipMenu();
+  document.getElementById('employeeEditorModal').style.display = 'flex';
+  clearSelection();
+}
+function closeEmployeeEditor(){
+  applySelectionToBackground();
+  document.getElementById('employeeEditorModal').style.display = 'none';
+}
+
+function initials(fullName){
+  var parts = fullName.trim().split(/\s+/);
+  return (parts[0] ? parts[0][0] : '') + (parts[1] ? parts[1][0] : '');
+}
+
+// "Клименко Алексей Александрович" -> "Клименко А. А." -- фамилия
+// полностью, имя и отчество сокращаются до инициала с точкой. Без
+// отчества (два слова) даёт "Клименко А.".
+function fioShort(fullName){
+  var parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '';
+  var surname = parts[0];
+  var rest = parts.slice(1).map(function(p){ return p[0].toUpperCase() + '.'; });
+  return rest.length ? surname + ' ' + rest.join(' ') : surname;
+}
+
+function renderList(){
+  var q = document.getElementById('empSearch').value.trim().toLowerCase();
+  var list = document.getElementById('empList');
+  list.innerHTML = '';
+  employees.filter(function(e){
+    return !q || e.full_name.toLowerCase().indexOf(q) >= 0 || e.position.toLowerCase().indexOf(q) >= 0;
+  }).forEach(function(e){
+    var row = document.createElement('div');
+    row.className = 'emp-row' + (e.id === currentId ? ' active' : '');
+    row.onclick = function(){ selectEmployee(e.id); };
+    row.innerHTML =
+      '<div class="emp-avatar">' + initials(e.full_name).toUpperCase() + '</div>' +
+      '<div class="emp-text"><div class="emp-name">' + fioShort(e.full_name) + '</div><div class="emp-pos">' + e.position + '</div></div>';
+    list.appendChild(row);
+  });
+  if (!employees.length){
+    list.innerHTML = '<div class="empty-hint" style="margin:4px 10px;">Справочник пуст</div>';
+  }
+}
+
+function selectEmployee(id){
+  var e = employees.find(function(x){ return x.id === id; });
+  if (!e) return;
+  currentId = id;
+  selectedKeys = new Set();
+  document.getElementById('crumbName').textContent = fioShort(e.full_name);
+  document.getElementById('deleteBtn').style.display = 'inline-flex';
+  renderPlaceholders(e);
+  renderList();
+}
+
+function clearSelection(){
+  currentId = null;
+  selectedKeys = new Set();
+  document.getElementById('crumbName').textContent = 'Выберите сотрудника';
+  document.getElementById('deleteBtn').style.display = 'none';
+  renderPlaceholders(null);
+  renderList();
+}
+
+// Блок «Готовые плейсхолдеры» -- пять чипов (CHIP_DEFS) с данными
+// ВЫБРАННОГО сотрудника. ЛКМ по чипу переключает его в selectedKeys и
+// красит синий/зелёный -- множественный выбор, не клик-копирование (см.
+// комментарий "Четвёртая итерация" в начале файла).
+function renderPlaceholders(e){
+  var box = document.getElementById('placeholderBlock');
+  if (!box) return;
+
+  if (!e){
+    box.innerHTML = '<span class="ph-empty-hint">Выберите сотрудника слева, чтобы получить готовые плейсхолдеры его данных</span>';
+    return;
+  }
+
+  box.innerHTML = '';
+  CHIP_DEFS.forEach(function(def){
+    var value = def.value(e) || '—';
+    var lbl = document.createElement('span');
+    lbl.className = 'lbl';
+    lbl.textContent = def.label;
+    var chip = document.createElement('span');
+    chip.className = 'ph-chip-block copyable' + (selectedKeys.has(def.key) ? ' selected' : '');
+    chip.textContent = value;
+    chip.title = 'Выбрать/снять для вставки в реквизит';
+    chip.onclick = function(){
+      if (selectedKeys.has(def.key)) selectedKeys.delete(def.key); else selectedKeys.add(def.key);
+      chip.classList.toggle('selected');
+    };
+    box.appendChild(lbl);
+    box.appendChild(chip);
+  });
+}
+
+// Переносит текущий выбор (selectedKeys выбранного сотрудника) в фоновую
+// сцену реквизитов -- вызывается из closeEmployeeEditor() при любом
+// закрытии окна (крестик или «Готово»). Если сотрудник не выбран или ни
+// один чип не отмечен, строка реквизита остаётся как есть (не откатывает
+// уже применённый ранее выбор -- переоткрыли и закрыли без изменений,
+// ничего не сломалось).
+function applySelectionToBackground(){
+  var e = employees.find(function(x){ return x.id === currentId; });
+  if (!e || !selectedKeys.size) return;
+
+  var target = document.getElementById('specialistFieldValue');
+  if (!target) return;
+
+  var tag = document.createElement('span');
+  tag.className = 'ph-chip-block employee-tag';
+  tag.title = '{{ specialist_name }}';
+  tag.textContent = fioShort(e.full_name);
+  tag.setAttribute('oncontextmenu', 'return openChipMenu(event)');
+
+  var valueBox = document.createElement('div');
+  valueBox.className = 'specialist-value-box';
+  CHIP_DEFS.forEach(function(def){
+    if (!selectedKeys.has(def.key)) return;
+    var chip = document.createElement('span');
+    chip.className = 'ph-chip-block selected';
+    chip.textContent = def.value(e) || '—';
+    valueBox.appendChild(chip);
+  });
+
+  target.innerHTML = '';
+  target.appendChild(tag);
+  target.appendChild(valueBox);
+}
+
+function deleteEmployee(){
+  if (currentId === null) return;
+  var e = employees.find(function(x){ return x.id === currentId; });
+  showConfirm('Удалить сотрудника «' + e.full_name + '» из справочника?', function(){
+    employees = employees.filter(function(x){ return x.id !== currentId; });
+    clearSelection();
+  });
+}
+
+var confirmModalCallback = null;
+function showConfirm(text, onAccept){
+  document.getElementById('confirmModalText').textContent = text;
+  confirmModalCallback = onAccept;
+  document.getElementById('confirmModal').style.display = 'flex';
+}
+function closeConfirmModal(){
+  document.getElementById('confirmModal').style.display = 'none';
+  confirmModalCallback = null;
+}
+function confirmModalAccept(){
+  var cb = confirmModalCallback;
+  closeConfirmModal();
+  if (cb) cb();
+}
+
+renderList();
+</script>

@@ -8,7 +8,7 @@ instruments_store.py -- не зависит от Qt.
 (uuid4().hex[:8], тот же приём, что src/ui/employees_tab.py) и поэтому не
 пересекается с "otchet"/"zaklyuchenie".
 
-Файл хранит ПЯТЬ независимых секций -- "title_variants" (сами варианты),
+Файл хранит ШЕСТЬ независимых секций -- "title_variants" (сами варианты),
 "field_catalog" (id -> человекочитаемая подпись поля-плейсхолдера,
 переиспользуется между вариантами при вставке через каталог плейсхолдеров,
 см. src/ui/main_window.py, _build_placeholder_menu()), "hidden_builtin_fields"
@@ -24,10 +24,29 @@ src/ui/formula_editor_dialog.py; открывается через ПКМ на �
 «Создать таблицу»). Формула и таблица, как и подпись поля, привязаны к
 field_id в общем каталоге -- действуют везде, где встречается этот
 плейсхолдер (любой слот, любой вариант), а не только там, где их создали.
+
+"field_employee_bindings" (field_id -> {"employee_id": str, "key": str,
+"source_field_id": str} -- РОВНО ОДНО готовое представление (key из
+src/services/employee_placeholders.py, EMPLOYEE_DATA_FIELDS --
+"fio_full"/"fio_short"/"position"/"qualification"/"certificates") ОДНОГО
+сотрудника (id из общего справочника, employees_store.py). Каждый такой
+field_id -- ОТДЕЛЬНОЕ, автоматически заведённое поле общего каталога
+(своя запись в field_catalog, "<подпись поля-триггера> — <представление>"),
+работающее ровно как любой другой плейсхолдер -- НЕ привязка самого
+поля-триггера (source_field_id -- только чтобы при повторном открытии
+редактора знать, какие сгенерированные поля ему уже принадлежат, и
+вставлять новые рядом с ним, см. MainWindow._create_employee_from_chip_menu()).
+Заводится через ПКМ на чипе-триггере, «Создать сотрудника»
+(_show_chip_context_menu() в src/ui/main_window.py, EmployeePlaceholderDialog
+-- выбор сотрудника + множественный выбор представлений). Поле с такой
+привязкой в реквизитах readOnly, значение -- employee_data_value(employee,
+key) (без объединения/join -- на представление всегда ровно одно поле).
+
 save_title_variants()/save_field_catalog()/save_hidden_builtin_fields()/
-save_field_formulas()/save_field_tables() поэтому читают-правят-пишут файл
-целиком (read-modify-write), а не перезаписывают его слепо целиком своей
-секцией -- иначе сохранение одной секции стирало бы другие."""
+save_field_formulas()/save_field_tables()/save_field_employee_bindings()
+поэтому читают-правят-пишут файл целиком (read-modify-write), а не
+перезаписывают его слепо целиком своей секцией -- иначе сохранение одной
+секции стирало бы другие."""
 
 import json
 from pathlib import Path
@@ -132,6 +151,23 @@ def save_field_tables(tables: Dict[str, Dict], path: Path = TITLE_VARIANTS_FILE)
     """Сохраняет таблицы-плейсхолдеры, не трогая остальные секции файла."""
     data = _load_raw(path)
     data['field_tables'] = dict(tables)
+    _save_raw(data, path)
+
+
+def load_field_employee_bindings(path: Path = TITLE_VARIANTS_FILE) -> Dict[str, Dict]:
+    """field_id -> {"employee_id": str, "key": str, "source_field_id": str} --
+    какой сотрудник и какое ОДНО его представление стоит за этим
+    (автоматически заведённым) полем (см. docstring модуля и
+    src/ui/employee_placeholder_dialog.py)."""
+    data = _load_raw(path)
+    return dict(data.get('field_employee_bindings', {}))
+
+
+def save_field_employee_bindings(bindings: Dict[str, Dict], path: Path = TITLE_VARIANTS_FILE) -> None:
+    """Сохраняет привязки сотрудников к плейсхолдерам, не трогая остальные
+    секции файла."""
+    data = _load_raw(path)
+    data['field_employee_bindings'] = dict(bindings)
     _save_raw(data, path)
 
 
