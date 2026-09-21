@@ -259,6 +259,18 @@ QGroupBox[role="fieldsPanel"] QLabel[titleChipEmployee="true"][titleChipCopied="
 QGroupBox[role="fieldsPanel"] QPlainTextEdit[computedEmployee="true"] {
     background: rgba(48, 209, 88, 20); border-color: rgba(48, 209, 88, 140);
 }
+/* Чип поля-триггера (то, через ПКМ по которому вызывали «Создать
+   сотрудника»), уже породившего хотя бы одно поле-представление -- серый
+   (тот же нейтральный оттенок, что и вторичный текст интерфейса, #8e8e93),
+   отличается и от обычного (синего), и от самих зелёных плашек-значений
+   (titleChipEmployee выше) -- визуально "погашен", подчёркивая, что кликом
+   по нему больше ничего не скопировать (см. copyable=False в
+   _wire_chip_drag_reorder()/_render_slot_fields()): у триггера нет
+   собственного значения, вставлять в Word нечего. */
+QGroupBox[role="fieldsPanel"] QLabel[titleChipHasEmployee="true"] {
+    background: rgba(142, 142, 147, 30); color: #aeaeb2;
+    border: 1px solid rgba(142, 142, 147, 110);
+}
 QWidget#titleTemplateDropHint {
     border: 1.5px dashed #38383a; border-radius: 8px;
 }
@@ -380,7 +392,8 @@ QLabel#employeeCrumbLabel {
 QWidget#employeesMainArea QLabel[role="sectionTitle"] {
     color: #8e8e93; font-size: 11px; margin-top: 14px;
 }
-QLabel#label_employee_position, QLabel#label_employee_fio, QLabel#label_employee_qualification { color: #c7c7cc; font-size: 12px; }
+QLabel#label_employee_position, QLabel#label_employee_fio, QLabel#label_employee_qualification,
+QLabel#label_employee_qualification_level, QLabel#label_employee_fio_short { color: #c7c7cc; font-size: 12px; }
 QWidget#employeesMainArea QLabel#employee_kleishe_preview {
     background: #232325; border: 0.5px dashed #48484a; border-radius: 6px;
     color: #5a5a5c; font-size: 10.5px;
@@ -390,19 +403,58 @@ QWidget#employeesMainArea QPlainTextEdit {
     color: #e5e5e7; font-size: 12px; padding: 5px 7px;
 }
 QWidget#employeesMainArea QPlainTextEdit:focus { border-color: #0a84ff; }
+/* ФИО-кратко -- только просмотр (см. employees_tab.py,
+   _update_fio_short_preview()), приглушённый цвет текста и нет focus-рамки
+   -- визуально отличается от редактируемых полей выше. */
+QWidget#employeesMainArea QPlainTextEdit#employee_fio_short_preview {
+    color: #8e8e93;
+}
+/* border: none -- явно, не просто отсутствие свойства: без этого
+   QListWidget рисует свой нативный QFrame-бордер (StyledPanel). Этого
+   одного было недостаточно (пользователь по скриншоту показал, что рамка
+   никуда не делась) -- дело было не в border, а в background: #232325
+   светлее фона страницы (#1c1c1e, см. "QMainWindow, #constructorCentral"
+   выше) и в паре с border-radius давал видимый контрастный контур вокруг
+   списка, неотличимый на глаз от рамки. background: transparent убирает
+   и его -- список сливается с фоном страницы, контуру просто неоткуда
+   взяться. border-radius за ненадобностью тоже убран (нечего скруглять
+   без своего фона). */
 QWidget#employeesMainArea QListWidget {
-    background: #232325; border: 0.5px solid #38383a; border-radius: 6px;
+    background: transparent; border: none;
     color: #e5e5e7; font-size: 12px;
 }
 QWidget#employeesMainArea QListWidget::item:selected { background: rgba(10, 132, 255, 60); color: #e5e5e7; }
-/* Строка удостоверения с крестиком построчного удаления (см.
-   ConstructorEmployeesTabController._wrap_certificate_item()) --
-   .cert-row/.remove-btn в docs/design/сотрудники_конструктор.html. Фон
-   непрозрачный -- setItemWidget() кладёт этот QWidget поверх ячейки, не
-   заменяя отрисовку item.text() делегатом списка под ним; без своего
-   фона исходный текст просвечивал бы (двоился с QLabel сверху). */
-QWidget#certRow { background: #232325; border-bottom: 0.5px solid #2c2c2e; }
-QLabel#certRowLabel { background: transparent; color: #e5e5e7; font-size: 12px; }
+/* Строка уже добавленного удостоверения -- два поля-бокса (текст +
+   срок действия, ЗНАЧЕНИЕ и по размеру, и по стилю равны полям ввода
+   строки добавления, employee_certificate_input/employee_certificate_expires
+   выше -- пользователь явно попросил) плюс крестик построчного удаления
+   (см. ConstructorEmployeesTabController._wrap_certificate_item()).
+   .cert-row/.remove-btn в docs/design/сотрудники_конструктор.html --
+   визуальный ориентир для builder'а строки, боксы поверх него -- уже
+   решение этой правки. Фон row -- ТОТ ЖЕ цвет, что и у фона страницы
+   (#1c1c1e, "QMainWindow, #constructorCentral" выше), не у списка
+   (#232325 списку больше не задаётся, см. QListWidget выше -- список
+   светлее страницы, ровно эта разница и читалась как рамка, пользователь
+   явно указал, что первой попытки -- голого border: none у списка --
+   было недостаточно). row остаётся непрозрачным (не transparent) --
+   setItemWidget() кладёт его поверх ячейки, не заменяя отрисовку
+   item.text() делегатом списка под ним; без своего фона исходный текст
+   просвечивал бы в зазоре между боксами (двоился с боксами сверху) --
+   но цвет фона теперь совпадает со страницей, а не отличается от неё,
+   поэтому в зазоре между строками (CERT_ROW_GAP/half_gap, см.
+   _wrap_certificate_item()) не видно ни рамки, ни отдельного пятна. */
+QWidget#certRow { background: #1c1c1e; }
+/* Без border (пользователь явно попросил убрать чёрную рамку) -- только
+   фон/скругление/паддинг, тот же вид, что и у employee_certificate_input/
+   employee_certificate_expires (QWidget#employeesMainArea QPlainTextEdit
+   выше), кроме самой рамки. */
+QLabel#certRowTextBox, QLabel#certRowExpiresBox {
+    background: #2c2c2e; border-radius: 5px;
+    color: #e5e5e7; font-size: 12px; padding: 5px 7px;
+}
+/* Пустой срок действия ("без срока", см. _wrap_certificate_item()) --
+   приглушённый цвет, тот же приём, что у employee_fio_short_preview. */
+QLabel#certRowExpiresBox[empty="true"] { color: #8e8e93; }
 QPushButton#certRowRemoveBtn {
     background: transparent; border: none; border-radius: 5px; color: #8e8e93; padding: 0;
 }
@@ -413,12 +465,15 @@ QWidget#employeesMainArea QPushButton {
     color: #e5e5e7; font-size: 12px; padding: 6px 12px;
 }
 QWidget#employeesMainArea QPushButton:hover { background: #3a3a3c; }
-/* Квадратная icon-only кнопка «+ Добавить» удостоверение (.btn-square в
-   мокапе) -- переопределяет padding/цвет общего правила выше. */
+/* «Добавить удостоверение» -- кликабельная надпись, не кнопка (пользователь
+   явно попросил заменить квадратную icon-only кнопку "+"): без фона/рамки,
+   акцентный синий, подчёркивание на ховере -- тот же принцип, что у
+   ссылки, а не у обычной QPushButton#employeesMainArea выше. */
 QWidget#employeesMainArea QPushButton#pushButt_addCertificate {
-    background: #2c2c2e; border: 0.5px solid #38383a; border-radius: 6px; padding: 0;
+    background: transparent; border: none; padding: 4px 0; color: #0a84ff;
+    font-size: 12px; text-align: right;
 }
-QWidget#employeesMainArea QPushButton#pushButt_addCertificate:hover { background: #3a3a3c; }
+QWidget#employeesMainArea QPushButton#pushButt_addCertificate:hover { color: #3aa0ff; }
 QWidget#employeesMainArea QPushButton#pushButt_saveEmployee {
     background: #0a84ff; border: none; color: #fff; font-weight: 500;
 }
@@ -771,12 +826,13 @@ class MainWindow(QMainWindow):
             self.employees_tab = ConstructorEmployeesTabController(self)
             self.pushButt_newEmployee.setIcon(icons.icon("plus", "#8e8e93", 13))
             self.pushButt_newEmployee.setIconSize(QSize(13, 13))
-            # Квадратная icon-only кнопка добавления удостоверения (docs/design/
-            # сотрудники_конструктор.html, .cert-add-row .btn-square) --
-            # "− Удалить" рядом с ней скрыта в ConstructorEmployeesTabController.
-            # __init__ (построчное удаление крестиком вместо неё, см. там же).
-            self.pushButt_addCertificate.setIcon(icons.icon("plus", "#8e8e93", 13))
-            self.pushButt_addCertificate.setIconSize(QSize(13, 13))
+            # «Добавить удостоверение» -- кликабельная надпись, не
+            # icon-only кнопка (пользователь явно попросил заменить знак
+            # "+"; текст уже задан в .ui, тут только курсор-ладошка, тот же
+            # приём, что у остальных кликабельных чипов/ссылок). "− Удалить"
+            # рядом скрыта в ConstructorEmployeesTabController.__init__
+            # (построчное удаление крестиком вместо неё, см. там же).
+            self.pushButt_addCertificate.setCursor(Qt.CursorShape.PointingHandCursor)
             for label_name in (
                 "employeeSectionLabel_data", "employeeSectionLabel_certs", "employeeSectionLabel_kleishe",
             ):
@@ -3164,6 +3220,14 @@ class MainWindow(QMainWindow):
             # (обычное пустое/ранее введённое поле), без падения.
             bound_employee = employees_by_id.get(binding["employee_id"]) if binding and binding_key else None
             employee_value = employee_data_value(bound_employee, binding_key) if bound_employee else None
+            # has_employee_children -- поле-триггер (то, из которого вызывали
+            # «Создать сотрудника», см. _create_employee_from_chip_menu()) уже
+            # обзавелось хотя бы одним сгенерированным полем-представлением
+            # (children_by_trigger заполняется выше). В отличие от
+            # bound_employee (значение ИЗ справочника у чипа-представления),
+            # у триггера собственного значения сотрудника нет -- этот флаг
+            # только про то, что триггер уже что-то породил.
+            has_employee_children = field_id in children_by_trigger
             # GrowablePlaceholderField, а не голый QPlainTextEdit -- значения
             # бывают длиной в целый абзац (см. содержательные пункты вводной
             # части вроде «1.1. На основании требований п.198 ФНП ТТ ...»).
@@ -3259,7 +3323,14 @@ class MainWindow(QMainWindow):
                         f"\nЗначение из справочника сотрудников ({fio_short(bound_employee.full_name)}) — "
                         "правка через ПКМ → «Создать сотрудника»."
                     )
-                tooltip += "\nКлик — скопировать для Word. ПКМ — меню. Перетащите на другое поле — переставить порядок."
+                if has_employee_children:
+                    tooltip += (
+                        "\nК этому полю привязаны данные сотрудника — сами значения смотрите на "
+                        "зелёных плашках рядом. ПКМ → «Создать сотрудника» — изменить привязку."
+                    )
+                else:
+                    tooltip += "\nКлик — скопировать для Word."
+                tooltip += " ПКМ — меню. Перетащите на другое поле — переставить порядок."
                 row_label.setToolTip(tooltip)
                 row_label.setProperty("titleChip", True)
                 if formula is not None:
@@ -3268,6 +3339,17 @@ class MainWindow(QMainWindow):
                     row_label.setProperty("titleChipTable", True)
                 if bound_employee is not None:
                     row_label.setProperty("titleChipEmployee", True)
+                if has_employee_children:
+                    # Поле-триггер, породившее хотя бы одно представление
+                    # сотрудника -- красится в серый (см. titleChipHasEmployee
+                    # в CONSTRUCTOR_QSS выше) как визуальный признак того,
+                    # что данные уже привязаны, и перестаёт копироваться по
+                    # ЛКМ ниже (self._wire_chip_drag_reorder(..., copyable=...))
+                    # -- у триггера нет собственного значения для вставки в
+                    # Word, копировать в буфер нечего (в отличие от обычного
+                    # чипа или чипа-представления сотрудника, см. комментарий
+                    # у titleChipEmployee в CONSTRUCTOR_QSS выше).
+                    row_label.setProperty("titleChipHasEmployee", True)
                 row_label.setCursor(Qt.CursorShape.PointingHandCursor)
                 row_label.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
                 row_label.customContextMenuRequested.connect(
@@ -3275,10 +3357,9 @@ class MainWindow(QMainWindow):
                         slot, variant_id, fid, w.mapToGlobal(pos)
                     )
                 )
-                # copyable по умолчанию True -- РОВНО ТА ЖЕ ЛОГИКА, ЧТО И У
-                # ОБЫЧНЫХ (синих) ЧИПОВ, без исключений для поля,
-                # привязанного к сотруднику (пользователь явно попросил).
-                self._wire_chip_drag_reorder(row_label, slot, variant_id, field_id, widget_name)
+                self._wire_chip_drag_reorder(
+                    row_label, slot, variant_id, field_id, widget_name, copyable=not has_employee_children,
+                )
             else:
                 row_label = labels.get(field_id, field_id)
             group_children = children_by_trigger.get(field_id) if is_custom else None
@@ -3383,7 +3464,9 @@ class MainWindow(QMainWindow):
 
     _CHIP_DRAG_MIME = "application/x-titlechip-field-id"
 
-    def _wire_chip_drag_reorder(self, row_label: QLabel, slot: str, variant_id: str, field_id: str, widget_name: str):
+    def _wire_chip_drag_reorder(
+        self, row_label: QLabel, slot: str, variant_id: str, field_id: str, widget_name: str, copyable: bool = True,
+    ):
         """Перетаскивание чипа плейсхолдера -- переставляет порядок полей
         в variant.subtitle_fields (см. _reorder_variant_placeholder()).
         Только для пользовательских вариантов (см. вызывающую сторону) --
@@ -3391,6 +3474,16 @@ class MainWindow(QMainWindow):
         Действует ОДИНАКОВО для любого поля реквизитов, включая привязанные
         к формуле/таблице/сотруднику -- пользователь явно попросил единую
         логику для чипа, привязанного к сотруднику, без исключений.
+
+        Единственное исключение -- copyable=False, который ставит вызывающая
+        сторона ТОЛЬКО для поля-триггера, уже породившего хотя бы одно
+        сгенерированное поле-представление (has_employee_children в
+        _render_slot_fields()). У такого триггера нет собственного значения
+        для вставки в Word -- копировать в буфер попросту нечего, реальные
+        значения теперь на отдельных зелёных плашках рядом (каждая со своим
+        _wire_chip_drag_reorder(copyable=True по умолчанию)). Перетаскивание
+        (переупорядочивание) при этом остаётся рабочим и для некопируемого
+        триггера -- отключён только клик-копирование.
 
         Клик (копирование, _copy_chip()) и начало перетаскивания различаем
         порогом смещения (QApplication.startDragDistance()) между press и
@@ -3424,7 +3517,7 @@ class MainWindow(QMainWindow):
             drag.exec(Qt.DropAction.MoveAction)
 
         def mouse_release(event, w=row_label, name=widget_name):
-            if w._chip_drag_start_pos is not None:
+            if w._chip_drag_start_pos is not None and copyable:
                 # Курсор не сдвинулся достаточно для drag -- обычный клик.
                 self._copy_chip(name, w)
             w._chip_drag_start_pos = None
@@ -5792,14 +5885,19 @@ class MainWindow(QMainWindow):
         cert_full = ""
         cert_short = ""
         if employee.certificates:
-            cert_full = employee.certificates[0]
-            if len(employee.certificates) > 1:
+            # certificates -- список Certificate (текст + необязательный
+            # срок действия, см. src/models/employee.py), сюда в отчёт
+            # уходит только текст записи, как и раньше -- срок действия
+            # тут не участвует.
+            cert_texts = [c.text for c in employee.certificates]
+            cert_full = cert_texts[0]
+            if len(cert_texts) > 1:
                 cert_full, ok = QInputDialog.getItem(
                     self, "Выбор удостоверения", "Удостоверение:",
-                    employee.certificates, editable=False,
+                    cert_texts, editable=False,
                 )
                 if not ok:
-                    cert_full = employee.certificates[0]
+                    cert_full = cert_texts[0]
             match = re.search(r"№\s*\S+", cert_full)
             cert_short = match.group(0) if match else cert_full
 

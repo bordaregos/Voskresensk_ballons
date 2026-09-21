@@ -27,6 +27,16 @@ def fio_short(full_name: str) -> str:
     return surname if not initials else surname + " " + " ".join(initials)
 
 
+def format_certificate(certificate) -> str:
+    """Текст одного удостоверения для отображения/плейсхолдера -- сам текст
+    записи плюс срок действия, если он указан ("Удостоверение № ... от ... —
+    до 25.02.2029"). Без даты -- просто текст, как и раньше (до появления
+    Certificate.expires)."""
+    if not certificate.expires:
+        return certificate.text
+    return f"{certificate.text} — до {certificate.expires}"
+
+
 class EmployeeDataField(NamedTuple):
     key: str
     label: str
@@ -35,13 +45,17 @@ class EmployeeDataField(NamedTuple):
 
 # Порядок -- тот же, что в докстрине модуля и в docs/design/
 # редактор_сотрудника.html (CHIP_DEFS): полное ФИО, фамилия с инициалами,
-# должность, квалификация, удостоверения.
+# должность, квалификация, уровень квалификации, удостоверения.
 EMPLOYEE_DATA_FIELDS: List[EmployeeDataField] = [
     EmployeeDataField("fio_full", "Полное ФИО", lambda e: e.full_name),
     EmployeeDataField("fio_short", "Фамилия И.О.", lambda e: fio_short(e.full_name)),
     EmployeeDataField("position", "Должность", lambda e: e.position),
     EmployeeDataField("qualification", "Квалификация", lambda e: e.qualification),
-    EmployeeDataField("certificates", "Удостоверения", lambda e: "; ".join(e.certificates)),
+    EmployeeDataField("qualification_level", "Уровень квалификации", lambda e: e.qualification_level),
+    EmployeeDataField(
+        "certificates", "Удостоверения",
+        lambda e: "; ".join(format_certificate(c) for c in e.certificates),
+    ),
 ]
 
 _FIELDS_BY_KEY = {field.key: field for field in EMPLOYEE_DATA_FIELDS}

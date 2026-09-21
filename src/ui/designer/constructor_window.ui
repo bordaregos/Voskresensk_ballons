@@ -705,6 +705,35 @@
                       <property name="maximumSize"><size><width>16777215</width><height>32</height></size></property>
                      </widget>
                     </item>
+                    <!-- Уровень квалификации — отдельное поле от
+                         "Квалификация" выше (пользователь явно попросил не
+                         переиспользовать существующее, см. Employee.
+                         qualification_level). Тот же принцип hasattr в
+                         EmployeesTabController, только в constructor_window.ui. -->
+                    <item row="3" column="0">
+                     <widget class="QLabel" name="label_employee_qualification_level"><property name="text"><string>Уровень квалификации</string></property></widget>
+                    </item>
+                    <item row="3" column="1">
+                     <widget class="QPlainTextEdit" name="employee_qualification_level">
+                      <property name="minimumSize"><size><width>0</width><height>32</height></size></property>
+                      <property name="maximumSize"><size><width>16777215</width><height>32</height></size></property>
+                     </widget>
+                    </item>
+                    <!-- ФИО-кратко — только просмотр, живой пересчёт
+                         fio_short() от employee_fio (см. employees_tab.py,
+                         EmployeesTabController._update_fio_short_preview()),
+                         readOnly выставляется в коде (там же). Пользователь
+                         явно попросил именно так, без отдельного
+                         редактируемого поля/оверрайда. -->
+                    <item row="4" column="0">
+                     <widget class="QLabel" name="label_employee_fio_short"><property name="text"><string>ФИО-кратко</string></property></widget>
+                    </item>
+                    <item row="4" column="1">
+                     <widget class="QPlainTextEdit" name="employee_fio_short_preview">
+                      <property name="minimumSize"><size><width>0</width><height>32</height></size></property>
+                      <property name="maximumSize"><size><width>16777215</width><height>32</height></size></property>
+                     </widget>
+                    </item>
                    </layout>
                   </item>
                   <item>
@@ -729,28 +758,96 @@
                    </widget>
                   </item>
                   <item>
-                   <layout class="QHBoxLayout" name="employee_certificate_input_layout">
+                   <layout class="QVBoxLayout" name="employee_certificate_input_layout">
+                    <property name="spacing"><number>6</number></property>
                     <item>
-                     <!-- 32, не 27, см. employee_position/employee_fio
-                          выше (обрезка нижних выносных элементов шрифта). -->
-                     <widget class="QPlainTextEdit" name="employee_certificate_input">
-                      <property name="minimumSize"><size><width>0</width><height>32</height></size></property>
-                      <property name="maximumSize"><size><width>16777215</width><height>32</height></size></property>
-                     </widget>
+                     <!-- Margins/spacing зафиксированы явно (а не оставлены
+                          на дефолт вложенного layout'а) — должны буква в
+                          букву совпадать с layout'ом строки уже добавленной
+                          записи (certRow в _wrap_certificate_item(),
+                          employees_tab.py), иначе поля ввода и готовые
+                          записи визуально расходятся по размеру (просил
+                          пользователь свести один к одному). -->
+                     <layout class="QHBoxLayout" name="employee_certificate_input_row">
+                      <property name="leftMargin"><number>0</number></property>
+                      <property name="topMargin"><number>0</number></property>
+                      <property name="rightMargin"><number>0</number></property>
+                      <property name="bottomMargin"><number>0</number></property>
+                      <property name="spacing"><number>8</number></property>
+                      <item>
+                       <!-- 32, не 27, см. employee_position/employee_fio
+                            выше (обрезка нижних выносных элементов шрифта). -->
+                       <widget class="QPlainTextEdit" name="employee_certificate_input">
+                        <property name="minimumSize"><size><width>0</width><height>32</height></size></property>
+                        <property name="maximumSize"><size><width>16777215</width><height>32</height></size></property>
+                       </widget>
+                      </item>
+                      <!-- Срок действия добавляемого удостоверения — своя
+                           запись у каждого удостоверения (Certificate.expires,
+                           см. src/models/employee.py), а не одна на
+                           сотрудника. Свободный текст, а не QDateEdit
+                           (пользователь явно попросил после того, как
+                           календарь-пикер увидел на реальном макете —
+                           удостоверения и так вводятся одной строкой
+                           произвольного текста, дата внутри неё уже
+                           встречается как часть этого текста). Только в
+                           constructor_window.ui, тот же hasattr-принцип, что
+                           и у employee_qualification. -->
+                      <item>
+                       <widget class="QPlainTextEdit" name="employee_certificate_expires">
+                        <property name="minimumSize"><size><width>140</width><height>32</height></size></property>
+                        <property name="maximumSize"><size><width>140</width><height>32</height></size></property>
+                        <property name="placeholderText"><string>Срок действия</string></property>
+                        <property name="toolTip"><string>Срок действия удостоверения (необязательно)</string></property>
+                       </widget>
+                      </item>
+                      <!-- Невидимый "хвост" шириной ровно с крестик удаления
+                           готовой строки (20px, см. certRowRemoveBtn в
+                           _wrap_certificate_item(), employees_tab.py) — сам
+                           разделяющий spacing (8px) уже даёт общий
+                           layout.spacing() этого QHBoxLayout, как и перед
+                           certRowRemoveBtn там, повторно добавлять не нужно.
+                           Без этого спейсера employee_certificate_input
+                           растягивался на лишние 20px (у строки ввода нет
+                           крестика, отнимающего место), из-за чего срок
+                           действия в строке ввода съезжал правее, чем в уже
+                           добавленных записях (пользователь явно указал на
+                           это расхождение). -->
+                      <item>
+                       <widget class="QWidget" name="employeeCertificateInputTrailingSpacer">
+                        <property name="minimumSize"><size><width>20</width><height>0</height></size></property>
+                        <property name="maximumSize"><size><width>20</width><height>16777215</height></size></property>
+                       </widget>
+                      </item>
+                     </layout>
                     </item>
-                    <!-- Текст задаётся в Designer как fallback, иконка
-                         "plus" (квадратная кнопка, см. docs/design/
-                         сотрудники_конструктор.html #certInput + .btn-square)
-                         выставляется поверх в main_window.py, как и у
-                         pushButt_newEmployee. -->
-                    <item><widget class="QPushButton" name="pushButt_addCertificate"><property name="maximumSize"><size><width>29</width><height>32</height></size></property><property name="text"><string></string></property><property name="toolTip"><string>Добавить удостоверение</string></property></widget></item>
-                    <!-- Скрывается в конструкторе (ConstructorEmployeesTabController.
-                         __init__): в мокапе удаление построчное (крестик у
-                         каждой записи), отдельной кнопки нет. Виджет не
-                         удалён из .ui, т.к. EmployeesTabController.__init__
-                         (базовый, общий с трубопроводом) безусловно
-                         коннектит pushButt_removeCertificate.clicked. -->
-                    <item><widget class="QPushButton" name="pushButt_removeCertificate"><property name="text"><string>− Удалить</string></property></widget></item>
+                    <item>
+                     <layout class="QHBoxLayout" name="employee_certificate_add_row">
+                      <item>
+                       <spacer name="employeeCertificateAddSpacer">
+                        <property name="orientation"><enum>Qt::Orientation::Horizontal</enum></property>
+                        <property name="sizeHint" stdset="0"><size><width>20</width><height>20</height></size></property>
+                       </spacer>
+                      </item>
+                      <!-- Кликабельная надпись вместо квадратной кнопки со
+                           знаком "+" (пользователь явно попросил) —
+                           тот же pushButt_addCertificate, просто
+                           переодетый в плоский текст-ссылку (см. main_window.py:
+                           QWidget#employeesMainArea QPushButton#pushButt_addCertificate).
+                           Виджет не переименован и не удалён из .ui —
+                           EmployeesTabController.__init__ (базовый, общий с
+                           трубопроводом) безусловно коннектит его clicked,
+                           переименование сломало бы pipeline_window.ui. -->
+                      <item><widget class="QPushButton" name="pushButt_addCertificate"><property name="text"><string>Добавить удостоверение</string></property><property name="toolTip"><string>Добавить удостоверение</string></property></widget></item>
+                      <!-- Скрывается в конструкторе (ConstructorEmployeesTabController.
+                           __init__): в мокапе удаление построчное (крестик у
+                           каждой записи), отдельной кнопки нет. Виджет не
+                           удалён из .ui, т.к. EmployeesTabController.__init__
+                           (базовый, общий с трубопроводом) безусловно
+                           коннектит pushButt_removeCertificate.clicked. -->
+                      <item><widget class="QPushButton" name="pushButt_removeCertificate"><property name="text"><string>− Удалить</string></property></widget></item>
+                     </layout>
+                    </item>
                    </layout>
                   </item>
                   <item>
