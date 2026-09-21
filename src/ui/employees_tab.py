@@ -19,7 +19,8 @@ from PyQt6.QtWidgets import (
 
 from . import icons
 from ..config import KLEISHE_DIR
-from ..models.employee import Employee
+from ..models.employee import Certificate, Employee
+from ..services.employee_placeholders import fio_short, format_certificate
 from ..services.employees_store import load_employees, save_employees, store_kleishe_image
 
 
@@ -45,30 +46,48 @@ class EmployeesTabController:
         self.mw.pushButt_saveEmployee.clicked.connect(self._save_employee)
 
         # Удостоверение -- одна строка на запись (домен: "№ 0039-33918 от
-        # 20.12.2024 г."), но employee_certificate_input -- QPlainTextEdit
-        # (та же стилизация, что у остальных полей формы), а не QLineEdit,
-        # поэтому по умолчанию Enter вставляет перевод строки вместо
-        # отправки записи (расхождение с docs/design/
+        # 20.12.2024 г."), но employee_certificate_input/employee_certificate_expires
+        # -- QPlainTextEdit (та же стилизация, что у остальных полей формы),
+        # а не QLineEdit, поэтому по умолчанию Enter вставляет перевод
+        # строки вместо отправки записи (расхождение с docs/design/
         # сотрудники_конструктор.html, #certInput onkeydown). Подменяем
-        # keyPressEvent конкретного экземпляра -- в .ui это обычный
-        # QPlainTextEdit без promoted-подкласса, менять там нечего.
-        # Shift+Enter по-прежнему вставляет перевод строки (на случай, если
-        # он всё же понадобится).
-        input_widget = self.mw.employee_certificate_input
-        default_key_press = input_widget.keyPressEvent
+        # keyPressEvent обоих полей -- в .ui это обычный QPlainTextEdit без
+        # promoted-подкласса, менять там нечего. Shift+Enter по-прежнему
+        # вставляет перевод строки (на случай, если он всё же понадобится).
+        def _make_enter_submits(widget):
+            default_key_press = widget.keyPressEvent
 
-        def _certificate_input_key_press(event, _default=default_key_press):
-            plain_enter = event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter)
-            if plain_enter and not (event.modifiers() & Qt.KeyboardModifier.ShiftModifier):
-                self._add_certificate()
-                event.accept()
-                return
-            _default(event)
+            def _key_press(event, _default=default_key_press):
+                plain_enter = event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter)
+                if plain_enter and not (event.modifiers() & Qt.KeyboardModifier.ShiftModifier):
+                    self._add_certificate()
+                    event.accept()
+                    return
+                _default(event)
 
-        input_widget.keyPressEvent = _certificate_input_key_press
+            widget.keyPressEvent = _key_press
+
+        _make_enter_submits(self.mw.employee_certificate_input)
+        # employee_certificate_expires -- как и employee_qualification,
+        # только в constructor_window.ui: свободный текст (не дата, см.
+        # .ui-комментарий), тот же hasattr-принцип.
+        if hasattr(self.mw, "employee_certificate_expires"):
+            _make_enter_submits(self.mw.employee_certificate_expires)
+
+        # employee_fio_short_preview -- только просмотр (пользователь явно
+        # попросил: не отдельное редактируемое поле, а живой пересчёт
+        # fio_short() от того, что сейчас введено в employee_fio), поэтому
+        # readOnly и обновляется на каждое изменение ФИО, а не только при
+        # загрузке карточки/сохранении.
+        if hasattr(self.mw, "employee_fio_short_preview"):
+            self.mw.employee_fio_short_preview.setReadOnly(True)
+            self.mw.employee_fio.textChanged.connect(self._update_fio_short_preview)
 
         self._refresh_table()
         self._clear_form()
+
+    def _update_fio_short_preview(self):
+        self.mw.employee_fio_short_preview.setPlainText(fio_short(self.mw.employee_fio.toPlainText()))
 
     def _refresh_table(self):
         """Перерисовывает table_employees из self.employees (тот же порядок,
@@ -78,7 +97,7 @@ class EmployeesTabController:
         for row, employee in enumerate(self.employees):
             table.setItem(row, 0, QTableWidgetItem(employee.position))
             table.setItem(row, 1, QTableWidgetItem(employee.full_name))
-            table.setItem(row, 2, QTableWidgetItem("; ".join(employee.certificates)))
+            table.setItem(row, 2, QTableWidgetItem("; ".join(format_certificate(c) for c in employee.certificates)))
             table.setItem(row, 3, QTableWidgetItem("есть" if employee.kleishe_filename else "—"))
 
     def _on_row_selected(self):
@@ -91,14 +110,20 @@ class EmployeesTabController:
         self._current_id = employee.id
         self.mw.employee_position.setPlainText(employee.position)
         self.mw.employee_fio.setPlainText(employee.full_name)
-        # employee_qualification -- только в constructor_window.ui (см.
-        # Employee.qualification), у трубопровода этого виджета нет.
+        # employee_qualification/employee_qualification_level/
+        # employee_fio_short_preview -- только в constructor_window.ui (см.
+        # Employee.qualification/qualification_level), у трубопровода этих
+        # виджетов нет.
         if hasattr(self.mw, "employee_qualification"):
             self.mw.employee_qualification.setPlainText(employee.qualification)
+        if hasattr(self.mw, "employee_qualification_level"):
+            self.mw.employee_qualification_level.setPlainText(employee.qualification_level)
+        if hasattr(self.mw, "employee_fio_short_preview"):
+            self.mw.employee_fio_short_preview.setPlainText(fio_short(employee.full_name))
 
         self.mw.employee_certificates_list.clear()
         for certificate in employee.certificates:
-            self.mw.employee_certificates_list.addItem(QListWidgetItem(certificate))
+            self._append_certificate_item(certificate)
 
         self._set_kleishe_preview(employee.kleishe_filename)
 
@@ -112,18 +137,43 @@ class EmployeesTabController:
         self.mw.employee_fio.setPlainText("")
         if hasattr(self.mw, "employee_qualification"):
             self.mw.employee_qualification.setPlainText("")
+        if hasattr(self.mw, "employee_qualification_level"):
+            self.mw.employee_qualification_level.setPlainText("")
+        if hasattr(self.mw, "employee_fio_short_preview"):
+            self.mw.employee_fio_short_preview.setPlainText("")
         self.mw.employee_certificates_list.clear()
         self.mw.employee_certificate_input.setPlainText("")
+        if hasattr(self.mw, "employee_certificate_expires"):
+            self.mw.employee_certificate_expires.setPlainText("")
         self._set_kleishe_preview(None)
+
+    def _append_certificate_item(self, certificate: Certificate) -> QListWidgetItem:
+        """Заводит один QListWidgetItem под удостоверение -- отображаемый
+        текст (format_certificate(), с датой, если она есть) плюс сама
+        структурная запись в UserRole (читает _save_employee(), см. ниже:
+        отдаёт список Certificate как есть, без повторного парсинга
+        текста). Базовый рендер (голый item.text()) -- для трубопровода;
+        ConstructorEmployeesTabController._wrap_certificate_item() поверх
+        рисует компактную строку из двух полей + крестик, см. там же."""
+        item = QListWidgetItem(format_certificate(certificate))
+        item.setData(Qt.ItemDataRole.UserRole, certificate)
+        self.mw.employee_certificates_list.addItem(item)
+        return item
 
     def _add_certificate(self):
         # " ".join(...split()) вместо .strip() -- схлопывает и внутренние
         # переводы строк/пробелы тоже (например, из вставки многострочного
-        # текста), не только по краям: удостоверение -- одна строка записи.
+        # текста), не только по краям: и удостоверение, и срок действия --
+        # однострочные записи.
         text = " ".join(self.mw.employee_certificate_input.toPlainText().split())
         if not text:
             return
-        self.mw.employee_certificates_list.addItem(QListWidgetItem(text))
+        expires = ""
+        if hasattr(self.mw, "employee_certificate_expires"):
+            expires_widget = self.mw.employee_certificate_expires
+            expires = " ".join(expires_widget.toPlainText().split())
+            expires_widget.setPlainText("")
+        self._append_certificate_item(Certificate(text=text, expires=expires))
         self.mw.employee_certificate_input.setPlainText("")
 
     def _remove_certificate(self):
@@ -174,13 +224,22 @@ class EmployeesTabController:
             )
             return
 
+        # UserRole -- готовые Certificate, положенные туда
+        # _append_certificate_item() (и при загрузке карточки, и при
+        # добавлении новой записи) -- не пересобираем их заново из
+        # отображаемого текста (в нём уже вклеен "— до ...", парсить
+        # обратно смысла нет).
         certificates = [
-            self.mw.employee_certificates_list.item(i).text()
+            self.mw.employee_certificates_list.item(i).data(Qt.ItemDataRole.UserRole)
             for i in range(self.mw.employee_certificates_list.count())
         ]
         qualification = (
             self.mw.employee_qualification.toPlainText().strip()
             if hasattr(self.mw, "employee_qualification") else ""
+        )
+        qualification_level = (
+            self.mw.employee_qualification_level.toPlainText().strip()
+            if hasattr(self.mw, "employee_qualification_level") else ""
         )
 
         if self._current_id is None:
@@ -189,6 +248,7 @@ class EmployeesTabController:
                 position=position,
                 full_name=full_name,
                 qualification=qualification,
+                qualification_level=qualification_level,
                 certificates=certificates,
                 kleishe_filename=self._current_kleishe_filename,
             )
@@ -200,6 +260,7 @@ class EmployeesTabController:
                     existing.position = position
                     existing.full_name = full_name
                     existing.qualification = qualification
+                    existing.qualification_level = qualification_level
                     existing.certificates = certificates
                     existing.kleishe_filename = self._current_kleishe_filename
                     break
@@ -298,7 +359,22 @@ class ConstructorEmployeesTabController(EmployeesTabController):
     # внутренняя прокрутка вместо разрастания на всю оставшуюся площадь
     # панели (см. _sync_certificates_list_height()).
     CERT_LIST_MAX_HEIGHT = 150
-    CERT_ROW_HEIGHT = 30
+    # Высота самих полей-боксов (текст + срок действия) -- та же высота
+    # (32), что и у полей ввода строки добавления (employee_certificate_input/
+    # employee_certificate_expires в .ui) -- пользователь явно попросил у
+    # готовой записи те же размеры, что и у поля ввода. CERT_ROW_GAP --
+    # видимый зазор МЕЖДУ соседними строками уже добавленных удостоверений
+    # (пользователь явно попросил зазор побольше, раньше строки шли
+    # вплотную -- см. _wrap_certificate_item()); сама коробка при этом
+    # остаётся ровно CERT_BOX_HEIGHT, зазор -- за счёт margins вокруг неё в
+    # sizeHint строки (CERT_ROW_HEIGHT), а не за счёт растяжения бокса.
+    CERT_BOX_HEIGHT = 32
+    CERT_ROW_GAP = 10
+    CERT_ROW_HEIGHT = CERT_BOX_HEIGHT + CERT_ROW_GAP
+    # Ширина правого блока (срок действия) -- та же, что и у
+    # employee_certificate_expires в .ui, чтобы готовая запись выглядела
+    # продолжением строки ввода, а не отдельно посчитанным блоком.
+    CERT_EXPIRES_WIDTH = 140
 
     def _load_employee_into_form(self, employee: Employee):
         super()._load_employee_into_form(employee)
@@ -344,22 +420,31 @@ class ConstructorEmployeesTabController(EmployeesTabController):
         self._sync_certificates_list_height()
 
     def _wrap_certificate_item(self, item: QListWidgetItem):
-        """Подменяет стандартный текстовый рендер QListWidgetItem компактной
-        строкой с крестиком удаления -- docs/design/сотрудники_конструктор.html,
-        .cert-row + .remove-btn. Строка одна на удостоверение (CERT_ROW_HEIGHT
-        в _sync_certificates_list_height() это предполагает), поэтому
-        встроенные переводы строк схлопываются -- на новые записи их уже не
-        пропускает _add_certificate(), но для удостоверений, сохранённых до
-        этой правки (или основного EmployeesTabController.employee_certificate_input,
-        общего с трубопроводом), это чинит отображение и сам item.text() тут
-        же, при открытии карточки. _save_employee() (базовый, не переопределён,
-        читает список через item(i).text()) от этого не страдает -- сохранит
-        уже нормализованный текст."""
+        """Подменяет стандартный текстовый рендер QListWidgetItem парой
+        полей-боксов (текст удостоверения + срок действия, оба того же
+        размера/стиля, что employee_certificate_input/employee_certificate_expires
+        в строке ввода -- пользователь явно попросил, см. docs/design/
+        сотрудники_конструктор.html за визуальный ориентир построчного
+        крестика) плюс сам крестик удаления. Certificate (item.data(UserRole),
+        см. _append_certificate_item()) -- источник текста ОБОИХ полей;
+        item.text() (голая строка, использует базовый нередактированный
+        рендер списка) держим синхронизированным с format_certificate()
+        только на случай, если что-то читает его напрямую (не читает
+        сейчас, но дешевле не расходиться, чем документировать
+        исключение)."""
         list_widget = self.mw.employee_certificates_list
 
-        normalized_text = " ".join(item.text().split())
-        if normalized_text != item.text():
-            item.setText(normalized_text)
+        certificate = item.data(Qt.ItemDataRole.UserRole)
+        if certificate is None:
+            # Не должно встречаться -- _append_certificate_item() всегда
+            # кладёт Certificate в UserRole -- но не падаем, если всё же
+            # встретилось (например, старый item, заведённый мимо этого
+            # метода).
+            certificate = Certificate(text=" ".join(item.text().split()))
+
+        display_text = format_certificate(certificate)
+        if item.text() != display_text:
+            item.setText(display_text)
 
         row = QWidget()
         # setItemWidget() накладывает row поверх ячейки как дочерний
@@ -367,15 +452,31 @@ class ConstructorEmployeesTabController(EmployeesTabController):
         # своего фона сквозь него всё равно видно исходный item.text(),
         # нарисованный делегатом списка ПОД ним (двоящийся текст). objectName
         # + непрозрачный фон в CONSTRUCTOR_QSS (см. QWidget#certRow) это
-        # перекрывает.
+        # перекрывает -- фон row тот же, что и у самого списка (не боксов),
+        # поэтому CERT_ROW_GAP (margins ниже) визуально читается как
+        # промежуток между строками, а не как рамка вокруг них.
         row.setObjectName("certRow")
         layout = QHBoxLayout(row)
-        layout.setContentsMargins(10, 0, 6, 0)
+        # 0/0 слева-справа -- буква в букву как у employee_certificate_input_row
+        # в .ui (пользователь явно попросил свести размеры готовых записей и
+        # полей ввода). Половина CERT_ROW_GAP сверху и снизу -- вместе с
+        # margin соседней строки даёт полный зазор между боксами, сама
+        # высота бокса (CERT_BOX_HEIGHT, см. setFixedHeight() ниже) от этого
+        # не меняется.
+        half_gap = self.CERT_ROW_GAP // 2
+        layout.setContentsMargins(0, half_gap, 0, half_gap)
         layout.setSpacing(8)
 
-        label = QLabel(normalized_text)
-        label.setObjectName("certRowLabel")
-        layout.addWidget(label, 1)
+        text_box = QLabel(certificate.text)
+        text_box.setObjectName("certRowTextBox")
+        text_box.setFixedHeight(self.CERT_BOX_HEIGHT)
+        layout.addWidget(text_box, 1)
+
+        expires_box = QLabel(certificate.expires or "без срока")
+        expires_box.setObjectName("certRowExpiresBox")
+        expires_box.setProperty("empty", not certificate.expires)
+        expires_box.setFixedSize(self.CERT_EXPIRES_WIDTH, self.CERT_BOX_HEIGHT)
+        layout.addWidget(expires_box)
 
         remove_btn = QPushButton()
         remove_btn.setObjectName("certRowRemoveBtn")
@@ -386,7 +487,7 @@ class ConstructorEmployeesTabController(EmployeesTabController):
         remove_btn.clicked.connect(lambda: self._remove_certificate_row(item))
         layout.addWidget(remove_btn)
 
-        item.setSizeHint(QSize(0, 30))
+        item.setSizeHint(QSize(0, self.CERT_ROW_HEIGHT))
         list_widget.setItemWidget(item, row)
 
     def filter_employees(self, text: str):

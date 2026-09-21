@@ -1,6 +1,7 @@
+import json
 from pathlib import Path
 
-from src.models.employee import Employee
+from src.models.employee import Certificate, Employee
 from src.services.employees_store import (
     load_employees, save_employees, store_kleishe_image, resolve_kleishe_path,
     find_employee_id_by_name,
@@ -20,7 +21,12 @@ def test_save_and_load_round_trip(tmp_path):
             id="abc123",
             position="Эксперт",
             full_name="Иванов Иван Иванович",
-            certificates=["УДЛ-001", "УДЛ-002"],
+            qualification="II уровень",
+            qualification_level="II",
+            certificates=[
+                Certificate(text="УДЛ-001", expires="25.02.2029"),
+                Certificate(text="УДЛ-002"),
+            ],
             kleishe_filename="signature.png",
         ),
         Employee(id="def456", position="Инженер", full_name="Петров Пётр Петрович"),
@@ -31,6 +37,20 @@ def test_save_and_load_round_trip(tmp_path):
 
     assert path.exists()
     assert loaded == employees
+
+
+def test_load_employees_migrates_legacy_plain_string_certificates(tmp_path):
+    """certificates раньше было List[str] -- старые записи в JSON (до
+    появления Certificate.expires) хранят голые строки без даты."""
+    path = tmp_path / "employees.json"
+    path.write_text(
+        json.dumps({"employees": [{"id": "abc123", "certificates": ["УДЛ-001  от   20.12.2024"]}]}),
+        encoding="utf-8",
+    )
+
+    loaded = load_employees(path)
+
+    assert loaded[0].certificates == [Certificate(text="УДЛ-001 от 20.12.2024", expires="")]
 
 
 def test_save_employees_creates_parent_directory(tmp_path):
