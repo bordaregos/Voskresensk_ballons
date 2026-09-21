@@ -60,6 +60,7 @@ from . import icons
 from .open_with import open_with_prompt
 from .template_location import choose_template_save_path
 from .growable_placeholder_field import GrowablePlaceholderField
+from .flow_layout import FlowLayout
 from .formula_editor_dialog import FormulaEditorDialog
 from .table_editor_dialog import TableEditorDialog
 from .employee_placeholder_dialog import EmployeePlaceholderDialog
@@ -3125,7 +3126,27 @@ class MainWindow(QMainWindow):
         # приём, что и labels/formulas/tables выше.
         employee_bindings = load_field_employee_bindings()
         employees_by_id = {employee.id: employee for employee in load_employees()}
+        # children_by_trigger -- компактная группировка "карточкой
+        # сотрудника" (см. _build_employee_group_row()): поле-триггер (то,
+        # из которого вызывали «Создать сотрудника») плюс все привязанные
+        # к нему сгенерированные поля рисуются ОДНОЙ перетекающей строкой
+        # плашек вместо N+1 отдельных полноразмерных строк QFormLayout.
+        # Каждый ключ children_by_trigger -- ОБЯЗАТЕЛЬНО field_id,
+        # присутствующий в field_ids (иначе группировать не с чем -- поле-
+        # триггер могли удалить из реквизитов отдельно от его сгенерированных
+        # детей, см. _remove_variant_placeholder()); в этом случае
+        # осиротевшие дети остаются на обычном, негруппированном рендере
+        # ниже -- не теряются, просто без компактной карточки.
+        children_by_trigger: Dict[str, list] = {}
+        for fid in field_ids:
+            fid_binding = employee_bindings.get(fid)
+            source_field_id = fid_binding.get("source_field_id") if fid_binding else None
+            if fid_binding and fid_binding.get("key") and source_field_id in field_ids:
+                children_by_trigger.setdefault(source_field_id, []).append(fid)
+        grouped_child_ids = {cid for children in children_by_trigger.values() for cid in children}
         for field_id in field_ids:
+            if field_id in grouped_child_ids:
+                continue
             widget_name = self._slot_placeholder_name(slot, field_id)
             formula = formulas.get(field_id)
             table = tables.get(field_id)
@@ -3260,7 +3281,13 @@ class MainWindow(QMainWindow):
                 self._wire_chip_drag_reorder(row_label, slot, variant_id, field_id, widget_name)
             else:
                 row_label = labels.get(field_id, field_id)
-            layout.addRow(row_label, widget)
+            group_children = children_by_trigger.get(field_id) if is_custom else None
+            if group_children:
+                layout.addRow(self._build_employee_group_row(
+                    slot, variant_id, row_label, widget, group_children, labels, employee_bindings, employees_by_id,
+                ))
+            else:
+                layout.addRow(row_label, widget)
             setattr(self, widget_name, widget)
             self.PLAIN_TEXT_EDIT_NAMES.append(widget_name)
             self._dynamic_field_names[slot].append(widget_name)
@@ -3274,6 +3301,85 @@ class MainWindow(QMainWindow):
         # этого) отражают то, что реально сейчас в реквизитах, а не только
         # то, что было на момент их собственного рендера.
         self._refresh_computed_fields()
+
+    def _build_employee_group_row(
+        self, slot: str, variant_id: str, trigger_chip: QLabel, trigger_widget: "GrowablePlaceholderField",
+        child_field_ids: list, labels: dict, employee_bindings: dict, employees_by_id: dict,
+    ) -> QWidget:
+        """Компактная «карточка сотрудника» -- чип поля-триггера
+        (trigger_chip, уже полностью собран и подключён вызывающей стороной
+        в _render_slot_fields(), тем же путём, что у обычного поля) плюс
+        зелёные плашки-значения каждого привязанного представления
+        (child_field_ids -- дети из children_by_trigger[trigger_field_id]),
+        все в ОДНОМ перетекающем ряду (FlowLayout, перенос по ширине панели)
+        вместо N+1 отдельных полноразмерных строк QFormLayout -- см.
+        скриншот-референс задачи: синий бейдж поля-триггера ("Грищенко
+        С. В." -- оператор переименовал поле через ПКМ → «Переименовать»,
+        сам механизм переименования не менялся) сразу за которым идут
+        зелёные бейджи должности/квалификации/удостоверения.
+
+        Собственное значение поля-триггера (trigger_widget) НЕ показывается
+        в этом виде -- в отличие от обычной строки, где оно занимает всю
+        правую колонку формы, здесь виден только чип. Сам виджет при этом
+        остаётся полноценным и работающим: заведён и подключён вызывающей
+        стороной ДО этого вызова (previous_values/textChanged/setattr/
+        PLAIN_TEXT_EDIT_NAMES -- та же цепочка, что у обычного поля), только
+        прячется (hide()), чтобы get_form_data()/формулы других полей
+        по-прежнему могли на него ссылаться, если такая ссылка когда-то
+        появится -- поле-триггер остаётся "обычным полем", как и было до
+        группировки (см. докстринг _create_employee_from_chip_menu()).
+
+        Каждая зелёная плашка -- ТА ЖЕ ЛОГИКА, ЧТО И У ОБЫЧНОГО ЧИПА
+        (клик копирует "{{ field_id }}" через _copy_chip(), ПКМ -- то же
+        меню, перетаскивание переставляет порядок), просто её видимый текст
+        -- само ЗНАЧЕНИЕ из справочника сотрудников, а не подпись поля
+        (подпись -- в тултипе). Пара "чип + отдельное readOnly поле ввода"
+        (как у обычной строки) тут схлопнута в один QLabel -- второе поле
+        было бы просто дублирующим тот же текст читаемым вэлью-боксом,
+        компактная карточка ради этого и затевалась. Реальный
+        GrowablePlaceholderField для каждого ребёнка всё равно заводится
+        (readOnly, спрятан) -- get_form_data() читает значения только из
+        зарегистрированных self.<widget_name>, не из текста плашки."""
+        container = QWidget()
+        flow = FlowLayout(container, margin=0, spacing=6)
+        flow.addWidget(trigger_chip)
+        trigger_widget.setParent(container)
+        trigger_widget.hide()
+
+        for child_field_id in child_field_ids:
+            binding = employee_bindings.get(child_field_id, {})
+            bound_employee = employees_by_id.get(binding.get("employee_id"))
+            employee_value = employee_data_value(bound_employee, binding.get("key")) if bound_employee else ""
+            child_widget_name = self._slot_placeholder_name(slot, child_field_id)
+
+            value_widget = GrowablePlaceholderField(container)
+            value_widget.setReadOnly(True)
+            value_widget.setProperty("computedEmployee", True)
+            value_widget.setPlainText(employee_value)
+            value_widget.hide()
+            setattr(self, child_widget_name, value_widget)
+            self.PLAIN_TEXT_EDIT_NAMES.append(child_widget_name)
+            self._dynamic_field_names[slot].append(child_widget_name)
+
+            pill = QLabel(employee_value or labels.get(child_field_id, child_field_id))
+            pill.setProperty("titleChip", True)
+            pill.setProperty("titleChipEmployee", True)
+            pill.setCursor(Qt.CursorShape.PointingHandCursor)
+            tooltip = f"{{{{ {child_widget_name} }}}}\n{labels.get(child_field_id, child_field_id)}"
+            if bound_employee is not None:
+                tooltip += f"\nЗначение из справочника сотрудников ({fio_short(bound_employee.full_name)})."
+            tooltip += "\nКлик — скопировать для Word. ПКМ — меню. Перетащите на другое поле — переставить порядок."
+            pill.setToolTip(tooltip)
+            pill.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+            pill.customContextMenuRequested.connect(
+                lambda pos, fid=child_field_id, w=pill: self._show_chip_context_menu(
+                    slot, variant_id, fid, w.mapToGlobal(pos)
+                )
+            )
+            self._wire_chip_drag_reorder(pill, slot, variant_id, child_field_id, child_widget_name)
+            flow.addWidget(pill)
+
+        return container
 
     _CHIP_DRAG_MIME = "application/x-titlechip-field-id"
 
@@ -4482,6 +4588,24 @@ class MainWindow(QMainWindow):
         # У уже существующих (ключ остался отмеченным) field_id НЕ
         # перегенерируется -- только employee_id в привязке обновляется
         # (мог смениться сотрудник при том же наборе ключей).
+        #
+        # gen_field_id not in variant.subtitle_fields -- ОТДЕЛЬНАЯ проверка
+        # от "gen_field_id is None", не объединять обратно в один if:
+        # existing_by_key берётся из field_employee_bindings (см. выше), а
+        # не из subtitle_fields ЭТОГО варианта -- если он когда-то разошёлся
+        # с subtitle_fields (реальный случай: битые данные ДО фикса
+        # load_field_employee_bindings() под старый формат "keys" вместо
+        # "key", см. историю vsk-35 -- привязка выжила в общем файле, а сам
+        # id из subtitle_fields конкретного варианта пропал), повторное
+        # открытие диалога с ТЕМИ ЖЕ отмеченными ключами раньше тихо НЕ
+        # чинило реквизиты: gen_field_id находился по существующей
+        # привязке, ветка "новое поле" не срабатывала, а вставки в
+        # subtitle_fields вне неё не было вовсе -- поля оставались
+        # невидимыми в реквизитах при абсолютно корректном сохранении
+        # каталога/привязок (воспроизведено на реальных данных пользователя,
+        # field_77a81d6a/"Акт ТД и ТО"). Теперь позиция в subtitle_fields
+        # переустанавливается всегда, когда id там отсутствует, независимо
+        # от того, только что ли он создан.
         insert_after = field_id
         for data_field in EMPLOYEE_DATA_FIELDS:
             if data_field.key not in selected_keys:
@@ -4490,6 +4614,7 @@ class MainWindow(QMainWindow):
             if gen_field_id is None:
                 gen_field_id = "field_" + uuid4().hex[:8]
                 catalog[gen_field_id] = f"{trigger_label} — {data_field.label}"
+            if gen_field_id not in variant.subtitle_fields:
                 if insert_after in variant.subtitle_fields:
                     variant.subtitle_fields.insert(variant.subtitle_fields.index(insert_after) + 1, gen_field_id)
                 else:
