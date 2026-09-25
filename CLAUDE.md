@@ -218,6 +218,16 @@ list %}...{% endfor %}` оборачивает ЦЕЛИКОМ `<w:tbl>` (вся 
 одна строка данных — в цикле). `find_placeholders()`
 (`src/services/template_validator.py`) распознаёт оба варианта одинаково.
 
+### Объединение ячеек в редакторе таблиц
+
+`src/ui/table_editor_dialog.py` + `src/services/table_merges.py` (чистые
+функции, тесты `tests/test_table_merges.py`). Сетка `rows` остаётся полной
+прямоугольной; объединения — необязательный ключ `merges` таблицы
+(`field_tables[field_id]`): `[{"r","c","rowspan","colspan"}]`, `(r, c)` —
+якорь, токены живут только в нём. Выделение диапазона — Shift+клик от
+активной ячейки, кнопки «Объединить ячейки»/«Разъединить». В .docx
+`_build_table_element()` вызывает `cell.merge()` до заполнения текстом.
+
 ## Импорт/экспорт
 
 `FileHandler` (`src/ui/file_handler.py`): CSV баллонов (`;`, `utf-8-sig`,

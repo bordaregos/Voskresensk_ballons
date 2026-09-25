@@ -62,6 +62,7 @@ from .template_location import choose_template_save_path
 from .growable_placeholder_field import GrowablePlaceholderField
 from .flow_layout import FlowLayout
 from .formula_editor_dialog import FormulaEditorDialog
+from ..services.table_merges import is_covered, normalize_merges
 from .table_editor_dialog import TableEditorDialog
 from .employee_placeholder_dialog import EmployeePlaceholderDialog
 from ..services.employee_placeholders import (
@@ -2298,8 +2299,18 @@ class MainWindow(QMainWindow):
         doc_table = scratch.add_table(rows=n_rows, cols=n_cols)
         doc_table.style = "Table Grid"
         has_header = bool(table.get("has_header"))
+        # Объединения -- ДО заполнения текстом: python-docx склеивает
+        # абзацы сливаемых ячеек, а текст задаётся только якорю (токены
+        # покрытых ячеек редактор уже перенёс в якорь).
+        merges = normalize_merges(table.get("merges"), n_rows, n_cols)
+        for merge in merges:
+            doc_table.cell(merge["r"], merge["c"]).merge(
+                doc_table.cell(merge["r"] + merge["rowspan"] - 1, merge["c"] + merge["colspan"] - 1)
+            )
         for r, row in enumerate(rows):
             for c, cell_tokens in enumerate(row):
+                if is_covered(merges, r, c):
+                    continue
                 text = "".join(
                     token.get("value", "") if token.get("type") == "text"
                     else self._cross_slot_placeholder_value(token.get("id", ""))
@@ -5119,6 +5130,8 @@ class MainWindow(QMainWindow):
             tables.pop(field_id, None)
         else:
             tables[field_id] = {"has_header": dialog.has_header, "rows": dialog.rows}
+            if dialog.merges:
+                tables[field_id]["merges"] = dialog.merges
         save_field_tables(tables)
 
         self._refresh_filled_slots_fields()

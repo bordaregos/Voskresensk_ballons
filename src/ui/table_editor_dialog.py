@@ -17,6 +17,12 @@ src/ui/main_window.py, _show_chip_context_menu()/_open_table_editor()).
 два: {"type": "text", "value": ...} | {"type": "placeholder", "id": ...} --
 без операторов/дробей/чисел (числа в таблице -- обычный текст).
 
+Ячейки можно объединять по строкам/столбцам (см. src/services/
+table_merges.py): выделение диапазона -- Shift+клик от активной ячейки,
+«Объединить»/«Разъединить» в тулбаре сетки; объединения лежат в
+необязательном ключе "merges" таблицы, сетка rows при этом остаётся
+полной прямоугольной.
+
 Настоящая привязка к спискам ({% for %}/{%tr for %} из CLAUDE.md, повтор
 строки на элемент списка) -- вне охвата: таблица тут фиксированного
 размера, не строка на элемент списка. Сама таблица при этом РЕАЛЬНО
@@ -34,6 +40,7 @@ from PyQt6.QtWidgets import (
     QToolButton, QMenu, QCheckBox, QLineEdit, QScrollArea, QFrame, QInputDialog,
 )
 
+from ..services import table_merges
 from . import icons
 from .flow_layout import FlowLayout
 
@@ -48,6 +55,7 @@ QWidget#tableEditorCell {
     background: #1c1c1e; border: 0.5px solid #38383a; color: #e5e5e7; font-size: 11.5px;
 }
 QWidget#tableEditorCell[tableCellHeader="true"] { background: #232325; }
+QWidget#tableEditorCell[tableCellSelected="true"] { background: rgba(10, 132, 255, 12); }
 QWidget#tableEditorCell[tableCellActive="true"] { border: 1.5px solid #0a84ff; background: rgba(10, 132, 255, 20); }
 QLabel[tableToken="placeholder"] {
     background: rgba(100, 210, 255, 40); color: #64d2ff;
@@ -149,17 +157,25 @@ class TableEditorDialog(QDialog):
                 [_clone_cell(cell) for cell in row] for row in existing_table["rows"]
             ]
             self._has_header = bool(existing_table.get("has_header"))
+            self._merges: List[Dict] = table_merges.normalize_merges(
+                existing_table.get("merges"), len(self._rows), len(self._rows[0]) if self._rows else 0
+            )
         else:
             self._rows = [[[], []], [[], []]]  # пустая сетка 2×2 по умолчанию
             self._has_header = False
+            self._merges = []
 
         self._active_r = 0
         self._active_c = 0
         self._active_zone: List[Dict] = self._rows[0][0]
         self._cursor_index = 0
+        # Противоположный угол выделения диапазона (Shift+клик) -- второй
+        # угол всегда активная ячейка; None -- выделена одна ячейка.
+        self._sel_end: Optional[tuple] = None
 
         self.removed = False
         self.rows: List[List[List[Dict]]] = []
+        self.merges: List[Dict] = []
         self.has_header = self._has_header
 
         self.setWindowTitle("Редактор таблицы")
@@ -200,11 +216,10 @@ class TableEditorDialog(QDialog):
         scroll.setObjectName("tableGridScroll")
         scroll.setWidget(self._grid_widget)
         scroll.setWidgetResizable(True)
-        # Высота ограничена -- у большой таблицы сетка скроллится ВНУТРИ
-        # себя, а не раздувает диалог на весь экран (в отличие от канвы
-        # формулы, которой хватало adjustSize(), т.к. формула никогда не
-        # бывает настолько большой).
-        scroll.setMaximumHeight(280)
+        # Размер области подгоняется под сетку в _fit_scroll_to_grid() --
+        # диалог растёт вместе с таблицей, а скролл ВНУТРИ включается лишь
+        # когда сетка не помещается на экране.
+        self._scroll = scroll
         layout.addWidget(scroll)
         layout.addSpacing(6)
 
@@ -215,6 +230,15 @@ class TableEditorDialog(QDialog):
         grid_toolbar.addWidget(self._op_button("− Столбец", self._remove_active_column))
         grid_toolbar.addStretch(1)
         layout.addLayout(grid_toolbar)
+        merge_toolbar = QHBoxLayout()
+        merge_toolbar.addWidget(self._op_button("Объединить ячейки", self._merge_selection))
+        merge_toolbar.addWidget(self._op_button("Разъединить", self._unmerge_active))
+        merge_hint = QLabel("Диапазон — Shift+клик")
+        merge_hint.setObjectName("tableSubtitle")
+        merge_toolbar.addWidget(merge_hint)
+        merge_toolbar.addStretch(1)
+        layout.addSpacing(4)
+        layout.addLayout(merge_toolbar)
         layout.addSpacing(6)
 
         insert_btn = QToolButton()
@@ -305,6 +329,12 @@ class TableEditorDialog(QDialog):
     # _active_zone -- прямая ссылка на список токенов ЭТОЙ ячейки,
     # _cursor_index -- позиция вставки внутри него (0..len(zone)). -------
     def _set_active_cell(self, r: int, c: int, cursor_index: Optional[int] = None):
+        # Скрытая под объединением ячейка недоступна -- активным становится
+        # якорь области.
+        merge = table_merges.find_merge(self._merges, r, c)
+        if merge is not None:
+            r, c = merge["r"], merge["c"]
+        self._sel_end = None
         self._active_r = r
         self._active_c = c
         self._active_zone = self._rows[r][c]
@@ -342,6 +372,32 @@ class TableEditorDialog(QDialog):
         self._cursor_index = 0
         self._render_grid()
 
+    def _on_cell_pressed(self, event, r: int, c: int):
+        """Shift+клик -- выделение диапазона от активной ячейки до (r, c),
+        обычный клик -- активная ячейка."""
+        if event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
+            self._sel_end = (r, c)
+            self._render_grid()
+        else:
+            self._set_active_cell(r, c)
+
+    def _selection_rect(self) -> table_merges.Rect:
+        """Выделение с учётом объединений -- не рассекает их."""
+        er, ec = self._sel_end if self._sel_end else (self._active_r, self._active_c)
+        return table_merges.expand_rect(self._merges, (self._active_r, self._active_c, er, ec))
+
+    def _merge_selection(self):
+        rect = self._selection_rect()
+        anchor = table_merges.merge_cells(self._rows, self._merges, rect)
+        if anchor is None:
+            return
+        self._set_active_cell(*anchor)
+
+    def _unmerge_active(self):
+        anchor = table_merges.unmerge_cell(self._merges, self._active_r, self._active_c)
+        if anchor is not None:
+            self._set_active_cell(*anchor)
+
     def _on_header_toggled(self, checked: bool):
         self._has_header = checked
         self._render_grid()
@@ -361,7 +417,7 @@ class TableEditorDialog(QDialog):
     def _remove_active_row(self):
         if len(self._rows) <= 1:
             return
-        self._rows.pop(self._active_r)
+        table_merges.remove_row(self._rows, self._merges, self._active_r)
         r = min(self._active_r, len(self._rows) - 1)
         self._set_active_cell(r, min(self._active_c, len(self._rows[0]) - 1))
 
@@ -369,21 +425,31 @@ class TableEditorDialog(QDialog):
         if len(self._rows[0]) <= 1:
             return
         c = self._active_c
-        for row in self._rows:
-            row.pop(c)
+        table_merges.remove_column(self._rows, self._merges, c)
         self._set_active_cell(self._active_r, min(c, len(self._rows[0]) - 1))
 
     # -- Отрисовка -- перестраивается целиком на КАЖДОЕ изменение, тот же
     # приём, что и у редактора формул/остального конструктора. -------------
     def _render_grid(self):
         self._clear_layout(self._grid_layout)
+        sel = self._selection_rect()
         for r, row in enumerate(self._rows):
             for c, tokens in enumerate(row):
+                if table_merges.is_covered(self._merges, r, c):
+                    continue
+                merge = table_merges.find_merge(self._merges, r, c)
+                rowspan = merge["rowspan"] if merge else 1
+                colspan = merge["colspan"] if merge else 1
+                is_selected = (
+                    self._sel_end is not None
+                    and sel[0] <= r <= sel[2] and sel[1] <= c <= sel[3]
+                )
                 is_active = (r == self._active_r and c == self._active_c)
                 cell = _make_flow_widget("tableEditorCell", margin=7, spacing=2)
                 cell.setMinimumWidth(120)
                 cell.setProperty("tableCellHeader", self._has_header and r == 0)
                 cell.setProperty("tableCellActive", is_active)
+                cell.setProperty("tableCellSelected", is_selected)
                 cell.style().unpolish(cell)
                 cell.style().polish(cell)
                 # Клик по СВОБОДНОМУ месту ячейки (не по конкретному
@@ -392,17 +458,43 @@ class TableEditorDialog(QDialog):
                 # аналог DOM stopPropagation()) -- курсор в конец этой
                 # ячейки; для ещё не активной ячейки это же попутно и
                 # выбирает её (см. _set_active_cell()).
-                cell.mousePressEvent = lambda event, rr=r, cc=c: self._set_active_cell(rr, cc)
+                cell.mousePressEvent = lambda event, rr=r, cc=c: self._on_cell_pressed(event, rr, cc)
                 self._render_cell_zone(cell, tokens, is_active)
-                self._grid_layout.addWidget(cell, r, c)
+                self._grid_layout.addWidget(cell, r, c, rowspan, colspan)
+                # Без явного show() у уже показанного диалога новая ячейка
+                # остаётся скрытой до следующего цикла событий, и раскладка
+                # не учитывает её размер (сетка "схлопывается").
+                cell.show()
 
         self._grid_widget.layout().activate()
         for cell in self._grid_widget.findChildren(QWidget, "tableEditorCell"):
             self._apply_flow_height(cell, min_height=32)
 
+        self._fit_scroll_to_grid()
         self.layout().activate()
         self.adjustSize()
         self.setFocus()
+
+    def _fit_scroll_to_grid(self):
+        """Минимальный размер области прокрутки -- размер сетки (плюс рамка
+        и место под полосы), но не больше доли экрана: маленькая таблица
+        показывается целиком без полос, большая -- скроллится."""
+        # Высоты ячеек только что зафиксированы (_apply_flow_height()) --
+        # кэш размеров сетки устарел.
+        self._grid_layout.invalidate()
+        self._grid_layout.activate()
+        hint = self._grid_layout.totalMinimumSize()
+        screen = self.screen().availableGeometry() if self.screen() else None
+        max_w = int(screen.width() * 0.8) if screen else 1000
+        max_h = int(screen.height() * 0.5) if screen else 500
+        bar = self._scroll.style().pixelMetric(self._scroll.style().PixelMetric.PM_ScrollBarExtent)
+        width = hint.width() + 4
+        height = hint.height() + 4
+        if width > max_w:
+            height += bar  # появится горизонтальная полоса
+        if height > max_h:
+            width += bar  # появится вертикальная полоса
+        self._scroll.setMinimumSize(min(width, max_w), min(height, max_h))
 
     @staticmethod
     def _apply_flow_height(widget: QWidget, min_height: int):
@@ -456,6 +548,7 @@ class TableEditorDialog(QDialog):
         self.removed = False
         self.rows = [[_clone_cell(cell) for cell in row] for row in self._rows]
         self.has_header = self._has_header
+        self.merges = [dict(m) for m in self._merges]
         self.accept()
 
     def _on_remove(self):
