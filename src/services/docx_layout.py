@@ -17,11 +17,20 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 
 
-def float_drawings_behind_text(document, target_rids: Iterable[str]) -> int:
+def float_drawings_behind_text(
+    document, target_rids: Iterable[str], anchor_to_placeholder: bool = False,
+) -> int:
     """Находит все <w:drawing> в теле документа, чья картинка (<a:blip
     r:embed="...">) ссылается на один из target_rids, и переводит их из
     <wp:inline> в <wp:anchor behindDoc="1" ...> -- размер (<wp:extent>) при
     этом не меняется, узел переносится как есть, а не создаётся заново.
+
+    anchor_to_placeholder -- см. _inline_to_anchor(): False (по умолчанию,
+    исторический вариант для клише специалистов трубопровода/баллонов, см.
+    MainWindow._float_kleishe_drawings_behind_text()) держит прежнее
+    поведение неизменным, True (клише конструктора документов, см.
+    MainWindow._splice_kleishe_placeholders()) привязывает картинку к
+    месту САМОГО плейсхолдера, а не к началу абзаца/колонки.
 
     Возвращает количество изменённых <w:drawing>. Драйвинги, чей rId не
     входит в target_rids (например, схема НК/график нагружения, см.
@@ -41,7 +50,7 @@ def float_drawings_behind_text(document, target_rids: Iterable[str]) -> int:
         if blip is None or blip.get(qn("r:embed")) not in target_rids:
             continue
 
-        anchor = _inline_to_anchor(inline, relative_height)
+        anchor = _inline_to_anchor(inline, relative_height, anchor_to_placeholder)
         drawing.replace(inline, anchor)
         changed += 1
         relative_height += 1
@@ -49,14 +58,32 @@ def float_drawings_behind_text(document, target_rids: Iterable[str]) -> int:
     return changed
 
 
-def _inline_to_anchor(inline, relative_height: int):
+def _inline_to_anchor(inline, relative_height: int, anchor_to_placeholder: bool = False):
     """<wp:inline>...</wp:inline> -> <wp:anchor behindDoc="1" ...>...
     </wp:anchor>. <wp:extent>/<wp:docPr>/<wp:cNvGraphicFramePr>/<a:graphic>
     переносятся из inline как есть (те же узлы, не копии) -- размер и
-    содержимое картинки не меняются. Позиция -- левый верхний угол текущего
-    абзаца/колонки (ближайший эквивалент прежнего инлайн-положения); точную
-    позицию оператор при необходимости поправит перетаскиванием картинки в
-    Word -- в отличие от инлайн-картинки, плавающую можно двигать мышью."""
+    содержимое картинки не меняются.
+
+    Позиция управляется anchor_to_placeholder:
+    - False (по умолчанию) -- левый верхний угол текущего абзаца/колонки
+      (relativeFrom="paragraph"/"column", ближайший эквивалент прежнего
+      инлайн-положения, когда картинка -- единственное или главное
+      содержимое своего абзаца/ячейки, как у клише специалистов
+      трубопровода/баллонов).
+    - True -- relativeFrom="character"/"line": точка отсчёта -- сам якорь
+      <w:drawing> В ТЕКСТЕ (то самое место, где физически стоял run с
+      плейсхолдером до замены на картинку), а не начало абзаца/колонки.
+      Нужно для клише конструктора документов, где плейсхолдер клише часто
+      НЕ единственное содержимое абзаца (например, стоит перед текстом ФИО
+      в одной строке подписи, см. _splice_kleishe_placeholders()) -- с
+      relativeFrom="paragraph"/"column" картинка уезжала бы к началу всей
+      строки/ячейки, а не оставалась там, где стоял её собственный
+      плейсхолдер.
+
+    В обоих случаях offset -- 0 (точная точка отсчёта, без сдвига);
+    точную позицию оператор при необходимости поправит перетаскиванием
+    картинки в Word -- в отличие от инлайн-картинки, плавающую можно
+    двигать мышью."""
     anchor = OxmlElement("wp:anchor")
     anchor.set("distT", inline.get("distT", "0"))
     anchor.set("distB", inline.get("distB", "0"))
@@ -74,15 +101,18 @@ def _inline_to_anchor(inline, relative_height: int):
     simple_pos.set("y", "0")
     anchor.append(simple_pos)
 
+    h_relative_from = "character" if anchor_to_placeholder else "column"
+    v_relative_from = "line" if anchor_to_placeholder else "paragraph"
+
     position_h = OxmlElement("wp:positionH")
-    position_h.set("relativeFrom", "column")
+    position_h.set("relativeFrom", h_relative_from)
     offset_h = OxmlElement("wp:posOffset")
     offset_h.text = "0"
     position_h.append(offset_h)
     anchor.append(position_h)
 
     position_v = OxmlElement("wp:positionV")
-    position_v.set("relativeFrom", "paragraph")
+    position_v.set("relativeFrom", v_relative_from)
     offset_v = OxmlElement("wp:posOffset")
     offset_v.text = "0"
     position_v.append(offset_v)

@@ -64,7 +64,9 @@ from .flow_layout import FlowLayout
 from .formula_editor_dialog import FormulaEditorDialog
 from .table_editor_dialog import TableEditorDialog
 from .employee_placeholder_dialog import EmployeePlaceholderDialog
-from ..services.employee_placeholders import EMPLOYEE_DATA_FIELDS, employee_data_value, fio_short
+from ..services.employee_placeholders import (
+    KLEISHE_FIELD_KEY, employee_chip_fields, employee_data_value, fio_short,
+)
 from ..models.project import Project
 from ..config import NK_SCHEME_DIR, PNEVMO_GRAPH_DIR
 from .widget_names_pipeline import SEGMENT_TYPES, PROGRAM_DEFAULT_ITEMS, AE_CLASS_TYPES
@@ -86,6 +88,22 @@ _TABLE_MARKER_RE = re.compile("table:([^]+)")
 
 def _table_field_marker(field_id: str) -> str:
     return f"table:{field_id}"
+
+
+# Маркер поля-клише (field_employee_bindings[field_id]["key"] ==
+# KLEISHE_FIELD_KEY, см. employee_placeholders.py) -- тот же приём и по
+# той же причине, что и у табличного маркера выше: get_form_data()
+# подставляет этот текст вместо значения поля, виджет реквизита остаётся
+# readOnly и пустым (подсказка -- через setPlaceholderText(), см.
+# _render_slot_fields()), а _splice_kleishe_placeholders() ПОСЛЕ
+# tpl.render() меняет маркер на настоящую картинку (в отличие от таблицы --
+# см. её докстринг про то, ПОЧЕМУ обязательно после _append_docx_body(),
+# а не до, как у таблицы).
+_KLEISHE_MARKER_RE = re.compile("kleishe:([^]+)")
+
+
+def _kleishe_field_marker(field_id: str) -> str:
+    return f"kleishe:{field_id}"
 
 
 # Тёмная тема окна конструктора документов -- палитра 1:1 из
@@ -1726,7 +1744,7 @@ class MainWindow(QMainWindow):
         # field_tables не существует вовсе, отдельный импорт стора тут не
         # нужен без реальной надобности.
         if self.equipment_type.id == "constructor":
-            from ..services.title_variants_store import load_field_tables
+            from ..services.title_variants_store import load_field_tables, load_field_employee_bindings
 
             tables = load_field_tables()
             for field_id in tables:
@@ -1734,6 +1752,21 @@ class MainWindow(QMainWindow):
                     widget_name = self._slot_placeholder_name(slot, field_id)
                     if widget_name in self.PLAIN_TEXT_EDIT_NAMES:
                         self.data[widget_name] = _table_field_marker(field_id)
+
+            # Поля-клише (field_employee_bindings[...]["key"] == "kleishe",
+            # см. employee_placeholders.py) -- тот же приём, что и у таблиц
+            # выше: значение виджета всегда "" (_render_slot_fields()/
+            # _build_employee_group_row() туда его никогда не пишут, см. их
+            # докстринги), сюда вместо него подставляется маркер
+            # (_kleishe_field_marker()), который _splice_kleishe_placeholders()
+            # меняет на настоящую .docx-картинку.
+            for field_id, binding in load_field_employee_bindings().items():
+                if binding.get("key") != KLEISHE_FIELD_KEY:
+                    continue
+                for slot in self._CONSTRUCTOR_SLOTS:
+                    widget_name = self._slot_placeholder_name(slot, field_id)
+                    if widget_name in self.PLAIN_TEXT_EDIT_NAMES:
+                        self.data[widget_name] = _kleishe_field_marker(field_id)
 
         return self.data
 
@@ -2317,6 +2350,100 @@ class MainWindow(QMainWindow):
                 p_element.addprevious(self._build_table_element(table))
             parent.remove(p_element)
 
+    def _splice_kleishe_placeholders(self, doc):
+        """Меняет маркеры полей-клише (_kleishe_field_marker(), см.
+        get_form_data()) в уже отрендеренном doc на настоящую картинку --
+        похожий приём на _splice_table_placeholders(), но с двумя важными
+        отличиями.
+
+        1) Картинка -- ИНЛАЙН-содержимое (внутри строки текста), а не
+        блочный элемент вроде таблицы: убирается не абзац целиком, а
+        ТОЛЬКО ТЕКСТ ТОГО RUN'А, который содержит сам маркер (поиск --
+        построчно ПО RUN'АМ, а не по paragraph.text, как у таблицы) -- в
+        этот же run, на освободившееся место, вставляется картинка через
+        python-docx Run.add_picture(). Остальные runs абзаца (в т.ч. с
+        ДРУГИМИ плейсхолдерами реквизитов -- в реальных шаблонах клише
+        нередко стоит в одной строке с ФИО, см. карточку специалиста в
+        подписи документа) НЕ трогаются вовсе. Раньше здесь стирался весь
+        абзац целиком (тот же приём, что у таблицы) -- оказалось неверным
+        предположением: маркер клише часто НЕ единственное содержимое
+        абзаца, и такое стирание убивало соседний текст (репродуцировано
+        пользователем -- ФИО рядом с клише пропадало из документа).
+        Сотрудник без загруженного клише (resolve_kleishe_path() вернул
+        None) -- run остаётся пустым текстом (маркер вырезан), тот же
+        принцип "молчаливой деградации", что и у _specialist_kleishe_image()
+        (клише трубопровода/баллонов).
+
+        2) КРИТИЧНО вызывать на УЖЕ СКЛЕЕННОМ документе (после
+        _append_docx_body() в _calculate_constructor()), а НЕ на каждом
+        tpl.docx фрагмента ПО ОТДЕЛЬНОСТИ, как у таблицы -- у таблицы это
+        просто выбор эффективности (см. её докстринг: результат тот же в
+        любом порядке, т.к. _build_table_element() строит независимый OXML-
+        элемент без внешних связей). У картинки же ссылка на файл -- это
+        r:embed-связь (rId) на часть-медиа В ПАКЕТЕ ТОГО САМОГО документа
+        (Run.add_picture() создаёт эту связь именно в doc.part). Если
+        вставить картинку в tpl.docx фрагмента intro/appendix1, а ПОТОМ
+        перенести её XML в другой документ через _append_docx_body() (голое
+        перемещение lxml-узлов, без переноса .rels/media), rId в перенесённом
+        узле будет либо не существовать в целевом пакете, либо (что хуже)
+        указывать там на случайно совпавший по номеру, но ДРУГОЙ rId --
+        Word показал бы битую или чужую картинку. Вызов ПОСЛЕ склейки
+        полностью снимает эту проблему: Run.add_picture() создаёт связь
+        сразу в пакете уже единого, финального документа.
+
+        Вставленные картинки в конце переводятся из обычного инлайн-
+        положения в плавающее "за текстом" (Word: Обтекание текстом -> За
+        текстом) через float_drawings_behind_text() (src/services/
+        docx_layout.py) -- тот же приём и по той же причине, что и у клише
+        специалистов трубопровода/баллонов (см. _float_kleishe_drawings_
+        behind_text()/calculate()): клише -- это факсимиле подписи,
+        подразумевается печатным поверх напечатанного текста (ФИО/
+        должности), а не инлайн-картинкой, раздвигающей строку. В отличие
+        от _float_kleishe_drawings_behind_text() (принимает DocxTemplate,
+        сама достаёт doc.docx), здесь doc -- уже "голый" python-docx
+        Document (см. вызывающую сторону -- tpl.docx/combined), поэтому
+        float_drawings_behind_text() вызывается напрямую, без обёртки.
+
+        anchor_to_placeholder=True -- КЛЮЧЕВОЕ отличие от клише
+        специалистов: там анкор -- левый верхний угол абзаца/колонки (по
+        умолчанию), потому что клише -- единственное содержимое своей
+        ячейки. Здесь плейсхолдер клише часто стоит ВНУТРИ строки с другим
+        текстом (см. правку run'ов выше -- ФИО рядом с клише в одном
+        абзаце), поэтому картинка привязывается к месту САМОГО плейсхолдера
+        (relativeFrom="character"/"line", см. docx_layout.py) -- иначе она
+        уезжала бы к началу всего абзаца, а не оставалась там, где
+        оператор поставил чип клише."""
+        from ..services.title_variants_store import load_field_employee_bindings
+
+        bindings = {
+            field_id: binding for field_id, binding in load_field_employee_bindings().items()
+            if binding.get("key") == KLEISHE_FIELD_KEY
+        }
+        if not bindings:
+            return
+
+        employees = load_employees()
+        used_paths = set()
+
+        for paragraph in list(doc.paragraphs):
+            for run in list(paragraph.runs):
+                match = _KLEISHE_MARKER_RE.search(run.text)
+                if not match:
+                    continue
+                field_id = match.group(1)
+                binding = bindings.get(field_id)
+                if binding is None:
+                    continue
+                run.text = _KLEISHE_MARKER_RE.sub("", run.text)
+                path = resolve_kleishe_path(employees, binding.get("employee_id"))
+                if path is not None:
+                    run.add_picture(str(path))
+                    used_paths.add(path)
+
+        if used_paths:
+            target_rids = {doc.part.get_or_add_image(str(path))[0] for path in used_paths}
+            float_drawings_behind_text(doc, target_rids, anchor_to_placeholder=True)
+
     def _calculate_constructor(self):
         """Сборка документа конструктора (equipment_type == "constructor").
 
@@ -2380,6 +2507,12 @@ class MainWindow(QMainWindow):
             combined = rendered_docs[0]
             for extra_doc in rendered_docs[1:]:
                 self._append_docx_body(combined, extra_doc)
+
+            # На УЖЕ СКЛЕЕННОМ документе, а не на каждом tpl.docx по
+            # отдельности (в отличие от _splice_table_placeholders() выше) --
+            # см. докстринг _splice_kleishe_placeholders(), почему для
+            # картинки, в отличие от таблицы, порядок обязателен.
+            self._splice_kleishe_placeholders(combined)
 
             doc_number_widget = getattr(self, "doc_number", None)
             safe_doc_number = (
@@ -3262,6 +3395,23 @@ class MainWindow(QMainWindow):
                 rows = table.get("rows", [])
                 cols = len(rows[0]) if rows else 0
                 widget.setPlaceholderText(f"▦ Таблица {len(rows)}×{cols} — редактирование через ПКМ")
+            elif binding_key == KLEISHE_FIELD_KEY and bound_employee is not None:
+                # Клише -- картинка, а не текст (Employee.kleishe_filename),
+                # тот же принцип разделения "виджет -- только подсказка,
+                # реальное значение -- маркер в get_form_data()", что и у
+                # таблицы выше (см. её комментарий) -- widget.toPlainText()
+                # тут тоже должен остаться "", НЕ employee_data_value()
+                # (для ключа "kleishe" это текстовый статус "Есть/Без
+                # клише" -- годится для превью чипа в EmployeePlaceholderDialog,
+                # но не для содержимого документа).
+                widget.setReadOnly(True)
+                widget.setProperty("computedEmployee", True)
+                if bound_employee.kleishe_filename:
+                    widget.setPlaceholderText(
+                        f"Клише «{fio_short(bound_employee.full_name)}» — вставится картинкой в документ"
+                    )
+                else:
+                    widget.setPlaceholderText(f"У «{fio_short(bound_employee.full_name)}» нет загруженного клише")
             elif bound_employee is not None:
                 # Значение из справочника сотрудников -- readOnly, тем же
                 # принципом, что формула/таблица выше: единственный
@@ -3420,7 +3570,18 @@ class MainWindow(QMainWindow):
         компактная карточка ради этого и затевалась. Реальный
         GrowablePlaceholderField для каждого ребёнка всё равно заводится
         (readOnly, спрятан) -- get_form_data() читает значения только из
-        зарегистрированных self.<widget_name>, не из текста плашки."""
+        зарегистрированных self.<widget_name>, не из текста плашки.
+
+        Клише (binding["key"] == KLEISHE_FIELD_KEY) -- единственное
+        исключение из "видимый текст плашки == employee_value": картинка,
+        а не текст, employee_value для неё принудительно "" (та же причина,
+        что у ветки binding_key == KLEISHE_FIELD_KEY в _render_slot_fields() --
+        widget.toPlainText() должен остаться пустым, реальное значение
+        (маркер, потом настоящая картинка) кладёт get_form_data()/
+        _splice_kleishe_placeholders(), не этот виджет). Пустой
+        employee_value автоматически откатывает плашку на ветку "или
+        подпись поля" ниже (та же логика, что уже применяется, когда
+        сотрудника удалили из справочника, см. bound_employee is None)."""
         container = QWidget()
         flow = FlowLayout(container, margin=0, spacing=6)
         flow.addWidget(trigger_chip)
@@ -3430,13 +3591,18 @@ class MainWindow(QMainWindow):
         for child_field_id in child_field_ids:
             binding = employee_bindings.get(child_field_id, {})
             bound_employee = employees_by_id.get(binding.get("employee_id"))
-            employee_value = employee_data_value(bound_employee, binding.get("key")) if bound_employee else ""
+            is_kleishe = binding.get("key") == KLEISHE_FIELD_KEY
+            employee_value = (
+                "" if is_kleishe or bound_employee is None
+                else employee_data_value(bound_employee, binding.get("key"))
+            )
             child_widget_name = self._slot_placeholder_name(slot, child_field_id)
 
             value_widget = GrowablePlaceholderField(container)
             value_widget.setReadOnly(True)
             value_widget.setProperty("computedEmployee", True)
-            value_widget.setPlainText(employee_value)
+            if not is_kleishe:
+                value_widget.setPlainText(employee_value)
             value_widget.hide()
             setattr(self, child_widget_name, value_widget)
             self.PLAIN_TEXT_EDIT_NAMES.append(child_widget_name)
@@ -3447,7 +3613,13 @@ class MainWindow(QMainWindow):
             pill.setProperty("titleChipEmployee", True)
             pill.setCursor(Qt.CursorShape.PointingHandCursor)
             tooltip = f"{{{{ {child_widget_name} }}}}\n{labels.get(child_field_id, child_field_id)}"
-            if bound_employee is not None:
+            if is_kleishe:
+                tooltip += (
+                    "\nКлише — вставится в документ картинкой."
+                    if bound_employee is not None and bound_employee.kleishe_filename
+                    else "\nУ сотрудника нет загруженного клише."
+                )
+            elif bound_employee is not None:
                 tooltip += f"\nЗначение из справочника сотрудников ({fio_short(bound_employee.full_name)})."
             tooltip += "\nКлик — скопировать для Word. ПКМ — меню. Перетащите на другое поле — переставить порядок."
             pill.setToolTip(tooltip)
@@ -4418,6 +4590,13 @@ class MainWindow(QMainWindow):
         редакторе таблиц) не правятся -- останутся ссылкой на пропавший id,
         тот же принцип деградации.
 
+        Если field_id -- поле-триггер «Создать сотрудника»
+        (field_employee_bindings, см. title_variants_store.py), вместе с ним
+        удаляются и все поля, сгенерированные для него (source_field_id ==
+        field_id): из каталога, формул, таблиц, привязок и из реквизитов
+        ВСЕХ вариантов -- та же каскадная логика, что и в
+        _remove_variant_placeholder().
+
         _render_slot_fields() (перестраивает fields_layout, включая
         свежий _build_placeholder_menu() без удалённого поля) отложена на
         следующий тик цикла событий -- тот же приём и по той же причине,
@@ -4440,35 +4619,72 @@ class MainWindow(QMainWindow):
             load_hidden_builtin_fields, save_hidden_builtin_fields,
             load_field_formulas, save_field_formulas,
             load_field_tables, save_field_tables,
+            load_field_employee_bindings, save_field_employee_bindings,
         )
 
+        # Поле-триггер «Создать сотрудника» -- вместе с ним из каталога/всех
+        # вариантов удаляются и все поля, сгенерированные для него
+        # (source_field_id == field_id), той же логикой, что и остальное
+        # ниже (формулы/таблицы/привязки/вхождения в реквизиты) -- та же
+        # каскадная очистка, что и в _remove_variant_placeholder().
+        bindings = load_field_employee_bindings()
+        dependent_ids = {
+            gen_id for gen_id, binding in bindings.items()
+            if binding.get("source_field_id") == field_id
+        }
+        ids_to_purge = {field_id} | dependent_ids
+
         catalog = load_field_catalog()
-        if field_id in catalog:
-            catalog.pop(field_id, None)
+        catalog_changed = False
+        hidden = None
+        for purge_id in ids_to_purge:
+            if purge_id in catalog:
+                catalog.pop(purge_id, None)
+                catalog_changed = True
+            elif purge_id == field_id:
+                # Встроенное поле (TITLE_FIELD_LABELS) -- не в field_catalog,
+                # "удаление" -- id в список-исключение. Сгенерированные
+                # employee-поля (dependent_ids) всегда есть в field_catalog
+                # (см. _create_employee_from_chip_menu()), сюда не попадают.
+                hidden = hidden if hidden is not None else load_hidden_builtin_fields()
+                if purge_id not in hidden:
+                    hidden.append(purge_id)
+        if catalog_changed:
             save_field_catalog(catalog)
-        else:
-            hidden = load_hidden_builtin_fields()
-            if field_id not in hidden:
-                hidden.append(field_id)
-                save_hidden_builtin_fields(hidden)
+        if hidden is not None:
+            save_hidden_builtin_fields(hidden)
 
         formulas = load_field_formulas()
-        if field_id in formulas:
-            formulas.pop(field_id, None)
+        formulas_changed = False
+        for purge_id in ids_to_purge:
+            if formulas.pop(purge_id, None) is not None:
+                formulas_changed = True
+        if formulas_changed:
             save_field_formulas(formulas)
 
         tables = load_field_tables()
-        if field_id in tables:
-            tables.pop(field_id, None)
+        tables_changed = False
+        for purge_id in ids_to_purge:
+            if tables.pop(purge_id, None) is not None:
+                tables_changed = True
+        if tables_changed:
             save_field_tables(tables)
+
+        bindings_changed = False
+        for purge_id in ids_to_purge:
+            if bindings.pop(purge_id, None) is not None:
+                bindings_changed = True
+        if bindings_changed:
+            save_field_employee_bindings(bindings)
 
         for slot_key in self._CONSTRUCTOR_SLOTS:
             slot_store = self._slot_store(slot_key)
             variants = slot_store.load_variants()
             changed = False
             for variant in variants:
-                if field_id in variant.subtitle_fields:
-                    variant.subtitle_fields.remove(field_id)
+                before = len(variant.subtitle_fields)
+                variant.subtitle_fields = [f for f in variant.subtitle_fields if f not in ids_to_purge]
+                if len(variant.subtitle_fields) != before:
                     changed = True
             if changed:
                 slot_store.save_variants(variants)
@@ -4500,13 +4716,61 @@ class MainWindow(QMainWindow):
         self._render_slot_fields(slot, variant_id)
 
     def _remove_variant_placeholder(self, slot: str, variant_id: str, field_id: str):
+        """«Удалить» в меню чипа -- убирает поле из реквизитов ТЕКУЩЕГО
+        варианта (в отличие от _delete_catalog_field(), каталог не трогает --
+        поле остаётся доступным для повторной вставки через «Вставить
+        плейсхолдер»).
+
+        Если field_id -- поле-триггер «Создать сотрудника»
+        (field_employee_bindings, см. title_variants_store.py), вместе с ним
+        удаляются и все поля, сгенерированные для него (у которых
+        source_field_id == field_id) -- иначе они остаются в реквизитах
+        осиротевшими записями с данными сотрудника уже после того, как
+        триггер пропал (воспроизведено пользователем). Если удаляемое поле
+        само оказалось сгенерированным (field_id есть в bindings как ключ) --
+        снимается его собственная привязка, та же логика, что при снятии
+        галочки в _create_employee_from_chip_menu()."""
         store = self._slot_store(slot)
         variants = store.load_variants()
         variant = next((v for v in variants if v.id == variant_id), None)
         if variant is None:
             return
-        variant.subtitle_fields = [f for f in variant.subtitle_fields if f != field_id]
+
+        from ..services.title_variants_store import (
+            load_field_catalog, save_field_catalog,
+            load_field_employee_bindings, save_field_employee_bindings,
+        )
+
+        bindings = load_field_employee_bindings()
+        dependent_ids = {
+            gen_id for gen_id, binding in bindings.items()
+            if binding.get("source_field_id") == field_id
+        }
+        to_remove = {field_id} | dependent_ids
+
+        variant.subtitle_fields = [f for f in variant.subtitle_fields if f not in to_remove]
         store.save_variants(variants)
+
+        bindings_changed = False
+        for gen_id in to_remove:
+            if bindings.pop(gen_id, None) is not None:
+                bindings_changed = True
+        if bindings_changed:
+            save_field_employee_bindings(bindings)
+
+        # dependent_ids -- всегда сгенерированные поля из общего каталога
+        # (заведены field_catalog[gen_field_id] = ... в
+        # _create_employee_from_chip_menu()), без такой записи каталога
+        # осиротевший чип показывал бы голый id вместо подписи.
+        if dependent_ids:
+            catalog = load_field_catalog()
+            catalog_changed = False
+            for gen_id in dependent_ids:
+                if catalog.pop(gen_id, None) is not None:
+                    catalog_changed = True
+            if catalog_changed:
+                save_field_catalog(catalog)
+
         self._render_slot_fields(slot, variant_id)
 
     def _create_and_add_variant_field(self, slot: str, variant_id: str):
@@ -4590,6 +4854,24 @@ class MainWindow(QMainWindow):
         elif rename_action is not None and chosen == rename_action:
             self._rename_catalog_field(slot, variant_id, field_id)
 
+    def _refresh_filled_slots_fields(self):
+        """Перестраивает реквизиты (fields_panel) во ВСЕХ заполненных слотах
+        конструктора -- общий хвост для любого изменения, которое может
+        затронуть отображение полей сразу в нескольких местах: правка
+        формулы (_open_formula_editor()), правка таблицы
+        (_open_table_editor()), привязка к сотруднику
+        (_create_employee_from_chip_menu()) и правка/удаление самой записи
+        сотрудника в общем справочнике (EmployeesTabController._save_employee()/
+        _delete_employee()) -- поле с привязкой (field_employee_bindings)
+        должно сразу показать актуальные данные сотрудника, а не то, что
+        было в виджете на момент последней перерисовки (_render_slot_fields()
+        пишет значение в QPlainTextEdit один раз при построении, а не
+        перечитывает employee_data_value() при каждом обращении)."""
+        for refresh_slot in self._CONSTRUCTOR_SLOTS:
+            refresh_variant_id = self._filled_slot_variant(refresh_slot)
+            if refresh_variant_id is not None:
+                self._render_slot_fields(refresh_slot, refresh_variant_id)
+
     def _create_employee_from_chip_menu(self, slot: str, variant_id: str, field_id: str):
         """«Создать сотрудника» из ПКМ-меню чипа -- открывает
         EmployeePlaceholderDialog модально ПОВЕРХ конструктора (тем же
@@ -4645,6 +4927,17 @@ class MainWindow(QMainWindow):
 
         selected_keys = set(dialog.selected_keys) if dialog.employee_id else set()
         existing_by_key = {binding["key"]: gen_field_id for gen_field_id, binding in existing_for_trigger.items()}
+        # employee_chip_fields() -- для КОНКРЕТНОГО отмеченного в диалоге
+        # сотрудника (не голый EMPLOYEE_DATA_FIELDS): представления
+        # удостоверений -- динамическая часть, своя пара чипов на каждую
+        # запись именно ЭТОГО сотрудника (см. её докстринг) -- без
+        # сотрудника (диалог закрыли, ничего не выбрав) ключей всё равно
+        # нет, пустой список ничего не меняет в цикле ниже.
+        selected_employee = (
+            next((e for e in load_employees() if e.id == dialog.employee_id), None)
+            if dialog.employee_id else None
+        )
+        chip_fields = employee_chip_fields(selected_employee) if selected_employee is not None else []
 
         # Ничего не выбрано и раньше тоже ничего не было заведено для этого
         # триггера -- честный no-op, не трогаем store вовсе.
@@ -4674,7 +4967,7 @@ class MainWindow(QMainWindow):
             all_bindings.pop(gen_field_id, None)
 
         # Заводим/обновляем поля для отмеченных ключей, в ПОРЯДКЕ
-        # EMPLOYEE_DATA_FIELDS (не в порядке отметки в диалоге) -- каждое
+        # employee_chip_fields() (не в порядке отметки в диалоге) -- каждое
         # новое поле вставляется СРАЗУ после предыдущего в этой же цепочке
         # (insert_after сдвигается), т.е. все вместе оказываются одним
         # блоком сразу после поля-триггера, а не разбросаны по реквизитам.
@@ -4700,7 +4993,7 @@ class MainWindow(QMainWindow):
         # переустанавливается всегда, когда id там отсутствует, независимо
         # от того, только что ли он создан.
         insert_after = field_id
-        for data_field in EMPLOYEE_DATA_FIELDS:
+        for data_field in chip_fields:
             if data_field.key not in selected_keys:
                 continue
             gen_field_id = existing_by_key.get(data_field.key)
@@ -4721,10 +5014,7 @@ class MainWindow(QMainWindow):
         save_field_employee_bindings(all_bindings)
         store.save_variants(variants)
 
-        for refresh_slot in self._CONSTRUCTOR_SLOTS:
-            refresh_variant_id = self._filled_slot_variant(refresh_slot)
-            if refresh_variant_id is not None:
-                self._render_slot_fields(refresh_slot, refresh_variant_id)
+        self._refresh_filled_slots_fields()
 
     def _open_formula_editor(self, slot: str, variant_id: str, field_id: str):
         """Открывает FormulaEditorDialog для field_id -- на успешном
@@ -4755,10 +5045,7 @@ class MainWindow(QMainWindow):
             formulas[field_id] = {"tokens": dialog.tokens, "decimals": dialog.decimals}
         save_field_formulas(formulas)
 
-        for refresh_slot in self._CONSTRUCTOR_SLOTS:
-            refresh_variant_id = self._filled_slot_variant(refresh_slot)
-            if refresh_variant_id is not None:
-                self._render_slot_fields(refresh_slot, refresh_variant_id)
+        self._refresh_filled_slots_fields()
 
     def _open_table_editor(self, slot: str, variant_id: str, field_id: str):
         """Открывает TableEditorDialog для field_id -- на успешном
@@ -4790,10 +5077,7 @@ class MainWindow(QMainWindow):
             tables[field_id] = {"has_header": dialog.has_header, "rows": dialog.rows}
         save_field_tables(tables)
 
-        for refresh_slot in self._CONSTRUCTOR_SLOTS:
-            refresh_variant_id = self._filled_slot_variant(refresh_slot)
-            if refresh_variant_id is not None:
-                self._render_slot_fields(refresh_slot, refresh_variant_id)
+        self._refresh_filled_slots_fields()
 
     def _create_catalog_field_only(self, label: str) -> str:
         """Заводит новое поле ТОЛЬКО в общем каталоге (field_catalog), не
@@ -4994,11 +5278,16 @@ class MainWindow(QMainWindow):
         файл всё ещё открыт в Word/Pages, tpl.save() упадёт с ошибкой
         доступа, отловлено ниже отдельно, а не падает необработанным.
 
-        _splice_table_placeholders() -- ОБЯЗАТЕЛЬНО после render(), до
-        save(): табличные поля (field_tables) рендерятся в маркер (см.
-        get_form_data()), а не сразу в готовую таблицу -- превратить его в
-        настоящую .docx-таблицу можно только когда маркер уже есть в
-        дереве документа."""
+        _splice_table_placeholders()/_splice_kleishe_placeholders() --
+        ОБЯЗАТЕЛЬНО после render(), до save(): табличные поля (field_tables)
+        и поля-клише (field_employee_bindings) рендерятся в маркер (см.
+        get_form_data()), а не сразу в готовую таблицу/картинку -- превратить
+        маркер в настоящее содержимое можно только когда он уже есть в
+        дереве документа. В отличие от _calculate_constructor() (где
+        несколько фрагментов потом склеиваются в один документ),
+        предпросмотр -- всегда ОДИН файл, поэтому здесь не действует
+        оговорка из докстринга _splice_kleishe_placeholders() про порядок
+        относительно склейки -- склейки тут попросту нет."""
         try:
             template_path = self._find_slot_template(slot, variant_id)
         except FileNotFoundError:
@@ -5013,6 +5302,7 @@ class MainWindow(QMainWindow):
             tpl = DocxTemplate(template_path)
             tpl.render(self.get_form_data())
             self._splice_table_placeholders(tpl.docx)
+            self._splice_kleishe_placeholders(tpl.docx)
         except Exception as e:
             self.show_message(
                 "Не удалось открыть шаблон",

@@ -9,7 +9,9 @@ employees_store.py; это окно только читает и умеет уд
 не создаёт и не правит -- полное редактирование карточки сотрудника
 остаётся в разделе «Сотрудники», см. EmployeesTabController), готовые
 плейсхолдеры данных выбранного сотрудника справа
-(src/services/employee_placeholders.py, EMPLOYEE_DATA_FIELDS) --
+(src/services/employee_placeholders.py, employee_chip_fields() -- статические
+EMPLOYEE_DATA_FIELDS плюс динамические представления его удостоверений, по
+паре чипов на каждую запись справочника, а не одно общее поле) --
 множественный выбор чипов, клик переключает синий/зелёный.
 
 Диалог НЕ пишет привязку сам -- только возвращает employee_id/selected_keys
@@ -30,7 +32,7 @@ from PyQt6.QtWidgets import (
 from . import icons
 from .flow_layout import FlowLayout
 from ..models.employee import Employee
-from ..services.employee_placeholders import EMPLOYEE_DATA_FIELDS, employee_data_value, fio_short
+from ..services.employee_placeholders import employee_chip_fields, employee_data_value, fio_short
 from ..services.employees_store import load_employees, save_employees
 
 _QSS = """
@@ -94,7 +96,7 @@ class EmployeePlaceholderDialog(QDialog):
     """См. докстринг модуля. Результат читается ПОСЛЕ exec(), только если
     вернул QDialog.DialogCode.Accepted: employee_id/selected_keys -- id
     выбранного сотрудника и множество отмеченных ключей
-    EMPLOYEE_DATA_FIELDS. Пустой selected_keys (сотрудник выбран, но ни
+    employee_chip_fields(). Пустой selected_keys (сотрудник выбран, но ни
     один чип не отмечен) -- вызывающая сторона тогда не трогает строку
     реквизита, см. _create_employee_from_chip_menu()."""
 
@@ -298,7 +300,7 @@ class EmployeePlaceholderDialog(QDialog):
             return
 
         self._crumb_label.setText(fio_short(employee.full_name))
-        for field in EMPLOYEE_DATA_FIELDS:
+        for field in employee_chip_fields(employee):
             value = employee_data_value(employee, field.key)
             chip = _ChipLabel(field.key, value, self._toggle_chip)
             chip.set_selected(field.key in self._selected_keys)

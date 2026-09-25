@@ -268,6 +268,7 @@ class EmployeesTabController:
         save_employees(self.employees)
         self._refresh_table()
         self._select_row_by_id(self._current_id)
+        self._refresh_employee_bound_fields()
 
     def _delete_employee(self):
         if self._current_id is None:
@@ -276,6 +277,21 @@ class EmployeesTabController:
         save_employees(self.employees)
         self._refresh_table()
         self._clear_form()
+        self._refresh_employee_bound_fields()
+
+    def _refresh_employee_bound_fields(self):
+        # Только у конструктора документов (см. ConstructorEmployeesTabController)
+        # реквизиты могут содержать поля, привязанные к сотруднику
+        # (field_employee_bindings, MainWindow._refresh_filled_slots_fields()) --
+        # у трубопровода (EmployeesTabController напрямую) этого механизма
+        # нет вовсе. _refresh_filled_slots_fields() -- метод самого класса
+        # MainWindow, существует независимо от equipment_type, поэтому
+        # hasattr по НЕМУ всегда вернул бы True и упал бы дальше внутри
+        # (обращение к виджетам, которых нет в main_window.ui) -- проверяем
+        # вместо этого employee_qualification, constructor-only ВИДЖЕТ, тем
+        # же приёмом, что и выше в этом классе.
+        if hasattr(self.mw, "employee_qualification"):
+            self.mw._refresh_filled_slots_fields()
 
     def _select_row_by_id(self, employee_id):
         for row, employee in enumerate(self.employees):
