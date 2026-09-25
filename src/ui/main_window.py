@@ -17,6 +17,7 @@ from uuid import uuid4
 from docx.shared import Mm
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
+from docx import Document
 from docxtpl import DocxTemplate, InlineImage, RichText
 
 import copy
@@ -55,6 +56,7 @@ from ..services.employees_store import (
     store_kleishe_image, load_employees, resolve_kleishe_path, find_employee_id_by_name,
 )
 from ..services.docx_layout import float_drawings_behind_text
+from ..services.template_validator import find_unknown_placeholders
 from ..services import workspace
 from ..services import custom_sections_store
 from . import icons
@@ -2588,8 +2590,21 @@ class MainWindow(QMainWindow):
             form_data = self.get_form_data()
 
             rendered_docs = []
+            # Плейсхолдеры шаблонов, которых нет в form_data (docxtpl
+            # подставит пустоту) -- см. find_unknown_placeholders().
+            unknown_by_slot = {}
             for slot, variant_id in filled:
-                tpl = DocxTemplate(self._find_slot_template(slot, variant_id))
+                template_path = self._find_slot_template(slot, variant_id)
+                tpl = DocxTemplate(template_path)
+                # Проверка -- на ОТДЕЛЬНО открытом Document, НЕ на tpl.docx:
+                # doc.paragraphs кэширует тело документа, а tpl.render()
+                # потом подменяет body целиком (map_tree()) -- после этого
+                # tpl.docx.paragraphs указывал бы на старое, отвязанное тело,
+                # и _splice_*_placeholders() молча ничего не находили бы
+                # (маркеры клише/таблиц оставались бы текстом в документе).
+                unknown = find_unknown_placeholders(Document(str(template_path)), form_data)
+                if unknown:
+                    unknown_by_slot[slot] = unknown
                 tpl.render(form_data)
                 # НЕ tpl.get_docx() -- он вызывает init_docx(reload=True),
                 # который при is_rendered=True (выставляется в render())
@@ -2622,6 +2637,9 @@ class MainWindow(QMainWindow):
             # картинки, в отличие от таблицы, порядок обязателен.
             self._splice_kleishe_placeholders(combined)
 
+            if unknown_by_slot and not self._confirm_unknown_placeholders(unknown_by_slot):
+                return
+
             doc_number_widget = getattr(self, "doc_number", None)
             safe_doc_number = (
                 doc_number_widget.toPlainText().strip().replace("/", "-") if doc_number_widget else ""
@@ -2653,6 +2671,26 @@ class MainWindow(QMainWindow):
             )
         except Exception as e:
             self.show_message("Ошибка генерации", f"Неизвестная ошибка: {str(e)}", QMessageBox.Icon.Critical)
+
+    def _confirm_unknown_placeholders(self, unknown_by_slot: Dict[str, list]) -> bool:
+        """Предупреждает, что в шаблонах есть плейсхолдеры без значения (в
+        документе они останутся пустыми), и спрашивает, собирать ли всё
+        равно. True -- продолжить."""
+        lines = []
+        for slot, names in unknown_by_slot.items():
+            label = self._CONSTRUCTOR_SLOTS[slot]["display_label"]
+            lines.append(f"{label}: " + ", ".join(names))
+        msg = QMessageBox(self)
+        msg.setIcon(QMessageBox.Icon.Warning)
+        msg.setWindowTitle("Неизвестные плейсхолдеры")
+        msg.setText(
+            "В шаблонах есть плейсхолдеры, которых нет в реквизитах — в документе они будут пустыми "
+            "(возможно, поле пересоздали, а в Word остался старый id):\n\n"
+            + "\n".join(lines) + "\n\nСобрать всё равно?"
+        )
+        msg.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel)
+        msg.setDefaultButton(QMessageBox.StandardButton.Cancel)
+        return msg.exec() == QMessageBox.StandardButton.Yes
 
     # -- Конструктор документов: сайдбар «Титульные листы» -------------------
 
@@ -4915,6 +4953,21 @@ class MainWindow(QMainWindow):
         self._ensure_fragment_exists(slot, variant)
         self._render_slot_fields(slot, variant_id)
 
+    def _field_used_in_other_variants(self, field_id: str, slot: str, variant_id: str) -> bool:
+        """Есть ли field_id в реквизитах ЛЮБОГО другого варианта (любого
+        слота). Каталог и привязки сотрудников общие для всех вариантов, а
+        subtitle_fields -- у каждого свой: удалить привязку/запись каталога
+        только потому, что поле убрали из ОДНОГО варианта, значило бы
+        осиротить его в остальных (чип без привязки, пустая подпись, поле
+        выпадает из группы сотрудника)."""
+        for slot_key in self._CONSTRUCTOR_SLOTS:
+            for variant in self._slot_store(slot_key).load_variants():
+                if slot_key == slot and variant.id == variant_id:
+                    continue
+                if field_id in variant.subtitle_fields:
+                    return True
+        return False
+
     def _remove_variant_placeholder(self, slot: str, variant_id: str, field_id: str):
         """«Удалить» в меню чипа -- убирает поле из реквизитов ТЕКУЩЕГО
         варианта (в отличие от _delete_catalog_field(), каталог не трогает --
@@ -4951,8 +5004,15 @@ class MainWindow(QMainWindow):
         variant.subtitle_fields = [f for f in variant.subtitle_fields if f not in to_remove]
         store.save_variants(variants)
 
+        # Привязка/запись каталога сгенерированного поля -- общие: снимаем
+        # их, только если поле больше не нужно ни одному другому варианту.
+        # Сам field_id (триггер) в bindings не ключ, его этот фильтр не
+        # касается.
+        still_used = {gen_id for gen_id in dependent_ids if self._field_used_in_other_variants(gen_id, slot, variant_id)}
+        dependent_ids -= still_used
+
         bindings_changed = False
-        for gen_id in to_remove:
+        for gen_id in (to_remove - still_used):
             if bindings.pop(gen_id, None) is not None:
                 bindings_changed = True
         if bindings_changed:
@@ -5169,6 +5229,10 @@ class MainWindow(QMainWindow):
                 continue
             if gen_field_id in variant.subtitle_fields:
                 variant.subtitle_fields.remove(gen_field_id)
+            # Каталог и привязки общие для всех вариантов -- если поле
+            # используется ещё где-то, только убираем его из этого варианта.
+            if self._field_used_in_other_variants(gen_field_id, slot, variant_id):
+                continue
             catalog.pop(gen_field_id, None)
             all_bindings.pop(gen_field_id, None)
 

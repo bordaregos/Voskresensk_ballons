@@ -135,6 +135,21 @@ def find_placeholders(doc) -> "tuple[Set[str], Set[str]]":
     return scalars, loop_fields
 
 
+def find_unknown_placeholders(doc, known_names) -> List[str]:
+    """Скалярные плейсхолдеры документа, для которых нет значения в
+    known_names (обычно ключи итогового self.data) -- docxtpl молча
+    подставит на их место пустоту. Реальный случай: поле удалили/пересоздали
+    в приложении (новый field_id), а старый {{ ... }} остался в .docx.
+    Атрибутный доступ ({{ a.b }}) считается известным, если известно "a".
+    Отсортированный список без повторов."""
+    scalars, _loop_fields = find_placeholders(doc)
+    known = set(known_names)
+    return sorted(
+        name for name in scalars
+        if name not in known and name.split(".", 1)[0] not in known
+    )
+
+
 def find_suspicious_tags(doc) -> List[ValidationIssue]:
     """'{{'/'{%'  без парного закрытия в пределах того же параграфа --
     признак непойманного разрыва тега (например, кто-то вручную начал
