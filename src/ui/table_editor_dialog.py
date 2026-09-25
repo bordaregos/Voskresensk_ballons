@@ -23,6 +23,15 @@ table_merges.py): выделение диапазона -- Shift+клик от �
 необязательном ключе "merges" таблицы, сетка rows при этом остаётся
 полной прямоугольной.
 
+Ячейка может быть формулой «как в Excel» (см. src/services/
+table_formulas.py): токен {"type": "formula", "expr", "decimals"} --
+единственный в ячейке. Столбцы подписаны A, B, C…, строки -- 1, 2, 3…
+(шапка считается строкой); формулу вводят в строке «Формула», «Заполнить
+вниз/вправо» протягивает её по выделенному диапазону со сдвигом
+относительных ссылок. В сетке формула показывается вместе с предпросмотром
+значения; рандом-чипы в предпросмотре -- пробное значение, в документе
+будет своё.
+
 Настоящая привязка к спискам ({% for %}/{%tr for %} из CLAUDE.md, повтор
 строки на элемент списка) -- вне охвата: таблица тут фиксированного
 размера, не строка на элемент списка. Сама таблица при этом РЕАЛЬНО
@@ -38,9 +47,10 @@ from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QGridLayout, QWidget, QLabel, QPushButton,
     QToolButton, QMenu, QCheckBox, QLineEdit, QScrollArea, QFrame, QInputDialog,
+    QSpinBox, QMessageBox,
 )
 
-from ..services import table_merges
+from ..services import table_merges, table_formulas
 from . import icons
 from .flow_layout import FlowLayout
 
@@ -62,6 +72,18 @@ QLabel[tableToken="placeholder"] {
     border: 1px solid rgba(100, 210, 255, 100); border-radius: 5px; padding: 2px 7px; font-size: 11px;
 }
 QLabel[tableToken="text"] { color: #e5e5e7; font-size: 11.5px; }
+QLabel[tableToken="formula"] {
+    background: rgba(255, 159, 10, 35); color: #ff9f0a;
+    border: 1px solid rgba(255, 159, 10, 100); border-radius: 5px; padding: 2px 7px; font-size: 11px;
+}
+QLabel[tableToken="formulaError"] {
+    background: rgba(255, 69, 58, 35); color: #ff453a;
+    border: 1px solid rgba(255, 69, 58, 100); border-radius: 5px; padding: 2px 7px; font-size: 11px;
+}
+QLabel#tableAxis { color: #8e8e93; font-size: 10.5px; background: #232325; border: 0.5px solid #38383a; padding: 2px 6px; }
+QLabel#formulaHint { color: #ff9f0a; font-size: 11.5px; }
+QWidget#tableEditorCell[tableCellRef="true"] { border: 1.5px dashed #ff9f0a; }
+QLabel#formulaPreview { color: #8e8e93; font-size: 11.5px; }
 QFrame#tableCaret { background: #0a84ff; }
 QLineEdit#tableTextInput {
     background: #1c1c1e; border: 0.5px solid #48484a; border-radius: 6px;
@@ -137,6 +159,7 @@ class TableEditorDialog(QDialog):
         existing_table: Optional[Dict],
         create_field: Callable[[str], str],
         parent=None,
+        sample_text: Optional[Callable[[str], str]] = None,
     ):
         super().__init__(parent)
         self._field_id = field_id
@@ -151,6 +174,10 @@ class TableEditorDialog(QDialog):
         # сторона (MainWindow), диалог самих JSON-файлов не трогает, тем же
         # принципом, что и resolve_placeholder у FormulaEditorDialog.
         self._create_field = create_field
+        # Пробный текст поля для предпросмотра формул (рандом-поле -- образец
+        # значения); без колбэка чип-плейсхолдер в предпросмотре не считается.
+        self._sample_text = sample_text
+        self._samples: Dict[str, str] = {}
 
         if existing_table:
             self._rows: List[List[List[Dict]]] = [
@@ -239,6 +266,52 @@ class TableEditorDialog(QDialog):
         merge_toolbar.addStretch(1)
         layout.addSpacing(4)
         layout.addLayout(merge_toolbar)
+        layout.addSpacing(6)
+
+        self._formula_hint = QLabel(
+            "Режим формулы: кликайте по ячейкам — их адреса добавятся в формулу; "
+            "Shift+клик по другой ячейке делает диапазон. Enter или «Готово» — применить."
+        )
+        self._formula_hint.setObjectName("formulaHint")
+        self._formula_hint.setWordWrap(True)
+        self._formula_hint.hide()
+        layout.addWidget(self._formula_hint)
+        formula_row = QHBoxLayout()
+        self._formula_input = QLineEdit()
+        self._formula_input.setObjectName("tableTextInput")
+        self._formula_input.setPlaceholderText("Формула, например =(B1-B2)/B1*100")
+        # Адрес, вставленный кликом: (начало, конец, первая ячейка) -- чтобы
+        # Shift+клик мог расширить его до диапазона.
+        self._last_point = None
+        self._formula_mode = False
+        self._formula_input.returnPressed.connect(self._apply_formula)
+        self._formula_input.textEdited.connect(lambda _t: self._set_formula_mode(True))
+        self._formula_input.textChanged.connect(self._update_formula_preview)
+        formula_row.addWidget(self._formula_input, stretch=1)
+        self._decimals_spin = QSpinBox()
+        self._decimals_spin.setRange(0, 6)
+        self._decimals_spin.setValue(table_formulas.DEFAULT_DECIMALS)
+        self._decimals_spin.setSuffix(" зн.")
+        self._decimals_spin.setToolTip("Знаков после запятой в результате")
+        formula_row.addWidget(self._decimals_spin)
+        self._formula_btn = self._op_button("ƒ Формула", self._on_formula_button)
+        formula_row.addWidget(self._formula_btn)
+        self._formula_cancel_btn = self._op_button("Отмена", self._cancel_formula)
+        self._formula_cancel_btn.hide()
+        formula_row.addWidget(self._formula_cancel_btn)
+        layout.addLayout(formula_row)
+        self._formula_preview = QLabel("")
+        self._formula_preview.setObjectName("formulaPreview")
+        self._formula_preview.setWordWrap(True)
+        layout.addWidget(self._formula_preview)
+        fill_row = QHBoxLayout()
+        fill_row.addWidget(self._op_button("Заполнить вниз", self._fill_down))
+        fill_row.addWidget(self._op_button("Заполнить вправо", self._fill_right))
+        fill_hint = QLabel("По выделенному диапазону (Shift+клик), формула — из его первой строки/столбца")
+        fill_hint.setObjectName("tableSubtitle")
+        fill_hint.setWordWrap(True)
+        fill_row.addWidget(fill_hint, stretch=1)
+        layout.addLayout(fill_row)
         layout.addSpacing(6)
 
         insert_btn = QToolButton()
@@ -335,11 +408,142 @@ class TableEditorDialog(QDialog):
         if merge is not None:
             r, c = merge["r"], merge["c"]
         self._sel_end = None
+        self._last_point = None
         self._active_r = r
         self._active_c = c
         self._active_zone = self._rows[r][c]
         self._cursor_index = len(self._active_zone) if cursor_index is None else cursor_index
+        self._load_formula_input()
         self._render_grid()
+
+    # -- Формулы -------------------------------------------------------------
+    def _is_formula_active(self) -> bool:
+        return table_formulas.is_formula_cell(self._active_zone)
+
+    def _load_formula_input(self):
+        """Строка формулы показывает формулу активной ячейки (или пуста)."""
+        self._formula_mode = False
+        if self._is_formula_active():
+            token = self._active_zone[0]
+            self._formula_input.setText("=" + token.get("expr", ""))
+            self._decimals_spin.setValue(int(token.get("decimals", table_formulas.DEFAULT_DECIMALS)))
+        else:
+            self._formula_input.clear()
+        self._sync_formula_controls()
+
+    def _sync_formula_controls(self):
+        self._formula_hint.setVisible(self._formula_mode)
+        self._formula_cancel_btn.setVisible(self._formula_mode)
+        self._formula_btn.setText("✓ Готово" if self._formula_mode else "ƒ Формула")
+
+    def _set_formula_mode(self, on: bool):
+        if self._formula_mode == on:
+            return
+        self._formula_mode = on
+        if on and not self._formula_input.text().strip():
+            self._formula_input.setText("=")
+        self._sync_formula_controls()
+
+    def _on_formula_button(self):
+        """«ƒ Формула» включает режим формулы для активной ячейки, «✓ Готово»
+        (та же кнопка) -- применяет."""
+        if self._formula_mode:
+            self._apply_formula()
+            return
+        self._set_formula_mode(True)
+        self._formula_input.setFocus()
+        self._formula_input.setCursorPosition(len(self._formula_input.text()))
+        self._render_grid_keep_input()
+
+    def _cancel_formula(self):
+        self._last_point = None
+        self._load_formula_input()
+        self._render_grid()
+
+    def _render_grid_keep_input(self):
+        """Перерисовка сетки (подсветка ссылок), не уводя фокус из строки формулы."""
+        self._render_grid()
+        self._formula_input.setFocus()
+
+    def _apply_formula(self):
+        """Записывает формулу из строки в активную ячейку (заменяя её
+        прежнее содержимое) и выходит из режима формулы."""
+        expr = self._formula_input.text().strip().lstrip("=").strip()
+        error = table_formulas.validate_expr(expr)
+        if error:
+            QMessageBox.warning(self, "Формула", error)
+            return
+        self._active_zone[:] = [{"type": "formula", "expr": expr, "decimals": self._decimals_spin.value()}]
+        self._cursor_index = 1
+        self._formula_mode = False
+        self._last_point = None
+        self._sync_formula_controls()
+        self._render_grid()
+
+    def _update_formula_preview(self):
+        text = self._formula_input.text().strip().lstrip("=").strip()
+        if not text:
+            self._formula_preview.setText("")
+            return
+        error = table_formulas.validate_expr(text)
+        self._formula_preview.setText(f"Ошибка: {error}" if error else "")
+
+    def _sample_for(self, field_id: str) -> str:
+        if field_id not in self._samples:
+            self._samples[field_id] = self._sample_text(field_id) if self._sample_text else ""
+        return self._samples[field_id]
+
+    def _evaluate_preview(self):
+        """(texts, errors) текущей сетки -- для предпросмотра формул."""
+        def resolve(token: Dict) -> str:
+            if token.get("type") == "text":
+                return token.get("value", "")
+            return self._sample_for(token.get("id", ""))
+
+        def get_ph(field_id: str) -> float:
+            try:
+                return float(self._sample_for(field_id).strip().replace(",", "."))
+            except ValueError:
+                raise table_formulas.FormulaError(f"Поле «{self._all_fields.get(field_id, field_id)}» — нет пробного числа.")
+
+        return table_formulas.evaluate_table(
+            self._rows, resolve, get_ph, lambda r, c: table_merges.is_covered(self._merges, r, c)
+        )
+
+    def _fill(self, down: bool):
+        r1, c1, r2, c2 = self._selection_rect()
+        if (down and r1 == r2) or (not down and c1 == c2):
+            return  # нечего протягивать -- диапазон в одну строку/столбец
+        for r in range(r1, r2 + 1):
+            for c in range(c1, c2 + 1):
+                if (down and r == r1) or (not down and c == c1):
+                    continue
+                if table_merges.is_covered(self._merges, r, c) or table_merges.find_merge(self._merges, r, c):
+                    continue
+                src_r, src_c = (r1, c) if down else (r, c1)
+                source = self._rows[src_r][src_c]
+                if table_merges.find_merge(self._merges, src_r, src_c):
+                    continue
+                d_row, d_col = r - src_r, c - src_c
+                if table_formulas.is_formula_cell(source):
+                    token = dict(source[0])
+                    token["expr"] = table_formulas.shift_expr(token.get("expr", ""), d_row, d_col)
+                    self._rows[r][c] = [token]
+                else:
+                    self._rows[r][c] = _clone_cell(source)
+        self._set_active_cell(self._active_r, self._active_c)
+
+    def _fill_down(self):
+        self._fill(down=True)
+
+    def _fill_right(self):
+        self._fill(down=False)
+
+    def _fix_formulas_after_removal(self, adjust: Callable[[str], str]):
+        for row in self._rows:
+            for cell in row:
+                if table_formulas.is_formula_cell(cell):
+                    cell[0]["expr"] = adjust(cell[0].get("expr", ""))
 
     # -- Вставка/удаление -- всегда РОВНО в позицию курсора (list.insert),
     # не в конец -- те же причины, что и в редакторе формул. ---------------
@@ -349,6 +553,13 @@ class TableEditorDialog(QDialog):
         self._render_grid()
 
     def _insert_placeholder(self, field_id: str):
+        # В ячейке-формуле чип не вставляется токеном -- он идёт в текст
+        # формулы как {id}.
+        if self._is_formula_active() or self._formula_mode:
+            self._set_formula_mode(True)
+            self._formula_input.insert("{" + field_id + "}")
+            self._formula_input.setFocus()
+            return
         self._insert_token({"type": "placeholder", "id": field_id})
 
     def _on_insert_text_clicked(self):
@@ -372,9 +583,38 @@ class TableEditorDialog(QDialog):
         self._cursor_index = 0
         self._render_grid()
 
+    def _point_cell(self, r: int, c: int, extend: bool):
+        """Клик в режиме формулы: адрес ячейки вставляется в позицию курсора
+        строки формулы. Shift+клик сразу после такой вставки превращает
+        адрес в диапазон «первая:эта»."""
+        merge = table_merges.find_merge(self._merges, r, c)
+        if merge is not None:
+            r, c = merge["r"], merge["c"]
+        if (r, c) == (self._active_r, self._active_c):
+            return  # ссылка ячейки на саму себя -- циклическая
+        field = self._formula_input
+        text, pos = field.text(), field.cursorPosition()
+        last = self._last_point
+        if extend and last is not None and last[1] == pos:
+            start, first = last[0], last[2]
+            ref = table_formulas.cell_name(*first) + ":" + table_formulas.cell_name(r, c)
+            text = text[:start] + ref + text[pos:]
+        else:
+            start, first = pos, (r, c)
+            ref = table_formulas.cell_name(r, c)
+            text = text[:pos] + ref + text[pos:]
+        field.setText(text)
+        field.setCursorPosition(start + len(ref))
+        self._last_point = (start, start + len(ref), first)
+        self._render_grid_keep_input()
+
     def _on_cell_pressed(self, event, r: int, c: int):
-        """Shift+клик -- выделение диапазона от активной ячейки до (r, c),
-        обычный клик -- активная ячейка."""
+        """В режиме указания -- вставка адреса в формулу (_point_cell()).
+        Иначе Shift+клик -- выделение диапазона от активной ячейки до
+        (r, c), обычный клик -- активная ячейка."""
+        if self._formula_mode:
+            self._point_cell(r, c, bool(event.modifiers() & Qt.KeyboardModifier.ShiftModifier))
+            return
         if event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
             self._sel_end = (r, c)
             self._render_grid()
@@ -417,7 +657,9 @@ class TableEditorDialog(QDialog):
     def _remove_active_row(self):
         if len(self._rows) <= 1:
             return
-        table_merges.remove_row(self._rows, self._merges, self._active_r)
+        removed = self._active_r
+        table_merges.remove_row(self._rows, self._merges, removed)
+        self._fix_formulas_after_removal(lambda e: table_formulas.adjust_for_row_removal(e, removed))
         r = min(self._active_r, len(self._rows) - 1)
         self._set_active_cell(r, min(self._active_c, len(self._rows[0]) - 1))
 
@@ -426,6 +668,7 @@ class TableEditorDialog(QDialog):
             return
         c = self._active_c
         table_merges.remove_column(self._rows, self._merges, c)
+        self._fix_formulas_after_removal(lambda e: table_formulas.adjust_for_column_removal(e, c))
         self._set_active_cell(self._active_r, min(c, len(self._rows[0]) - 1))
 
     # -- Отрисовка -- перестраивается целиком на КАЖДОЕ изменение, тот же
@@ -433,6 +676,16 @@ class TableEditorDialog(QDialog):
     def _render_grid(self):
         self._clear_layout(self._grid_layout)
         sel = self._selection_rect()
+        texts, errors = self._evaluate_preview()
+        # Подсветка ячеек, на которые ссылается редактируемая формула.
+        ref_cells = (
+            table_formulas.referenced_cells(self._formula_input.text())
+            if self._formula_mode else set()
+        )
+        for c in range(len(self._rows[0])):
+            self._add_axis_label(table_formulas.cell_name(0, c).rstrip("0123456789"), 0, c + 1)
+        for r in range(len(self._rows)):
+            self._add_axis_label(str(r + 1), r + 1, 0)
         for r, row in enumerate(self._rows):
             for c, tokens in enumerate(row):
                 if table_merges.is_covered(self._merges, r, c):
@@ -450,6 +703,7 @@ class TableEditorDialog(QDialog):
                 cell.setProperty("tableCellHeader", self._has_header and r == 0)
                 cell.setProperty("tableCellActive", is_active)
                 cell.setProperty("tableCellSelected", is_selected)
+                cell.setProperty("tableCellRef", (r, c) in ref_cells)
                 cell.style().unpolish(cell)
                 cell.style().polish(cell)
                 # Клик по СВОБОДНОМУ месту ячейки (не по конкретному
@@ -459,8 +713,8 @@ class TableEditorDialog(QDialog):
                 # ячейки; для ещё не активной ячейки это же попутно и
                 # выбирает её (см. _set_active_cell()).
                 cell.mousePressEvent = lambda event, rr=r, cc=c: self._on_cell_pressed(event, rr, cc)
-                self._render_cell_zone(cell, tokens, is_active)
-                self._grid_layout.addWidget(cell, r, c, rowspan, colspan)
+                self._render_cell_zone(cell, tokens, is_active, texts[r][c], errors.get((r, c)))
+                self._grid_layout.addWidget(cell, r + 1, c + 1, rowspan, colspan)
                 # Без явного show() у уже показанного диалога новая ячейка
                 # остаётся скрытой до следующего цикла событий, и раскладка
                 # не учитывает её размер (сетка "схлопывается").
@@ -474,6 +728,13 @@ class TableEditorDialog(QDialog):
         self.layout().activate()
         self.adjustSize()
         self.setFocus()
+
+    def _add_axis_label(self, text: str, row: int, col: int):
+        label = QLabel(text)
+        label.setObjectName("tableAxis")
+        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._grid_layout.addWidget(label, row, col)
+        label.show()
 
     def _fit_scroll_to_grid(self):
         """Минимальный размер области прокрутки -- размер сетки (плюс рамка
@@ -513,8 +774,20 @@ class TableEditorDialog(QDialog):
                 widget.hide()
                 widget.deleteLater()
 
-    def _render_cell_zone(self, container: QWidget, tokens: List[Dict], is_active: bool):
+    def _render_cell_zone(
+        self, container: QWidget, tokens: List[Dict], is_active: bool,
+        preview: str = "", error: Optional[str] = None,
+    ):
         layout = container.layout()
+        if table_formulas.is_formula_cell(tokens):
+            # Ячейка-формула -- один нередактируемый токен «ƒ значение»; само
+            # выражение -- в подсказке и в строке формулы при выборе ячейки.
+            expr = tokens[0].get("expr", "")
+            label = QLabel(f"ƒ {preview}" if error is None else "ƒ #ОШИБКА")
+            label.setProperty("tableToken", "formula" if error is None else "formulaError")
+            label.setToolTip(f"={expr}" + (f"\n{error}" if error else ""))
+            layout.addWidget(label)
+            return
         cursor_index = self._cursor_index if is_active else -1
         if cursor_index == 0:
             layout.addWidget(self._make_caret())
@@ -526,7 +799,13 @@ class TableEditorDialog(QDialog):
 
     def _render_cell_token(self, token: Dict, index: int, is_active: bool) -> QWidget:
         ttype = token.get("type")
-        text = self._all_fields.get(token["id"], token["id"]) if ttype == "placeholder" else token.get("value", "")
+        if ttype == "placeholder":
+            text = self._all_fields.get(token["id"], token["id"])
+        elif ttype == "formula":
+            # Формула, склеенная с чем-то при объединении ячеек, -- обычным токеном.
+            text = "ƒ " + token.get("expr", "")
+        else:
+            text = token.get("value", "")
         if is_active:
             def on_click(before: bool, i=index):
                 self._set_active_cell(self._active_r, self._active_c, i if before else i + 1)

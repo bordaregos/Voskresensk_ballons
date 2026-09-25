@@ -16,6 +16,7 @@ from pathlib import Path
 from uuid import uuid4
 from docx.shared import Mm
 from docx.oxml.ns import qn
+from docx.oxml import OxmlElement
 from docxtpl import DocxTemplate, InlineImage, RichText
 
 import copy
@@ -2316,11 +2317,20 @@ class MainWindow(QMainWindow):
         таблицы вне охвата, тот же принцип, что и запрет ссылки таблицы на
         саму себя в TableEditorDialog.
 
+        Ячейка-формула ({"type": "formula"}, см. services/table_formulas.py)
+        подставляется посчитанным числом с русской запятой; ошибка формулы
+        печатается как «#ОШИБКА».
+
         Плейсхолдер с рандомом (field_randoms, см. random_editor_dialog.py)
         резолвится не в текст поля, а в свежее случайное значение на КАЖДУЮ
         ячейку, где он встречается."""
         from docx import Document as _ScratchDocument
+        from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
+        from docx.shared import Pt
         from ..services.random_spec import generate_random_value
+        from ..services.table_formulas import FormulaError, evaluate_table
+        from ..services.formatting import parse_ru
         from ..services.title_variants_store import load_field_randoms
 
         randoms = load_field_randoms()
@@ -2328,6 +2338,8 @@ class MainWindow(QMainWindow):
         def resolve_token(token: Dict) -> str:
             if token.get("type") == "text":
                 return token.get("value", "")
+            if token.get("type") != "placeholder":
+                return ""  # формула, склеенная с другим содержимым при объединении
             field_id = token.get("id", "")
             spec = randoms.get(field_id)
             if spec is not None:
@@ -2338,6 +2350,16 @@ class MainWindow(QMainWindow):
                 except ValueError:
                     return ""
             return self._cross_slot_placeholder_value(field_id)
+
+        def get_placeholder_number(field_id: str) -> float:
+            # {поле} внутри формулы: тот же текст, что подставился бы в
+            # ячейку (рандом -- свежее значение), но как число.
+            spec = randoms.get(field_id)
+            try:
+                text = generate_random_value(spec) if spec is not None else self._cross_slot_placeholder_value(field_id)
+                return parse_ru(text.strip())
+            except ValueError:
+                raise FormulaError(f"Поле «{field_id}» не число.")
 
         rows = table.get("rows", [])
         n_rows = len(rows)
@@ -2351,6 +2373,16 @@ class MainWindow(QMainWindow):
             n_rows, n_cols = max(n_rows, 1), max(n_cols, 1)
         doc_table = scratch.add_table(rows=n_rows, cols=n_cols)
         doc_table.style = "Table Grid"
+        # «Все границы» -- явно, а не только через стиль: в шаблоне, куда
+        # таблица вставляется, стиля «Table Grid» может не быть.
+        tbl_pr = doc_table._tbl.tblPr
+        borders = OxmlElement('w:tblBorders')
+        for edge in ('top', 'left', 'bottom', 'right', 'insideH', 'insideV'):
+            border = OxmlElement(f'w:{edge}')
+            for attr, value in (('val', 'single'), ('sz', '4'), ('space', '0'), ('color', '000000')):
+                border.set(qn(f'w:{attr}'), value)
+            borders.append(border)
+        tbl_pr.append(borders)
         has_header = bool(table.get("has_header"))
         # Объединения -- ДО заполнения текстом: python-docx склеивает
         # абзацы сливаемых ячеек, а текст задаётся только якорю (токены
@@ -2360,16 +2392,30 @@ class MainWindow(QMainWindow):
             doc_table.cell(merge["r"], merge["c"]).merge(
                 doc_table.cell(merge["r"] + merge["rowspan"] - 1, merge["c"] + merge["colspan"] - 1)
             )
+        # Тексты всех ячеек считаются разом: формулы (table_formulas.py)
+        # ссылаются на уже сгенерированные значения рандом-чипов.
+        texts, _errors = evaluate_table(
+            rows, resolve_token, get_placeholder_number, lambda rr, cc: is_covered(merges, rr, cc)
+        )
         for r, row in enumerate(rows):
             for c, cell_tokens in enumerate(row):
                 if is_covered(merges, r, c):
                     continue
-                text = "".join(resolve_token(token) for token in cell_tokens)
+                text = texts[r][c]
                 cell = doc_table.cell(r, c)
                 cell.text = text
-                if has_header and r == 0:
-                    for paragraph in cell.paragraphs:
-                        for run in paragraph.runs:
+                # Оформление по умолчанию: по центру и по середине ячейки,
+                # Times New Roman 12 курсивом (в том числе для восточноазиатского
+                # шрифта -- иначе Word может подменить гарнитуру).
+                cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+                for paragraph in cell.paragraphs:
+                    paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    for run in paragraph.runs:
+                        run.font.name = "Times New Roman"
+                        run.font.size = Pt(12)
+                        run.italic = True
+                        run._element.get_or_add_rPr().rFonts.set(qn('w:eastAsia'), "Times New Roman")
+                        if has_header and r == 0:
                             run.bold = True
         return copy.deepcopy(doc_table._tbl)
 
@@ -5250,6 +5296,7 @@ class MainWindow(QMainWindow):
             existing_table=tables.get(field_id),
             create_field=self._create_catalog_field_only,
             parent=self,
+            sample_text=self._table_preview_sample,
         )
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
@@ -5263,6 +5310,20 @@ class MainWindow(QMainWindow):
         save_field_tables(tables)
 
         self._refresh_filled_slots_fields()
+
+    def _table_preview_sample(self, field_id: str) -> str:
+        """Пробное значение поля для предпросмотра формул в редакторе таблиц:
+        для рандом-поля -- образец из его диапазона, иначе текущий текст."""
+        from ..services.random_spec import generate_random_value
+        from ..services.title_variants_store import load_field_randoms
+
+        spec = load_field_randoms().get(field_id)
+        if spec is not None:
+            try:
+                return generate_random_value(spec)
+            except ValueError:
+                return ""
+        return self._cross_slot_placeholder_value(field_id)
 
     def _create_catalog_field_only(self, label: str) -> str:
         """Заводит новое поле ТОЛЬКО в общем каталоге (field_catalog), не
