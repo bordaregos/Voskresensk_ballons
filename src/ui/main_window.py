@@ -18,6 +18,7 @@ from docx.shared import Mm
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 from docx import Document
+from docx.text.paragraph import Paragraph
 from docxtpl import DocxTemplate, InlineImage, RichText
 
 import copy
@@ -55,7 +56,7 @@ from ..services.calculations_pipeline import (
 from ..services.employees_store import (
     store_kleishe_image, load_employees, resolve_kleishe_path, find_employee_id_by_name,
 )
-from ..services.docx_layout import float_drawings_behind_text
+from ..services.docx_layout import add_page_numbers, float_drawings_behind_text
 from ..services.template_validator import find_unknown_placeholders
 from ..services import workspace
 from ..services import custom_sections_store
@@ -2281,12 +2282,33 @@ class MainWindow(QMainWindow):
         _calculate_constructor()) без сторонних зависимостей (docxcompose и
         т.п. в проекте нет) -- прямая работа с телом документа через
         python-docx OXML, тот же уровень API, что уже использует
-        template_generator.py."""
+        template_generator.py.
+
+        Каждый присоединяемый раздел начинается с новой страницы."""
         target_body = target_doc.element.body
         sect_pr = target_body.find(qn('w:sectPr'))
+        first = True
         for child in list(source_doc.element.body):
             if child.tag == qn('w:sectPr'):
                 continue
+            if first:
+                # Каждый раздел -- с новой страницы: у абзаца -- pageBreakBefore
+                # (без лишней пустой строки), у таблицы -- отдельный абзац с
+                # разрывом страницы перед ней.
+                first = False
+                if child.tag == qn('w:p'):
+                    Paragraph(child, target_doc._body).paragraph_format.page_break_before = True
+                else:
+                    break_p = OxmlElement('w:p')
+                    run = OxmlElement('w:r')
+                    br = OxmlElement('w:br')
+                    br.set(qn('w:type'), 'page')
+                    run.append(br)
+                    break_p.append(run)
+                    if sect_pr is not None:
+                        sect_pr.addprevious(break_p)
+                    else:
+                        target_body.append(break_p)
             if sect_pr is not None:
                 sect_pr.addprevious(child)
             else:
@@ -2657,6 +2679,15 @@ class MainWindow(QMainWindow):
                 return  # отменено пользователем -- не ошибка
 
             combined.save(output_path)
+
+            # Номер страницы внизу по центру; на титуле (если он первый в
+            # документе) -- особый пустой колонтитул первой страницы.
+            # ПОСЛЕ сохранения и на заново открытом файле: docxtpl при
+            # render() подменяет части колонтитулов своими копиями, и правки
+            # колонтитула на tpl.docx в сохранённый файл не попадают.
+            with_numbers = Document(output_path)
+            add_page_numbers(with_numbers, skip_first_page=filled[0][0] == "title")
+            with_numbers.save(output_path)
 
             self.show_message(
                 "Готово!", f"Документ успешно сохранён:\n{output_path}", QMessageBox.Icon.Information,

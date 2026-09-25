@@ -131,3 +131,41 @@ def _inline_to_anchor(inline, relative_height: int, anchor_to_placeholder: bool 
             anchor.append(element)
 
     return anchor
+
+
+def add_page_numbers(doc, skip_first_page: bool = False) -> None:
+    """Автонумерация страниц: поле PAGE в нижнем колонтитуле по центру.
+
+    skip_first_page=True -- у первой секции включается «особый колонтитул
+    первой страницы» (titlePg), и он остаётся пустым: на титуле номера нет.
+    Нумерация не сдвигается -- титул считается страницей 1, следующая
+    показывает 2."""
+    for index, section in enumerate(doc.sections):
+        footer = section.footer
+        footer.is_linked_to_previous = False
+        paragraph = footer.paragraphs[0] if footer.paragraphs else footer.add_paragraph()
+        paragraph.alignment = 1  # WD_ALIGN_PARAGRAPH.CENTER
+        # Каждая часть поля -- в своём run (begin / instrText / separate /
+        # текст-заглушка / end): так поле надёжно распознаёт Word.
+        for fld_type, text in (("begin", None), (None, " PAGE "), ("separate", None), (None, "1"), ("end", None)):
+            run = paragraph.add_run()
+            if fld_type:
+                element = OxmlElement("w:fldChar")
+                element.set(qn("w:fldCharType"), fld_type)
+                run._r.append(element)
+            elif text == " PAGE ":
+                element = OxmlElement("w:instrText")
+                element.set(qn("xml:space"), "preserve")
+                element.text = text
+                run._r.append(element)
+            else:
+                run.text = text
+
+        # Шаблон титула мог зафиксировать стартовый номер (pgNumType start=N) --
+        # считаем с 1.
+        for pg_num_type in section._sectPr.findall(qn("w:pgNumType")):
+            section._sectPr.remove(pg_num_type)
+
+        if skip_first_page and index == 0:
+            section.different_first_page_header_footer = True
+            section.first_page_footer.is_linked_to_previous = False
