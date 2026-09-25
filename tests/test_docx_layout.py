@@ -89,3 +89,25 @@ def test_multiple_matching_drawings_get_distinct_relative_heights():
         assert anchor is not None
         heights.add(anchor.get("relativeHeight"))
     assert len(heights) == 2
+
+
+def test_add_page_numbers_footer_center_and_first_page_skipped():
+    from docx import Document
+    from src.services.docx_layout import add_page_numbers
+
+    doc = Document()
+    add_page_numbers(doc, skip_first_page=True)
+    section = doc.sections[0]
+    assert section.different_first_page_header_footer is True
+    assert "PAGE" in section.footer._element.xml
+    assert section.footer.paragraphs[0].alignment == 1
+    assert "PAGE" not in section.first_page_footer._element.xml
+
+
+def test_add_page_numbers_without_skip_has_no_title_page_footer():
+    from docx import Document
+    from src.services.docx_layout import add_page_numbers
+
+    doc = Document()
+    add_page_numbers(doc)
+    assert doc.sections[0].different_first_page_header_footer is False
