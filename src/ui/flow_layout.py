@@ -12,12 +12,20 @@ from PyQt6.QtWidgets import QLayout
 
 
 class FlowLayout(QLayout):
-    def __init__(self, parent=None, margin: int = 0, spacing: int = 6):
+    def __init__(self, parent=None, margin: int = 0, spacing: int = 6, shrinkable: bool = False):
+        """shrinkable=True -- layout не раздувает минимальную ширину
+        контейнера под самый широкий элемент: слишком широкий элемент
+        ужимается до ширины строки (высота -- по heightForWidth(), если
+        виджет умеет переносить текст). Нужно там, где элементы -- длинный
+        пользовательский текст (плашки сотрудника в реквизитах), а сама
+        панель должна вписываться в любое окно. По умолчанию выключено:
+        токены формулы (formula_editor_dialog.py) ужиматься не должны."""
         super().__init__(parent)
         if parent is not None:
             self.setContentsMargins(margin, margin, margin, margin)
         self.setSpacing(spacing)
         self._items = []
+        self._shrinkable = shrinkable
 
     def addItem(self, item):
         # Виджет, добавленный в этот layout уже ПОСЛЕ того, как его окно
@@ -81,10 +89,24 @@ class FlowLayout(QLayout):
     def minimumSize(self) -> QSize:
         size = QSize()
         for item in self._items:
-            size = size.expandedTo(item.minimumSize())
+            item_min = item.minimumSize()
+            if self._shrinkable:
+                item_min = QSize(min(item_min.width(), self._SHRINK_MIN_WIDTH), item_min.height())
+            size = size.expandedTo(item_min)
         margins = self.contentsMargins()
         size += QSize(margins.left() + margins.right(), margins.top() + margins.bottom())
         return size
+
+    # Наименьшая ширина, до которой shrinkable-layout позволяет сжать
+    # контейнер вокруг слишком широкого элемента.
+    _SHRINK_MIN_WIDTH = 120
+
+    def _item_hint(self, item, max_width: int) -> QSize:
+        hint = item.sizeHint()
+        if self._shrinkable and max_width > 0 and hint.width() > max_width:
+            height = item.heightForWidth(max_width) if item.hasHeightForWidth() else hint.height()
+            return QSize(max_width, height)
+        return hint
 
     def _do_layout(self, rect: QRect, test_only: bool) -> int:
         left, top, right, bottom = self.getContentsMargins()
@@ -104,7 +126,7 @@ class FlowLayout(QLayout):
         x = effective.x()
         line_height = 0
         for item in self._items:
-            hint = item.sizeHint()
+            hint = self._item_hint(item, effective.width())
             next_x = x + hint.width() + spacing
             if next_x - spacing > effective.right() and line_height > 0:
                 x = effective.x()
