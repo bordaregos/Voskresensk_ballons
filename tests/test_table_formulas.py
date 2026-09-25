@@ -142,3 +142,49 @@ def test_postfix_percent_like_excel():
     texts, errors = _ev(rows)
     assert texts[0][1:] == ["5,00", "1,00", "50,00"] and not errors
     assert tf.validate_expr("=(2*(МАКС(B3:B4)-МИН(B3:B4))/(МАКС(B3:B4)+МИН(B3:B4)))*100%") is None
+
+
+class TestEvaluateTableOutputs:
+    @staticmethod
+    def _rows():
+        text = lambda v: [{"type": "text", "value": v}]
+        return [
+            [text("10"), text("20")],
+            [text("30"), [{"type": "formula", "expr": "A1+B1", "decimals": 1}]],
+        ]
+
+    def test_output_reads_cell_and_range(self):
+        from src.services.table_formulas import evaluate_table_outputs
+
+        outputs = [
+            {"field_id": "f1", "expr": "B2", "decimals": 1},
+            {"field_id": "f2", "expr": "СУММ(A1:B2)", "decimals": 0},
+        ]
+        texts, values = evaluate_table_outputs(
+            self._rows(), outputs, lambda t: t.get("value", ""), lambda fid: 0.0
+        )
+        assert texts[1][1] == "30,0"
+        assert values == {"f1": "30,0", "f2": "90"}
+
+    def test_output_error_and_empty_expr(self):
+        from src.services.table_formulas import evaluate_table_outputs, ERROR_TEXT
+
+        outputs = [
+            {"field_id": "bad", "expr": "A1/0", "decimals": 1},
+            {"field_id": "empty", "expr": "", "decimals": 1},
+        ]
+        _texts, values = evaluate_table_outputs(
+            self._rows(), outputs, lambda t: t.get("value", ""), lambda fid: 0.0
+        )
+        assert values["bad"] == ERROR_TEXT
+        assert values["empty"] == ""
+
+    def test_output_does_not_change_table_texts(self):
+        from src.services.table_formulas import evaluate_table, evaluate_table_outputs
+
+        resolve = lambda t: t.get("value", "")
+        plain, _ = evaluate_table(self._rows(), resolve, lambda fid: 0.0)
+        with_out, _ = evaluate_table_outputs(
+            self._rows(), [{"field_id": "x", "expr": "A1", "decimals": 1}], resolve, lambda fid: 0.0
+        )
+        assert with_out == plain

@@ -540,6 +540,15 @@ class MainWindow(QMainWindow):
         self.s_min_lst = []
         self.file_handler = None
         self._completed_steps = set()
+        # Чипы-результаты таблиц (table["outputs"]): образцы рандом-полей для
+        # живого показа в реквизитах и тексты таблиц, посчитанные в
+        # get_form_data(), -- их берёт _build_table_element().
+        self._random_samples: Dict[str, str] = {}
+        self._table_eval_cache: Dict[str, list] = {}
+        # field_id чипа-результата -> значение, ушедшее в последний собранный
+        # документ: чип в реквизитах показывает ЕГО (а не пробный образец),
+        # иначе после перестройки полей он расходился бы с документом.
+        self._table_output_values: Dict[str, str] = {}
         self._current_document_path = None
 
         self.equipment_type = equipment_type
@@ -1149,6 +1158,23 @@ class MainWindow(QMainWindow):
                 # RecursionError (воспроизведено).
                 with QSignalBlocker(widget):
                     widget.setPlainText(format_formula_result(value, formula.get("decimals", 2)))
+
+        # Чипы-результаты таблиц (table["outputs"]) -- живое значение по
+        # образцам рандом-полей и текущему тексту полей-операндов.
+        from ..services.title_variants_store import load_field_tables
+
+        for table in load_field_tables().values():
+            outputs = table.get("outputs")
+            if not outputs:
+                continue
+            _texts, values = self._evaluate_table_texts(table, sample=True)
+            for out_id, value in values.items():
+                value = self._table_output_values.get(out_id, value)
+                for slot in self._CONSTRUCTOR_SLOTS:
+                    widget = getattr(self, self._slot_placeholder_name(slot, out_id), None)
+                    if widget is not None and self._slot_placeholder_name(slot, out_id) in self.PLAIN_TEXT_EDIT_NAMES:
+                        with QSignalBlocker(widget):
+                            widget.setPlainText(value)
 
     def _sync_cross_slot_placeholders(self):
         """Досылает предзаполнение одинаковых плейсхолдеров между слотами
@@ -1770,11 +1796,30 @@ class MainWindow(QMainWindow):
             from ..services.title_variants_store import load_field_tables, load_field_employee_bindings
 
             tables = load_field_tables()
-            for field_id in tables:
+            self._table_eval_cache.clear()
+            for field_id, table in tables.items():
                 for slot in self._CONSTRUCTOR_SLOTS:
                     widget_name = self._slot_placeholder_name(slot, field_id)
                     if widget_name in self.PLAIN_TEXT_EDIT_NAMES:
                         self.data[widget_name] = _table_field_marker(field_id)
+                # Чипы-результаты: значение считается здесь, вместе с ячейками
+                # (общий проход -- одни и те же рандом-значения), а посчитанные
+                # тексты кэшируются для _build_table_element().
+                if table.get("outputs"):
+                    texts, output_values = self._evaluate_table_texts(table)
+                    self._table_eval_cache[field_id] = texts
+                    for out_id, value in output_values.items():
+                        for slot in self._CONSTRUCTOR_SLOTS:
+                            widget_name = self._slot_placeholder_name(slot, out_id)
+                            if widget_name in self.PLAIN_TEXT_EDIT_NAMES:
+                                self.data[widget_name] = value
+                                self._table_output_values[out_id] = value
+                                # Чип в реквизитах показывает то же значение,
+                                # что уходит в документ (а не пробный образец).
+                                widget = getattr(self, widget_name, None)
+                                if widget is not None:
+                                    with QSignalBlocker(widget):
+                                        widget.setPlainText(value)
 
             # Поля-клише (field_employee_bindings[...]["key"] == "kleishe",
             # см. employee_placeholders.py) -- тот же приём, что и у таблиц
@@ -2314,7 +2359,60 @@ class MainWindow(QMainWindow):
             else:
                 target_body.append(child)
 
-    def _build_table_element(self, table: Dict):
+    def _evaluate_table_texts(self, table: Dict, sample: bool = False):
+        """(texts, outputs) таблицы field_tables: тексты всех ячеек и значения
+        её чипов-результатов (outputs, field_id -> текст), посчитанные в ОДНОМ
+        проходе (см. table_formulas.evaluate_table_outputs()). Плейсхолдер с
+        рандомом -- КАЖДОЕ вхождение получает своё случайное значение;
+        sample=True (живой показ в реквизитах) вместо этого берёт по одному
+        образцу на поле (self._random_samples), чтобы значение не скакало на
+        каждый пересчёт."""
+        from ..services.random_spec import generate_random_value
+        from ..services.table_formulas import FormulaError, evaluate_table_outputs
+        from ..services.formatting import parse_ru
+        from ..services.title_variants_store import load_field_randoms
+
+        randoms = load_field_randoms()
+
+        def random_text(field_id: str, spec) -> str:
+            if sample:
+                if field_id not in self._random_samples:
+                    self._random_samples[field_id] = generate_random_value(spec)
+                return self._random_samples[field_id]
+            return generate_random_value(spec)
+
+        def resolve_token(token: Dict) -> str:
+            if token.get("type") == "text":
+                return token.get("value", "")
+            if token.get("type") != "placeholder":
+                return ""  # формула, склеенная с другим содержимым при объединении
+            field_id = token.get("id", "")
+            spec = randoms.get(field_id)
+            if spec is not None:
+                try:
+                    return random_text(field_id, spec)
+                except ValueError:
+                    return ""
+            return self._cross_slot_placeholder_value(field_id)
+
+        def get_placeholder_number(field_id: str) -> float:
+            # {поле} внутри формулы: тот же текст, что подставился бы в
+            # ячейку (рандом -- свежее значение), но как число.
+            spec = randoms.get(field_id)
+            try:
+                text = random_text(field_id, spec) if spec is not None else self._cross_slot_placeholder_value(field_id)
+                return parse_ru(text.strip())
+            except ValueError:
+                raise FormulaError(f"Поле «{field_id}» не число.")
+
+        rows = table.get("rows", [])
+        merges = normalize_merges(table.get("merges"), len(rows), len(rows[0]) if rows else 0)
+        return evaluate_table_outputs(
+            rows, table.get("outputs", []), resolve_token, get_placeholder_number,
+            lambda rr, cc: is_covered(merges, rr, cc),
+        )
+
+    def _build_table_element(self, table: Dict, field_id: str = ""):
         """Строит НАСТОЯЩУЮ .docx-таблицу из содержимого редактора таблиц
         (field_tables[field_id] -- {"has_header":.., "rows": [[токены
         ячейки, ...], ...]}, см. table_editor_dialog.py) и возвращает её
@@ -2352,38 +2450,6 @@ class MainWindow(QMainWindow):
         from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT
         from docx.enum.text import WD_ALIGN_PARAGRAPH
         from docx.shared import Pt
-        from ..services.random_spec import generate_random_value
-        from ..services.table_formulas import FormulaError, evaluate_table
-        from ..services.formatting import parse_ru
-        from ..services.title_variants_store import load_field_randoms
-
-        randoms = load_field_randoms()
-
-        def resolve_token(token: Dict) -> str:
-            if token.get("type") == "text":
-                return token.get("value", "")
-            if token.get("type") != "placeholder":
-                return ""  # формула, склеенная с другим содержимым при объединении
-            field_id = token.get("id", "")
-            spec = randoms.get(field_id)
-            if spec is not None:
-                # Поле с рандомом -- КАЖДОЕ вхождение в таблице получает своё
-                # новое случайное значение (а не одно на всю таблицу).
-                try:
-                    return generate_random_value(spec)
-                except ValueError:
-                    return ""
-            return self._cross_slot_placeholder_value(field_id)
-
-        def get_placeholder_number(field_id: str) -> float:
-            # {поле} внутри формулы: тот же текст, что подставился бы в
-            # ячейку (рандом -- свежее значение), но как число.
-            spec = randoms.get(field_id)
-            try:
-                text = generate_random_value(spec) if spec is not None else self._cross_slot_placeholder_value(field_id)
-                return parse_ru(text.strip())
-            except ValueError:
-                raise FormulaError(f"Поле «{field_id}» не число.")
 
         rows = table.get("rows", [])
         n_rows = len(rows)
@@ -2418,9 +2484,11 @@ class MainWindow(QMainWindow):
             )
         # Тексты всех ячеек считаются разом: формулы (table_formulas.py)
         # ссылаются на уже сгенерированные значения рандом-чипов.
-        texts, _errors = evaluate_table(
-            rows, resolve_token, get_placeholder_number, lambda rr, cc: is_covered(merges, rr, cc)
-        )
+        # Если get_form_data() уже посчитал эту таблицу (вместе с чипами-
+        # результатами), берём те же тексты -- иначе рандом-чипы дали бы
+        # в таблице одно значение, а в чипе-результате -- другое.
+        cached = self._table_eval_cache.get(field_id) if field_id else None
+        texts = cached if cached is not None else self._evaluate_table_texts(table)[0]
         for r, row in enumerate(rows):
             for c, cell_tokens in enumerate(row):
                 if is_covered(merges, r, c):
@@ -2479,7 +2547,7 @@ class MainWindow(QMainWindow):
             p_element = paragraph._p
             parent = p_element.getparent()
             if table is not None:
-                p_element.addprevious(self._build_table_element(table))
+                p_element.addprevious(self._build_table_element(table, field_id))
             parent.remove(p_element)
 
     def _splice_kleishe_placeholders(self, doc):
@@ -3731,6 +3799,8 @@ class MainWindow(QMainWindow):
             setattr(self, widget_name, widget)
             self.PLAIN_TEXT_EDIT_NAMES.append(widget_name)
             self._dynamic_field_names[slot].append(widget_name)
+            if table is not None:
+                self._add_table_output_rows(slot, layout, table, field_ids, labels)
 
         # Программные setPlainText() выше (previous_values/cross-slot
         # prefill) не проходят через textChanged.connect(self._refresh_computed_fields)
@@ -3741,6 +3811,46 @@ class MainWindow(QMainWindow):
         # этого) отражают то, что реально сейчас в реквизитах, а не только
         # то, что было на момент их собственного рендера.
         self._refresh_computed_fields()
+
+    def _add_table_output_rows(self, slot: str, layout: QFormLayout, table: dict, field_ids, labels: dict):
+        """Строки чипов-результатов таблицы (table["outputs"], см.
+        TableEditorDialog) -- сразу ПОД чипом таблицы: чип-плейсхолдер
+        (клик копирует "{{ ... }}") и рядом readOnly-поле с посчитанным
+        значением. Сами чипы-результаты не входят в variant.subtitle_fields --
+        они принадлежат таблице и появляются/исчезают вместе с её outputs;
+        значение пересчитывается в _refresh_computed_fields(), в документ
+        уходит из get_form_data()."""
+        from ..services.title_variants_store import get_all_field_labels
+
+        all_labels = get_all_field_labels()
+        outputs = [o for o in table.get("outputs", []) if o["field_id"] not in field_ids]
+        if not outputs:
+            return
+        _texts, values = self._evaluate_table_texts(table, sample=True)
+        for output in outputs:
+            out_id = output["field_id"]
+            widget_name = self._slot_placeholder_name(slot, out_id)
+            widget = GrowablePlaceholderField()
+            widget.setReadOnly(True)
+            widget.setProperty("computed", True)
+            widget.setPlainText(self._table_output_values.get(out_id, values.get(out_id, "")))
+            chip = QLabel(all_labels.get(out_id, labels.get(out_id, out_id)) + " ƒ")
+            chip.setWordWrap(True)
+            chip.setProperty("titleChip", True)
+            chip.setProperty("titleChipFormula", True)
+            chip.setCursor(Qt.CursorShape.PointingHandCursor)
+            chip.setToolTip(
+                f"{{{{ {widget_name} }}}}\nРезультат формулы таблицы — правка через ПКМ по чипу таблицы → "
+                "«Редактировать таблицу».\nКлик — скопировать для Word."
+            )
+            chip.mouseReleaseEvent = (
+                lambda event, n=widget_name, c=chip: self._copy_chip(n, c)
+                if event.button() == Qt.MouseButton.LeftButton else None
+            )
+            layout.addRow(chip, widget)
+            setattr(self, widget_name, widget)
+            self.PLAIN_TEXT_EDIT_NAMES.append(widget_name)
+            self._dynamic_field_names[slot].append(widget_name)
 
     def _build_random_bounds_row(self, hidden_widget: QWidget, spec: dict) -> QWidget:
         """Правая часть строки поля с рандомом: «от [нижняя] до [верхняя]» --
@@ -4894,6 +5004,10 @@ class MainWindow(QMainWindow):
             if binding.get("source_field_id") == field_id
         }
         ids_to_purge = {field_id} | dependent_ids
+        # Чипы-результаты таблиц удаляемых полей уходят вместе с ними.
+        for purge_id in list(ids_to_purge):
+            for output in load_field_tables().get(purge_id, {}).get("outputs", []):
+                ids_to_purge.add(output["field_id"])
 
         catalog = load_field_catalog()
         catalog_changed = False
@@ -5164,6 +5278,7 @@ class MainWindow(QMainWindow):
         было в виджете на момент последней перерисовки (_render_slot_fields()
         пишет значение в QPlainTextEdit один раз при построении, а не
         перечитывает employee_data_value() при каждом обращении)."""
+        self._random_samples.clear()
         for refresh_slot in self._CONSTRUCTOR_SLOTS:
             refresh_variant_id = self._filled_slot_variant(refresh_slot)
             if refresh_variant_id is not None:
@@ -5393,7 +5508,14 @@ class MainWindow(QMainWindow):
             parent=self,
             sample_text=self._table_preview_sample,
         )
-        if dialog.exec() != QDialog.DialogCode.Accepted:
+        old_output_ids = {o["field_id"] for o in tables.get(field_id, {}).get("outputs", [])}
+        accepted = dialog.exec() == QDialog.DialogCode.Accepted
+        kept_output_ids = {o["field_id"] for o in dialog.outputs} if accepted and not dialog.removed else set()
+        # Чипы-результаты, что не дожили до сохранения (диалог отменён, чип
+        # убран, таблица снята), уходят из каталога -- иначе они висели бы
+        # в меню «Вставить плейсхолдер» без хозяина.
+        self._purge_catalog_fields((old_output_ids | set(dialog.created_field_ids)) - kept_output_ids)
+        if not accepted:
             return
 
         if dialog.removed:
@@ -5402,9 +5524,37 @@ class MainWindow(QMainWindow):
             tables[field_id] = {"has_header": dialog.has_header, "rows": dialog.rows}
             if dialog.merges:
                 tables[field_id]["merges"] = dialog.merges
+            if dialog.outputs:
+                tables[field_id]["outputs"] = dialog.outputs
         save_field_tables(tables)
+        self._random_samples.clear()
+        self._table_output_values.clear()
 
         self._refresh_filled_slots_fields()
+
+    def _purge_catalog_fields(self, field_ids):
+        """Убирает поля из общего каталога и из реквизитов всех вариантов --
+        для чипов-результатов таблицы, потерявших хозяина."""
+        field_ids = set(field_ids)
+        if not field_ids:
+            return
+        from ..services.title_variants_store import load_field_catalog, save_field_catalog
+
+        catalog = load_field_catalog()
+        if field_ids & set(catalog):
+            for fid in field_ids:
+                catalog.pop(fid, None)
+            save_field_catalog(catalog)
+        for slot_key in self._CONSTRUCTOR_SLOTS:
+            slot_store = self._slot_store(slot_key)
+            variants = slot_store.load_variants()
+            changed = False
+            for variant in variants:
+                before = len(variant.subtitle_fields)
+                variant.subtitle_fields = [f for f in variant.subtitle_fields if f not in field_ids]
+                changed = changed or len(variant.subtitle_fields) != before
+            if changed:
+                slot_store.save_variants(variants)
 
     def _table_preview_sample(self, field_id: str) -> str:
         """Пробное значение поля для предпросмотра формул в редакторе таблиц:

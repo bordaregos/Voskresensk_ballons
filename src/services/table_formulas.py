@@ -574,3 +574,38 @@ def evaluate_table(
                 line.append(plain_text(r, c))
         texts.append(line)
     return texts, errors
+
+
+def evaluate_table_outputs(
+    rows: List[List[List[Dict]]],
+    outputs: List[Dict],
+    resolve_token: Callable[[Dict], str],
+    get_ph: PlaceholderGetter,
+    is_covered: Callable[[int, int], bool] = lambda r, c: False,
+) -> Tuple[List[List[str]], Dict[str, str]]:
+    """Как evaluate_table(), плюс значения чипов-результатов таблицы.
+
+    outputs -- [{"field_id", "expr", "decimals"}]: формула чипа пишется по
+    тем же правилам, что и формула ячейки (ссылки на ячейки, диапазоны,
+    {поле}, функции). Считаются в ОДНОМ проходе с ячейками таблицы -- каждая
+    ячейка резолвится один раз, поэтому рандом-чип даёт одно значение и
+    ячейке, и чипу-результату, что на неё ссылается.
+
+    Возвращает (texts, values): texts -- как у evaluate_table(), values --
+    field_id -> текст с русской запятой (ERROR_TEXT при ошибке формулы,
+    "" при пустой формуле)."""
+    n_cols = len(rows[0]) if rows else 0
+    if not n_cols or not outputs:
+        texts, _errors = evaluate_table(rows, resolve_token, get_ph, is_covered)
+        return texts, {o.get("field_id", ""): "" for o in outputs}
+    # Каждый чип -- дополнительная виртуальная строка с одной ячейкой-формулой:
+    # так он делит с таблицей и кэш ячеек, и обнаружение циклов.
+    extended = [list(row) for row in rows]
+    for output in outputs:
+        expr = output.get("expr", "").strip()
+        cell = [{"type": "formula", "expr": expr, "decimals": output.get("decimals", DEFAULT_DECIMALS)}] if expr else []
+        extended.append([cell] + [[] for _ in range(n_cols - 1)])
+    texts_ext, _errors = evaluate_table(extended, resolve_token, get_ph, is_covered)
+    n_rows = len(rows)
+    values = {o.get("field_id", ""): texts_ext[n_rows + i][0] for i, o in enumerate(outputs)}
+    return texts_ext[:n_rows], values

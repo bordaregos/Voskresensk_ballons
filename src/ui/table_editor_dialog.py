@@ -166,7 +166,12 @@ class TableEditorDialog(QDialog):
         # Само поле, которое сейчас превращается в таблицу, исключено из
         # списка вставки -- ссылка на само себя бессмысленна (тот же приём,
         # что и самоисключение поля в редакторе формул).
-        self._all_fields: Dict[str, str] = {fid: label for fid, label in all_fields.items() if fid != field_id}
+        own_output_ids = {o.get("field_id") for o in (existing_table or {}).get("outputs", [])}
+        # Чипы-результаты этой же таблицы тоже исключены -- ячейка не должна
+        # ссылаться на значение, которое сама и порождает.
+        self._all_fields: Dict[str, str] = {
+            fid: label for fid, label in all_fields.items() if fid != field_id and fid not in own_output_ids
+        }
         self._all_formulas = dict(all_formulas)
         self._all_tables = dict(all_tables)
         # Колбэк заводит НОВОЕ поле в общем каталоге (field_catalog) и
@@ -187,10 +192,12 @@ class TableEditorDialog(QDialog):
             self._merges: List[Dict] = table_merges.normalize_merges(
                 existing_table.get("merges"), len(self._rows), len(self._rows[0]) if self._rows else 0
             )
+            self._outputs: List[Dict] = [dict(o) for o in existing_table.get("outputs", [])]
         else:
             self._rows = [[[], []], [[], []]]  # пустая сетка 2×2 по умолчанию
             self._has_header = False
             self._merges = []
+            self._outputs = []
 
         self._active_r = 0
         self._active_c = 0
@@ -203,6 +210,11 @@ class TableEditorDialog(QDialog):
         self.removed = False
         self.rows: List[List[List[Dict]]] = []
         self.merges: List[Dict] = []
+        self.outputs: List[Dict] = []
+        # field_id чипов-результатов, заведённых в каталоге за время работы
+        # диалога: вызывающая сторона удаляет из каталога те, что не дожили
+        # до сохранённого результата (диалог отменён / чип убран).
+        self.created_field_ids: List[str] = []
         self.has_header = self._has_header
 
         self.setWindowTitle("Редактор таблицы")
@@ -210,6 +222,7 @@ class TableEditorDialog(QDialog):
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self._build_ui(field_label, existing_table is not None)
         self._render_grid()
+        self._render_outputs()
 
     # -- Построение диалога -------------------------------------------------
     def _build_ui(self, field_label: str, has_existing: bool):
@@ -342,6 +355,25 @@ class TableEditorDialog(QDialog):
         edit_row.addWidget(self._op_button("Очистить ячейку", self._clear_active_cell))
         edit_row.addStretch(1)
         layout.addLayout(edit_row)
+        layout.addSpacing(10)
+
+        outputs_title = QLabel("Чипы-результаты")
+        outputs_title.setObjectName("tableTitle")
+        layout.addWidget(outputs_title)
+        outputs_hint = QLabel(
+            "Отдельный плейсхолдер со значением формулы: после сохранения он появится в реквизитах "
+            "под чипом этой таблицы (только для чтения), а {{ чип }} в шаблоне подставит результат."
+        )
+        outputs_hint.setObjectName("tableSubtitle")
+        outputs_hint.setWordWrap(True)
+        layout.addWidget(outputs_hint)
+        self._outputs_layout = QVBoxLayout()
+        self._outputs_layout.setSpacing(4)
+        layout.addLayout(self._outputs_layout)
+        add_output_row = QHBoxLayout()
+        add_output_row.addWidget(self._op_button("+ Чип-результат", self._on_add_output))
+        add_output_row.addStretch(1)
+        layout.addLayout(add_output_row)
         layout.addSpacing(10)
 
         bottom_row = QHBoxLayout()
@@ -493,8 +525,9 @@ class TableEditorDialog(QDialog):
             self._samples[field_id] = self._sample_text(field_id) if self._sample_text else ""
         return self._samples[field_id]
 
-    def _evaluate_preview(self):
-        """(texts, errors) текущей сетки -- для предпросмотра формул."""
+    def _evaluate_preview(self, with_outputs: bool = False):
+        """(texts, errors) текущей сетки -- для предпросмотра формул; с
+        with_outputs=True -- (texts, {field_id: значение чипа-результата})."""
         def resolve(token: Dict) -> str:
             if token.get("type") == "text":
                 return token.get("value", "")
@@ -506,9 +539,10 @@ class TableEditorDialog(QDialog):
             except ValueError:
                 raise table_formulas.FormulaError(f"Поле «{self._all_fields.get(field_id, field_id)}» — нет пробного числа.")
 
-        return table_formulas.evaluate_table(
-            self._rows, resolve, get_ph, lambda r, c: table_merges.is_covered(self._merges, r, c)
-        )
+        covered = lambda r, c: table_merges.is_covered(self._merges, r, c)
+        if with_outputs:
+            return table_formulas.evaluate_table_outputs(self._rows, self._outputs, resolve, get_ph, covered)
+        return table_formulas.evaluate_table(self._rows, resolve, get_ph, covered)
 
     def _fill(self, down: bool):
         r1, c1, r2, c2 = self._selection_rect()
@@ -544,6 +578,9 @@ class TableEditorDialog(QDialog):
             for cell in row:
                 if table_formulas.is_formula_cell(cell):
                     cell[0]["expr"] = adjust(cell[0].get("expr", ""))
+        for output in self._outputs:
+            output["expr"] = adjust(output.get("expr", ""))
+        self._render_outputs()
 
     # -- Вставка/удаление -- всегда РОВНО в позицию курсора (list.insert),
     # не в конец -- те же причины, что и в редакторе формул. ---------------
@@ -728,6 +765,8 @@ class TableEditorDialog(QDialog):
         self.layout().activate()
         self.adjustSize()
         self.setFocus()
+        if hasattr(self, "_output_previews"):
+            self._update_output_previews()
 
     def _add_axis_label(self, text: str, row: int, col: int):
         label = QLabel(text)
@@ -822,9 +861,91 @@ class TableEditorDialog(QDialog):
         caret.setObjectName("tableCaret")
         return caret
 
+    # -- Чипы-результаты ------------------------------------------------------
+    def _on_add_output(self):
+        label, ok = QInputDialog.getText(self, "Новый чип-результат", "Название плейсхолдера:")
+        label = label.strip()
+        if not ok or not label:
+            return
+        field_id = self._create_field(label)
+        self.created_field_ids.append(field_id)
+        # По умолчанию чип показывает значение активной ячейки.
+        self._outputs.append({
+            "field_id": field_id,
+            "label": label,
+            "expr": table_formulas.cell_name(self._active_r, self._active_c),
+            "decimals": table_formulas.DEFAULT_DECIMALS,
+        })
+        self._render_outputs()
+
+    def _remove_output(self, index: int):
+        del self._outputs[index]
+        self._render_outputs()
+
+    def _render_outputs(self):
+        self._clear_layout(self._outputs_layout)
+        self._output_previews: List[QLabel] = []
+        for index, output in enumerate(self._outputs):
+            row_widget = QWidget()
+            row = QHBoxLayout(row_widget)
+            row.setContentsMargins(0, 0, 0, 0)
+            chip = QLabel(output.get("label") or self._all_fields.get(output["field_id"], output["field_id"]))
+            chip.setProperty("tableToken", "formula")
+            row.addWidget(chip)
+            expr_edit = QLineEdit(output.get("expr", ""))
+            expr_edit.setObjectName("tableTextInput")
+            expr_edit.setPlaceholderText("Формула, например B5 или СУММ(B2:B4)")
+            expr_edit.textChanged.connect(lambda text, i=index: self._on_output_expr_changed(i, text))
+            row.addWidget(expr_edit, stretch=1)
+            spin = QSpinBox()
+            spin.setRange(0, 6)
+            spin.setValue(int(output.get("decimals", table_formulas.DEFAULT_DECIMALS)))
+            spin.setSuffix(" зн.")
+            spin.valueChanged.connect(lambda value, i=index: self._on_output_decimals_changed(i, value))
+            row.addWidget(spin)
+            preview = QLabel("")
+            preview.setObjectName("formulaPreview")
+            preview.setMinimumWidth(70)
+            self._output_previews.append(preview)
+            row.addWidget(preview)
+            row.addWidget(self._op_button("✕", lambda checked=False, i=index: self._remove_output(i)))
+            self._outputs_layout.addWidget(row_widget)
+            row_widget.show()
+        self._update_output_previews()
+        self.adjustSize()
+
+    def _on_output_expr_changed(self, index: int, text: str):
+        self._outputs[index]["expr"] = text.strip().lstrip("=").strip()
+        self._update_output_previews()
+
+    def _on_output_decimals_changed(self, index: int, value: int):
+        self._outputs[index]["decimals"] = value
+        self._update_output_previews()
+
+    def _update_output_previews(self):
+        """Пробное значение каждого чипа-результата (рандом-поля -- образец)."""
+        if not self._outputs:
+            return
+        _texts, values = self._evaluate_preview(with_outputs=True)
+        for output, preview in zip(self._outputs, self._output_previews):
+            error = table_formulas.validate_expr(output.get("expr", ""))
+            preview.setText(f"Ошибка" if error else "= " + values.get(output["field_id"], ""))
+
     # -- Завершение ---------------------------------------------------------
     def _on_save(self):
+        for output in self._outputs:
+            error = table_formulas.validate_expr(output.get("expr", ""))
+            if not output.get("expr") or error:
+                QMessageBox.warning(
+                    self, "Чип-результат",
+                    f"Формула чипа «{output.get('label', output['field_id'])}»: " + (error or "не задана."),
+                )
+                return
         self.removed = False
+        self.outputs = [
+            {"field_id": o["field_id"], "expr": o["expr"], "decimals": int(o.get("decimals", table_formulas.DEFAULT_DECIMALS))}
+            for o in self._outputs
+        ]
         self.rows = [[_clone_cell(cell) for cell in row] for row in self._rows]
         self.has_header = self._has_header
         self.merges = [dict(m) for m in self._merges]
