@@ -15,6 +15,7 @@ from src.services.template_validator import (
     extract_paragraph_text,
     find_placeholders,
     find_suspicious_tags,
+    find_unknown_placeholders,
     validate_against_widget_names,
     validate_template,
 )
@@ -177,3 +178,26 @@ def test_validate_against_widget_names_catches_missing_and_unknown(tmp_path):
     assert not report.ok
     assert any("reg_number" in i.message for i in report.errors)
     assert any("unexpected_field" in i.message for i in report.warnings)
+
+
+def test_find_unknown_placeholders_reports_missing_names_sorted():
+    doc, _ = _doc_with_paragraph_runs("{{ a }} {{ old_id }} {{ b }} {{ old_id }}")
+    assert find_unknown_placeholders(doc, {"a"}) == ["b", "old_id"]
+
+
+def test_find_unknown_placeholders_empty_when_all_known():
+    doc, _ = _doc_with_paragraph_runs("{{ a }}{{ b }}")
+    assert find_unknown_placeholders(doc, {"a", "b", "extra"}) == []
+
+
+def test_find_unknown_placeholders_attribute_access_known_by_prefix():
+    doc, _ = _doc_with_paragraph_runs("{{ obj.attr }}")
+    assert find_unknown_placeholders(doc, {"obj"}) == []
+
+
+def test_find_unknown_placeholders_ignores_loop_variables():
+    doc = Document()
+    doc.add_paragraph("{% for s in specialists %}")
+    doc.add_paragraph("{{ s.name }}")
+    doc.add_paragraph("{% endfor %}")
+    assert find_unknown_placeholders(doc, set()) == []
