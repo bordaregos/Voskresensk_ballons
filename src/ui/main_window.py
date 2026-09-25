@@ -62,6 +62,7 @@ from .template_location import choose_template_save_path
 from .growable_placeholder_field import GrowablePlaceholderField
 from .flow_layout import FlowLayout
 from .formula_editor_dialog import FormulaEditorDialog
+from .random_editor_dialog import RandomEditorDialog
 from ..services.table_merges import is_covered, normalize_merges
 from .table_editor_dialog import TableEditorDialog
 from .employee_placeholder_dialog import EmployeePlaceholderDialog
@@ -242,6 +243,21 @@ QGroupBox[role="fieldsPanel"] QLabel[titleChipFormula="true"] {
 QGroupBox[role="fieldsPanel"] QPlainTextEdit[computed="true"] {
     background: rgba(191, 90, 242, 24); border-color: rgba(191, 90, 242, 140); color: #d29dfa;
 }
+/* Чип поля с рандомом (см. random_editor_dialog.py) -- оранжевый акцент,
+   тот же принцип, что у формулы/таблицы/сотрудника. */
+QGroupBox[role="fieldsPanel"] QLabel[titleChipRandom="true"] {
+    background: rgba(255, 159, 10, 36); color: #ffb340;
+    border: 1px solid rgba(255, 159, 10, 140);
+}
+QGroupBox[role="fieldsPanel"] QLabel[titleChipRandom="true"][titleChipCopied="true"] {
+    background: rgba(48, 209, 88, 40); color: #30d158;
+    border: 1px solid rgba(48, 209, 88, 140);
+}
+QGroupBox[role="fieldsPanel"] QLineEdit[randomBound="true"] {
+    background: rgba(255, 159, 10, 20); border: 0.5px solid rgba(255, 159, 10, 140);
+    border-radius: 6px; color: #ffb340; padding: 6px 8px;
+}
+QGroupBox[role="fieldsPanel"] QLabel[randomBoundCaption="true"] { color: #8e8e93; font-size: 11px; }
 /* Чип поля, представленного таблицей (см. table_editor_dialog.py) --
    отдельный акцент (голубой), чтобы отличать и от обычных плейсхолдеров
    (синие), и от вычисляемых по формуле (фиолетовые). */
@@ -1771,6 +1787,21 @@ class MainWindow(QMainWindow):
                     if widget_name in self.PLAIN_TEXT_EDIT_NAMES:
                         self.data[widget_name] = _kleishe_field_marker(field_id)
 
+        if self.equipment_type.id == "constructor":
+            # Поля с рандомом (field_randoms, см. random_editor_dialog.py) --
+            # значение генерируется заново на каждую сборку данных документа.
+            from ..services.random_spec import generate_random_value
+            from ..services.title_variants_store import load_field_randoms
+
+            for field_id, spec in load_field_randoms().items():
+                for slot in self._CONSTRUCTOR_SLOTS:
+                    widget_name = self._slot_placeholder_name(slot, field_id)
+                    if widget_name in self.PLAIN_TEXT_EDIT_NAMES:
+                        try:
+                            self.data[widget_name] = generate_random_value(spec)
+                        except ValueError:
+                            self.data[widget_name] = ""
+
         return self.data
 
     def calculate(self):
@@ -2283,8 +2314,30 @@ class MainWindow(QMainWindow):
         _render_slot_fields()). Ссылка на ДРУГОЕ табличное поле внутри
         ячейки не разворачивается рекурсивно (вернёт "") -- вложенные
         таблицы вне охвата, тот же принцип, что и запрет ссылки таблицы на
-        саму себя в TableEditorDialog."""
+        саму себя в TableEditorDialog.
+
+        Плейсхолдер с рандомом (field_randoms, см. random_editor_dialog.py)
+        резолвится не в текст поля, а в свежее случайное значение на КАЖДУЮ
+        ячейку, где он встречается."""
         from docx import Document as _ScratchDocument
+        from ..services.random_spec import generate_random_value
+        from ..services.title_variants_store import load_field_randoms
+
+        randoms = load_field_randoms()
+
+        def resolve_token(token: Dict) -> str:
+            if token.get("type") == "text":
+                return token.get("value", "")
+            field_id = token.get("id", "")
+            spec = randoms.get(field_id)
+            if spec is not None:
+                # Поле с рандомом -- КАЖДОЕ вхождение в таблице получает своё
+                # новое случайное значение (а не одно на всю таблицу).
+                try:
+                    return generate_random_value(spec)
+                except ValueError:
+                    return ""
+            return self._cross_slot_placeholder_value(field_id)
 
         rows = table.get("rows", [])
         n_rows = len(rows)
@@ -2311,11 +2364,7 @@ class MainWindow(QMainWindow):
             for c, cell_tokens in enumerate(row):
                 if is_covered(merges, r, c):
                     continue
-                text = "".join(
-                    token.get("value", "") if token.get("type") == "text"
-                    else self._cross_slot_placeholder_value(token.get("id", ""))
-                    for token in cell_tokens
-                )
+                text = "".join(resolve_token(token) for token in cell_tokens)
                 cell = doc_table.cell(r, c)
                 cell.text = text
                 if has_header and r == 0:
@@ -3272,6 +3321,7 @@ class MainWindow(QMainWindow):
         одинаково полезен и для готовых встроенных вариантов."""
         from ..services.title_variants_store import (
             get_all_field_labels, load_field_formulas, load_field_tables, load_field_employee_bindings,
+            load_field_randoms,
         )
         from ..services.formula_engine import evaluate_formula, format_formula_result
 
@@ -3325,6 +3375,7 @@ class MainWindow(QMainWindow):
         labels = get_all_field_labels()
         formulas = load_field_formulas()
         tables = load_field_tables()
+        randoms = load_field_randoms()
         # employee_bindings -- см. _create_employee_from_chip_menu(): КАЖДЫЙ
         # field_id здесь -- отдельное, ранее автоматически заведённое поле
         # (field_catalog запись "<подпись триггера> — <представление>"),
@@ -3360,6 +3411,7 @@ class MainWindow(QMainWindow):
             widget_name = self._slot_placeholder_name(slot, field_id)
             formula = formulas.get(field_id)
             table = tables.get(field_id)
+            random_spec = randoms.get(field_id)
             binding = employee_bindings.get(field_id)
             binding_key = binding.get("key") if binding else None
             # bound_employee/employee_value -- None, если у поля нет
@@ -3390,7 +3442,17 @@ class MainWindow(QMainWindow):
             # строки, пока не в фокусе или не закреплено шевроном -- см.
             # docs/design/вводная_часть.html и src/ui/growable_placeholder_field.py.
             widget = GrowablePlaceholderField()
-            if formula is not None:
+            row_field = widget
+            if random_spec is not None:
+                # Рандом -- приоритетнее формулы/таблицы. Сам виджет остаётся
+                # (спрятанным): он нужен как запись в PLAIN_TEXT_EDIT_NAMES и
+                # источник имени плейсхолдера, а значение в документ уходит
+                # из get_form_data() (generate_random_value()). Видимая часть
+                # -- два readOnly-поля с границами диапазона.
+                widget.setReadOnly(True)
+                widget.hide()
+                row_field = self._build_random_bounds_row(widget, random_spec)
+            elif formula is not None:
                 # Вычисляемое поле -- readOnly (не disabled: значение всё
                 # ещё можно выделить и скопировать), значение ВСЕГДА
                 # пересчитывается заново, а не восстанавливается из
@@ -3479,6 +3541,7 @@ class MainWindow(QMainWindow):
             if is_custom:
                 chip_text = (
                     labels.get(field_id, field_id)
+                    + (" 🎲" if random_spec is not None else "")
                     + (" ƒ" if formula is not None else "")
                     + (" ▦" if table is not None else "")
                     + (" 👤" if bound_employee is not None else "")
@@ -3486,6 +3549,8 @@ class MainWindow(QMainWindow):
                 row_label = QLabel(chip_text)
                 row_label.setWordWrap(True)
                 tooltip = f"{{{{ {widget_name} }}}}"
+                if random_spec is not None:
+                    tooltip += "\nСлучайное значение в заданных границах — правка через ПКМ → «Редактировать рандом».\nКлик — скопировать для Word."
                 if formula is not None:
                     tooltip += "\nВычисляется по формуле — правка недоступна, см. ПКМ."
                 if table is not None:
@@ -3505,6 +3570,8 @@ class MainWindow(QMainWindow):
                 tooltip += " ПКМ — меню. Перетащите на другое поле — переставить порядок."
                 row_label.setToolTip(tooltip)
                 row_label.setProperty("titleChip", True)
+                if random_spec is not None:
+                    row_label.setProperty("titleChipRandom", True)
                 if formula is not None:
                     row_label.setProperty("titleChipFormula", True)
                 if table is not None:
@@ -3545,7 +3612,7 @@ class MainWindow(QMainWindow):
                     slot, variant_id, row_label, widget, group_children, labels, employee_bindings, employees_by_id,
                 ))
             else:
-                layout.addRow(row_label, widget)
+                layout.addRow(row_label, row_field)
             setattr(self, widget_name, widget)
             self.PLAIN_TEXT_EDIT_NAMES.append(widget_name)
             self._dynamic_field_names[slot].append(widget_name)
@@ -3559,6 +3626,29 @@ class MainWindow(QMainWindow):
         # этого) отражают то, что реально сейчас в реквизитах, а не только
         # то, что было на момент их собственного рендера.
         self._refresh_computed_fields()
+
+    def _build_random_bounds_row(self, hidden_widget: QWidget, spec: dict) -> QWidget:
+        """Правая часть строки поля с рандомом: «от [нижняя] до [верхняя]» --
+        два readOnly QLineEdit (значение можно выделить и скопировать, но не
+        править; менять границы -- через ПКМ → «Редактировать рандом»).
+        hidden_widget -- настоящее поле плейсхолдера (см. _render_slot_fields()),
+        кладётся в контейнер, чтобы жить и удаляться вместе со строкой."""
+        from ..services.random_spec import format_random_bound
+
+        container = QWidget()
+        row = QHBoxLayout(container)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(6)
+        for caption, key in (("от", "low"), ("до", "high")):
+            caption_label = QLabel(caption)
+            caption_label.setProperty("randomBoundCaption", True)
+            edit = QLineEdit(format_random_bound(spec, spec[key]))
+            edit.setReadOnly(True)
+            edit.setProperty("randomBound", True)
+            row.addWidget(caption_label)
+            row.addWidget(edit, 1)
+        row.addWidget(hidden_widget)
+        return container
 
     def _build_employee_group_row(
         self, slot: str, variant_id: str, trigger_chip: QLabel, trigger_widget: "GrowablePlaceholderField",
@@ -4674,6 +4764,7 @@ class MainWindow(QMainWindow):
             load_hidden_builtin_fields, save_hidden_builtin_fields,
             load_field_formulas, save_field_formulas,
             load_field_tables, save_field_tables,
+            load_field_randoms, save_field_randoms,
             load_field_employee_bindings, save_field_employee_bindings,
         )
 
@@ -4716,6 +4807,14 @@ class MainWindow(QMainWindow):
                 formulas_changed = True
         if formulas_changed:
             save_field_formulas(formulas)
+
+        randoms = load_field_randoms()
+        randoms_changed = False
+        for purge_id in ids_to_purge:
+            if randoms.pop(purge_id, None) is not None:
+                randoms_changed = True
+        if randoms_changed:
+            save_field_randoms(randoms)
 
         tables = load_field_tables()
         tables_changed = False
@@ -4885,11 +4984,15 @@ class MainWindow(QMainWindow):
         поле реквизитов рядом с текущим (readOnly, значение из справочника
         сотрудников, field_employee_bindings в title_variants_store.py),
         работающее по той же логике, что и любой другой плейсхолдер."""
-        from ..services.title_variants_store import load_field_catalog, load_field_formulas, load_field_tables
+        from ..services.title_variants_store import (
+            load_field_catalog, load_field_formulas, load_field_randoms, load_field_tables,
+        )
 
         menu = QMenu(self)
         formula_label = "Редактировать формулу" if field_id in load_field_formulas() else "Создать формулу"
         formula_action = menu.addAction(icons.icon("formula", "#bf5af2", 13), formula_label)
+        random_label = "Редактировать рандом" if field_id in load_field_randoms() else "Создать рандом"
+        random_action = menu.addAction(icons.icon("dice", "#ff9f0a", 13), random_label)
         table_label = "Редактировать таблицу" if field_id in load_field_tables() else "Создать таблицу"
         table_action = menu.addAction(icons.icon("table", "#64d2ff", 13), table_label)
         rename_action = None
@@ -4900,6 +5003,8 @@ class MainWindow(QMainWindow):
         chosen = menu.exec(global_pos)
         if chosen == formula_action:
             self._open_formula_editor(slot, variant_id, field_id)
+        elif chosen == random_action:
+            self._open_random_editor(field_id)
         elif chosen == table_action:
             self._open_table_editor(slot, variant_id, field_id)
         elif chosen == employee_action:
@@ -5099,6 +5204,29 @@ class MainWindow(QMainWindow):
         else:
             formulas[field_id] = {"tokens": dialog.tokens, "decimals": dialog.decimals}
         save_field_formulas(formulas)
+
+        self._refresh_filled_slots_fields()
+
+    def _open_random_editor(self, field_id: str):
+        """Открывает RandomEditorDialog для field_id -- на сохранении/удалении
+        правит ОБЩИЙ каталог рандомов (field_randoms, title_variants_store.py),
+        тем же охватом, что формула и таблица."""
+        from ..services.title_variants_store import get_all_field_labels, load_field_randoms, save_field_randoms
+
+        randoms = load_field_randoms()
+        dialog = RandomEditorDialog(
+            field_label=get_all_field_labels().get(field_id, field_id),
+            existing_spec=randoms.get(field_id),
+            parent=self,
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        if dialog.removed:
+            randoms.pop(field_id, None)
+        else:
+            randoms[field_id] = dialog.spec
+        save_field_randoms(randoms)
 
         self._refresh_filled_slots_fields()
 

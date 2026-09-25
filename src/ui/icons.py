@@ -88,6 +88,12 @@ _PATHS = {
     # незалитые кружки-контуры, как у "tag" выше, по той же причине
     # (fill="currentColor" не резолвится через этот рендерер).
     "formula": '<line x1="4" y1="12" x2="20" y2="12"/><circle cx="8" cy="6" r="1.3"/><circle cx="16" cy="18" r="1.3"/>',
+    # Игральная кость -- «Создать рандом»/«Редактировать рандом» в ПКМ-меню
+    # чипа плейсхолдера (_show_chip_context_menu(), src/ui/main_window.py).
+    "dice": (
+        '<rect x="3" y="3" width="18" height="18" rx="3"/>'
+        '<circle cx="8.5" cy="8.5" r="1"/><circle cx="15.5" cy="15.5" r="1"/><circle cx="12" cy="12" r="1"/>'
+    ),
     # Активити-бар (docs/design/вводная_часть.html, #activityBar) --
     # переключатель разделов приложения над сайдбаром конструктора
     # документов, см. MainWindow._switch_activity_view().

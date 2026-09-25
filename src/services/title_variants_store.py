@@ -154,6 +154,21 @@ def save_field_tables(tables: Dict[str, Dict], path: Path = TITLE_VARIANTS_FILE)
     _save_raw(data, path)
 
 
+def load_field_randoms(path: Path = TITLE_VARIANTS_FILE) -> Dict[str, Dict]:
+    """field_id -> {"kind", "low", "high", "step", "decimals"} -- параметры
+    генератора случайных чисел поля (см. src/services/random_spec.py).
+    Тот же общий охват, что и у field_formulas/field_tables."""
+    data = _load_raw(path)
+    return dict(data.get('field_randoms', {}))
+
+
+def save_field_randoms(randoms: Dict[str, Dict], path: Path = TITLE_VARIANTS_FILE) -> None:
+    """Сохраняет параметры рандома полей, не трогая остальные секции файла."""
+    data = _load_raw(path)
+    data['field_randoms'] = dict(randoms)
+    _save_raw(data, path)
+
+
 def load_field_employee_bindings(path: Path = TITLE_VARIANTS_FILE) -> Dict[str, Dict]:
     """field_id -> {"employee_id": str, "key": str, "source_field_id": str} --
     какой сотрудник и какое ОДНО его представление стоит за этим
