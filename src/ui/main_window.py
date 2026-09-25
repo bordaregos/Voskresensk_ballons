@@ -859,6 +859,8 @@ class MainWindow(QMainWindow):
                 label.style().unpolish(label)
                 label.style().polish(label)
 
+            self._wrap_constructor_sidebar_in_scroll()
+
             # Активити-бар (docs/design/вводная_часть.html, #activityBar) --
             # узкая колонка иконок слева от viewStack, переключает ЦЕЛИКОМ
             # страницу viewStack (см. _switch_activity_view()): «Редактор
@@ -3281,6 +3283,14 @@ class MainWindow(QMainWindow):
         layout = self._slot_widget(slot, "fields_layout")
         while layout.rowCount():
             layout.removeRow(0)
+        # Адаптив под ширину окна: на macOS QFormLayout по умолчанию не
+        # растягивает поля (FieldsStayAtSizeHint) и не переносит строки
+        # (DontWrapRows) -- поля висели узкой колонкой в широком окне, а
+        # длинная подпись задавала минимальную ширину всей канвы и
+        # обрезала её справа в узком. Растим поля на всю ширину и
+        # переносим поле под подпись, когда обе рядом не помещаются.
+        layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+        layout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
 
         if is_custom:
             layout.addRow(self._build_placeholder_catalog(slot, variant_id, field_ids))
@@ -3463,6 +3473,7 @@ class MainWindow(QMainWindow):
                     + (" 👤" if bound_employee is not None else "")
                 )
                 row_label = QLabel(chip_text)
+                row_label.setWordWrap(True)
                 tooltip = f"{{{{ {widget_name} }}}}"
                 if formula is not None:
                     tooltip += "\nВычисляется по формуле — правка недоступна, см. ПКМ."
@@ -3511,7 +3522,12 @@ class MainWindow(QMainWindow):
                     row_label, slot, variant_id, field_id, widget_name, copyable=not has_employee_children,
                 )
             else:
-                row_label = labels.get(field_id, field_id)
+                # QLabel с переносом, а не голая строка -- addRow(str, ...)
+                # создаёт QLabel без переноса, и длинная подпись поля
+                # (напр. «Эксперт, привлекаемый МО РФ ...») раздувала
+                # минимальную ширину канвы.
+                row_label = QLabel(labels.get(field_id, field_id))
+                row_label.setWordWrap(True)
             group_children = children_by_trigger.get(field_id) if is_custom else None
             if group_children:
                 layout.addRow(self._build_employee_group_row(
@@ -3583,7 +3599,7 @@ class MainWindow(QMainWindow):
         подпись поля" ниже (та же логика, что уже применяется, когда
         сотрудника удалили из справочника, см. bound_employee is None)."""
         container = QWidget()
-        flow = FlowLayout(container, margin=0, spacing=6)
+        flow = FlowLayout(container, margin=0, spacing=6, shrinkable=True)
         flow.addWidget(trigger_chip)
         trigger_widget.setParent(container)
         trigger_widget.hide()
@@ -3609,6 +3625,7 @@ class MainWindow(QMainWindow):
             self._dynamic_field_names[slot].append(child_widget_name)
 
             pill = QLabel(employee_value or labels.get(child_field_id, child_field_id))
+            pill.setWordWrap(True)  # длинное значение (напр. должность) переносится, а не раздувает панель
             pill.setProperty("titleChip", True)
             pill.setProperty("titleChipEmployee", True)
             pill.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -3837,6 +3854,33 @@ class MainWindow(QMainWindow):
         upload_btn.clicked.connect(functools.partial(self._upload_variant_template, slot, variant_id))
         toolbar.addWidget(upload_btn)
         outer.addLayout(toolbar)
+
+        # Адаптив: пока обе кнопки с подписями не помещаются в ширину панели,
+        # «Загрузить шаблон Word» сжимается до иконки (подпись остаётся в
+        # тултипе) -- иначе панель раздувала минимальную ширину канвы и
+        # правый край обрезался в узком окне. Порог считается один раз по
+        # полному виду обеих кнопок, поэтому переключение не «дребезжит».
+        upload_full_text = upload_btn.text()
+        full_toolbar_width = (
+            insert_btn.sizeHint().width() + upload_btn.sizeHint().width()
+            + toolbar.spacing() + outer.contentsMargins().left() + outer.contentsMargins().right()
+        )
+        orig_container_resize = container.resizeEvent
+
+        def _container_resize(event, orig=orig_container_resize):
+            orig(event)
+            compact = event.size().width() < full_toolbar_width
+            if compact != (upload_btn.toolButtonStyle() == Qt.ToolButtonStyle.ToolButtonIconOnly):
+                upload_btn.setToolButtonStyle(
+                    Qt.ToolButtonStyle.ToolButtonIconOnly if compact
+                    else Qt.ToolButtonStyle.ToolButtonTextBesideIcon
+                )
+                upload_btn.setText("" if compact else upload_full_text)
+
+        container.resizeEvent = _container_resize
+        # Явный минимум -- иначе layout панели не даст ей стать уже
+        # полного вида кнопок, и компактный режим выше не сработает никогда.
+        container.setMinimumWidth(200)
 
         if template_filename:
             outer.addWidget(self._build_template_loaded_card(slot, variant_id, template_filename))
@@ -6467,6 +6511,28 @@ class MainWindow(QMainWindow):
             self._refresh_objects_tree()
         self._current_view = view
 
+    def _wrap_constructor_sidebar_in_scroll(self):
+        """Кладёт constructorSidebar в QScrollArea с вертикальной
+        прокруткой. Высота палитры растёт с числом разделов/вариантов, и
+        без обёртки её минимальная высота становилась минимальной высотой
+        всего окна (окно нельзя было сузить по высоте, на небольших
+        экранах оно вылезало за экран). Скроллится только сама палитра;
+        ширина остаётся прежней (до 240 px, см. .ui)."""
+        sidebar = self.constructorSidebar
+        body_layout = self.bodyLayout
+        index = body_layout.indexOf(sidebar)
+        body_layout.removeWidget(sidebar)
+
+        scroll = QScrollArea()
+        scroll.setObjectName("constructorSidebarScroll")
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setWidget(sidebar)
+        scroll.setFixedWidth(sidebar.maximumWidth())
+        body_layout.insertWidget(index, scroll)
+        self.constructorSidebarScroll = scroll
+
     def _toggle_constructor_sidebar(self):
         """Сворачивает/разворачивает constructorSidebar (палитру разделов) --
         сам виджет просто прячется (setVisible()), соседняя канва
@@ -6475,7 +6541,7 @@ class MainWindow(QMainWindow):
         относится к НЕСВЯЗАННОМУ виджету sidebar (дерево «Объекты», общее с
         трубопроводом, см. обсуждение задачи), constructorSidebar с ним не
         путать."""
-        self.constructorSidebar.setVisible(not self.constructorSidebar.isVisible())
+        self.constructorSidebarScroll.setVisible(not self.constructorSidebarScroll.isVisible())
 
     def _reset_form(self):
         """Очищает форму под новый/другой документ -- обратная операция к
