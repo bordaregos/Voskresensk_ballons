@@ -24,7 +24,7 @@ from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QColor, QPainter, QPainterPath, QPen
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QPushButton, QToolButton,
-    QMenu, QSpinBox, QAbstractSpinBox, QFrame, QMessageBox, QSizePolicy,
+    QMenu, QSpinBox, QAbstractSpinBox, QFrame, QMessageBox, QSizePolicy, QScrollArea,
 )
 
 from . import icons
@@ -269,7 +269,19 @@ class FormulaEditorDialog(QDialog):
 
         self._canvas = self._make_flow_widget("formulaCanvas", margin=10, spacing=6)
         self._canvas.setMinimumHeight(44)
-        layout.addWidget(self._canvas)
+        # Канва в QScrollArea: длинная формула (много переносов, дроби с
+        # длинными плейсхолдерами) иначе растёт вниз без предела, а окно
+        # ограничено размером экрана -- канва налезала на «Результат» и
+        # кнопки. Высота области = высота канвы, но не больше _CANVAS_MAX_HEIGHT;
+        # сверх этого -- вертикальная прокрутка (см. _fit_canvas_scroll()).
+        self._canvas_scroll = QScrollArea()
+        self._canvas_scroll.setObjectName("formulaCanvasScroll")
+        self._canvas_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self._canvas_scroll.setWidgetResizable(True)
+        self._canvas_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self._canvas_scroll.setStyleSheet("QScrollArea#formulaCanvasScroll { background: transparent; }")
+        self._canvas_scroll.setWidget(self._canvas)
+        layout.addWidget(self._canvas_scroll)
 
         result_row = QHBoxLayout()
         result_row.addWidget(QLabel("Результат:"))
@@ -492,24 +504,60 @@ class FormulaEditorDialog(QDialog):
         # (её высота теперь учитывает уже выставленные высоты дробей внутри
         # неё, т.к. QVBoxLayout дроби пересчитывает totalSizeHint по своим,
         # теперь верным, детям).
-        self.layout().activate()
-        for zone in self._canvas.findChildren(QWidget, "formulaFracZone"):
-            self._apply_flow_height(zone, min_height=24)
-        self._apply_flow_height(self._canvas, min_height=44)
+        #
+        # Один проход недостаточен: ширина зоны дроби известна только после
+        # activate(), а её высота (setFixedHeight) меняет размер обёртки
+        # дроби, то есть высоту строки канвы и, из-за переноса, иногда и
+        # раскладку по ширине. Поэтому проход повторяется, пока высоты не
+        # перестанут меняться (на практике -- 2-3 итерации).
+        for _ in range(5):
+            self.layout().activate()
+            before = [w.height() for w in self._canvas.findChildren(QWidget, "formulaFracZone")]
+            before.append(self._canvas.height())
+            # Зоны без дробей внутри (вложенные дроби -- глубже) считаются
+            # раньше канвы: findChildren() отдаёт родителей раньше детей,
+            # поэтому идём в обратном порядке -- снизу вверх.
+            for zone in reversed(self._canvas.findChildren(QWidget, "formulaFracZone")):
+                self._apply_flow_height(zone, min_height=24)
+            self._apply_flow_height(self._canvas, min_height=44)
+            self._fit_canvas_scroll()
+            self.layout().activate()
+            after = [w.height() for w in self._canvas.findChildren(QWidget, "formulaFracZone")]
+            after.append(self._canvas.height())
+            if before == after:
+                break
 
         # QDialog не пересчитывает своё окно само по себе при изменении
         # содержимого ПОСЛЕ показа (это происходит только один раз, при
         # первом exec()/show()) -- без явного adjustSize() выросшая канва
         # осталась бы обрезанной внутри окна старого размера, даже если
-        # сама канва теперь размечена правильно.
+        # сама канва теперь размечена правильно. invalidate() -- обязателен:
+        # кэш размеров корневого layout остаётся от ДО setFixedHeight()
+        # канвы, и без сброса окно подгоняется под устаревшую (меньшую)
+        # высоту -- канва налезает на строку «Результат» и нижние кнопки.
+        #
+        # Не adjustSize(): он урезает окно до доли высоты экрана, и результат
+        # оказывался ниже sizeHint() -- нижние строки налезали друг на друга.
+        # Высота канвы ограничена _CANVAS_MAX_HEIGHT, так что окно и без
+        # этого не вырастает сверх разумного.
+        self.layout().invalidate()
         self.layout().activate()
-        self.adjustSize()
+        hint = self.sizeHint()
+        self.resize(max(self.width(), hint.width()), hint.height())
 
         # Возвращает клавиатурный фокус диалогу после ЛЮБОГО изменения
         # (клик по канве, вставка через кнопку) -- чтобы набор цифр (см.
         # keyPressEvent()) продолжал попадать в формулу, а не оставался на
         # только что нажатой кнопке/поле округления.
         self.setFocus()
+
+    # Предельная высота видимой части канвы, px; выше -- прокрутка.
+    _CANVAS_MAX_HEIGHT = 260
+
+    def _fit_canvas_scroll(self):
+        """Высота области прокрутки под текущую высоту канвы (+2 px на
+        границу канвы), но не выше _CANVAS_MAX_HEIGHT."""
+        self._canvas_scroll.setFixedHeight(min(self._canvas.height(), self._CANVAS_MAX_HEIGHT))
 
     def _apply_flow_height(self, widget: QWidget, min_height: int):
         """Явно выставляет высоту widget (с FlowLayout) под его текущую
